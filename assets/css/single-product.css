@@ -1,0 +1,25 @@
+/* =============================================================
+   DetaliVam — Single product CSS layer
+   Loaded only on WooCommerce product pages.
+   Keep page-specific fixes here before moving legacy rules out of main.css.
+   ============================================================= */
+
+body.single-product .gallery-main-img {
+  content-visibility: auto;
+}
+
+body.single-product .gallery-thumb img {
+  display: block;
+}
+
+body.single-product .product-purchase-panel form.cart .single_add_to_cart_button,
+body.single-product .product-purchase-panel form.cart .dv-buy-now-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  body.single-product .product-purchase-panel form.cart .single_add_to_cart_button,
+  body.single-product .product-purchase-panel form.cart .dv-buy-now-button {
+    min-width: 0;
+  }
+}

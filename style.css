@@ -1,0 +1,17 @@
+/*
+Theme Name:   ДеталиВам
+Theme URI:    https://detalivam63.ru
+Description:  Самостоятельная WooCommerce-тема для интернет-магазина автозапчастей ДеталиВам: каталог, карточки товаров, корзина, SEO, сервисные страницы и настройки из админки.
+Author:       Денис Феоктистов
+Author URI:   https://detalivam63.ru
+Version:      1.0.2
+Requires at least: 6.0
+Tested up to: 6.8
+Requires PHP: 8.0
+License:      GNU General Public License v2 or later
+License URI:  https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain:  detalivam
+Tags:         woocommerce, auto-parts, e-commerce, russian
+*/
+
+/* Основные стили темы находятся в assets/css/main.css и подключаются через inc/theme-core.php. */

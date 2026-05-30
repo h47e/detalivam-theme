@@ -1,0 +1,10 @@
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Dependency/cache folders if they appear later
+node_modules/
+vendor/
