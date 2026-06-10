@@ -95,9 +95,14 @@ $base_url   = function_exists( 'dv_wholesale_page_url' ) ? dv_wholesale_page_url
                 </div>
 
                 <?php if ( $query && $query->have_posts() ) : ?>
+                    <?php
+                    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+                        dv_prime_product_object_caches( wp_list_pluck( $query->posts, 'ID' ) );
+                    }
+                    ?>
                     <?php while ( $query->have_posts() ) : $query->the_post(); ?>
                         <?php
-                        $product = wc_get_product( get_the_ID() );
+                        $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( get_the_ID() ) : wc_get_product( get_the_ID() );
                         if ( ! $product || ! $product->is_visible() ) {
                             continue;
                         }

@@ -54,9 +54,14 @@ function dv_lists_labels() {
 
 function dv_get_list_preview_products( $ids, $limit = 4 ) {
     $products = array();
+    $ids      = array_slice( (array) $ids, 0, $limit );
 
-    foreach ( array_slice( (array) $ids, 0, $limit ) as $id ) {
-        $product = wc_get_product( $id );
+    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+        dv_prime_product_object_caches( $ids );
+    }
+
+    foreach ( $ids as $id ) {
+        $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $id ) : wc_get_product( $id );
 
         if ( ! $product || ! $product->is_visible() ) {
             continue;
@@ -209,8 +214,12 @@ function dv_ajax_get_wishlist_products() {
     ob_start();
     echo '<div class="woocommerce"><ul class="products">';
 
+    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+        dv_prime_product_object_caches( $ids );
+    }
+
     foreach ( $ids as $id ) {
-        $wishlist_product = wc_get_product( $id );
+        $wishlist_product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $id ) : wc_get_product( $id );
 
         if ( ! $wishlist_product || ! $wishlist_product->is_visible() ) {
             continue;
@@ -316,8 +325,12 @@ function dv_ajax_get_compare_table() {
     }
 
     $products = array();
+    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+        dv_prime_product_object_caches( $ids );
+    }
+
     foreach ( $ids as $id ) {
-        $product = wc_get_product( $id );
+        $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $id ) : wc_get_product( $id );
         if ( $product ) {
             $products[] = $product;
         }

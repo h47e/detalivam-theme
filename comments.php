@@ -16,7 +16,7 @@ if ( 'product' === get_post_type() && function_exists( 'wc_review_ratings_enable
     global $product;
 
     if ( ! $product instanceof WC_Product ) {
-        $product = wc_get_product( get_the_ID() );
+        $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( get_the_ID() ) : wc_get_product( get_the_ID() );
     }
 
     $review_count = get_comments_number();

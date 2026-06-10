@@ -207,27 +207,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
           <?php endif; ?>
 
           <?php
-          $brand       = get_post_meta( $product->get_id(), '_brand', true );
-          $brand_ru    = html_entity_decode( '&#1073;&#1088;&#1077;&#1085;&#1076;', ENT_QUOTES, 'UTF-8' );
-          $maker_ru    = html_entity_decode( '&#1087;&#1088;&#1086;&#1080;&#1079;&#1074;&#1086;&#1076;&#1080;&#1090;&#1077;&#1083;&#1100;', ENT_QUOTES, 'UTF-8' );
-
-          if ( ! $brand ) {
-              $attrs = $product->get_attributes();
-              foreach ( $attrs as $a ) {
-                  $attr_name = strtolower( $a->get_name() );
-                  if (
-                      false !== strpos( $attr_name, 'brand' ) ||
-                      false !== strpos( $attr_name, $brand_ru ) ||
-                      false !== strpos( $attr_name, $maker_ru )
-                  ) {
-                      $terms = $a->get_terms();
-                      if ( $terms ) {
-                          $brand = $terms[0]->name;
-                      }
-                      break;
-                  }
-              }
-          }
+          $brand = function_exists( 'dv_get_product_brand_name' ) ? dv_get_product_brand_name( $product ) : get_post_meta( $product->get_id(), '_brand', true );
 
           if ( $brand ) :
               ?>
@@ -453,6 +433,11 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
         <div class="related-body">
           <div class="woocommerce">
             <ul class="products">
+              <?php
+              if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+                  dv_prime_product_object_caches( $related );
+              }
+              ?>
               <?php foreach ( $related as $rel_id ) :
                     $rel_product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $rel_id ) : wc_get_product( $rel_id );
                     if ( ! $rel_product || ! $rel_product->is_visible() ) {

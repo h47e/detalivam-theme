@@ -199,7 +199,7 @@ function dv_ajax_add_to_cart() {
         wc_load_cart();
     }
 
-    $product = wc_get_product( $product_id );
+    $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $product_id ) : wc_get_product( $product_id );
     if ( ! $product ) {
         wp_send_json_error( array( 'message' => html_entity_decode( '&#1058;&#1086;&#1074;&#1072;&#1088; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;.', ENT_QUOTES, 'UTF-8' ) ) );
     }

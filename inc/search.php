@@ -1241,10 +1241,20 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
     }
 
     $ids = array();
+    $row_ids = array_map(
+        static function ( $row ) {
+            return (int) $row->ID;
+        },
+        $rows
+    );
+
+    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+        dv_prime_product_object_caches( $row_ids );
+    }
 
     foreach ( $rows as $row ) {
         $product_id = (int) $row->ID;
-        $product    = wc_get_product( $product_id );
+        $product    = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $product_id ) : wc_get_product( $product_id );
 
         if ( ! $product || ! $product->is_visible() ) {
             continue;
@@ -1308,8 +1318,12 @@ function dv_get_product_ids_for_marka_filter( $marka_slug, $query, $tax_query = 
     $matched_ids    = array();
     $marka_taxonomy = dv_get_marka_taxonomy();
 
+    if ( function_exists( 'dv_prime_product_object_caches' ) ) {
+        dv_prime_product_object_caches( $products_query->posts );
+    }
+
     foreach ( $products_query->posts as $product_id ) {
-        $product = wc_get_product( $product_id );
+        $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $product_id ) : wc_get_product( $product_id );
 
         if ( ! $product || ! $product->is_visible() ) {
             continue;

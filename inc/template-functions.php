@@ -761,6 +761,55 @@ function dv_get_product_brand_name( $product ) {
         }
     }
 
+    $brand_ru = html_entity_decode( '&#1073;&#1088;&#1077;&#1085;&#1076;', ENT_QUOTES, 'UTF-8' );
+    $maker_ru = html_entity_decode( '&#1087;&#1088;&#1086;&#1080;&#1079;&#1074;&#1086;&#1076;&#1080;&#1090;&#1077;&#1083;&#1100;', ENT_QUOTES, 'UTF-8' );
+
+    foreach ( $product->get_attributes() as $attribute ) {
+        if ( ! $attribute instanceof WC_Product_Attribute ) {
+            continue;
+        }
+
+        $attribute_name  = $attribute->get_name();
+        $attribute_label = wc_attribute_label( $attribute->get_name() );
+        $attribute_name  = function_exists( 'dv_seo_mb_strtolower' ) ? dv_seo_mb_strtolower( $attribute_name ) : strtolower( $attribute_name );
+        $attribute_label = function_exists( 'dv_seo_mb_strtolower' ) ? dv_seo_mb_strtolower( $attribute_label ) : strtolower( $attribute_label );
+        $haystack        = $attribute_name . ' ' . $attribute_label;
+
+        if ( false === strpos( $haystack, 'brand' ) && false === strpos( $haystack, $brand_ru ) && false === strpos( $haystack, $maker_ru ) ) {
+            continue;
+        }
+
+        if ( $attribute->is_taxonomy() ) {
+            $terms = $attribute->get_terms();
+            if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+                $brand = trim( wp_strip_all_tags( (string) $terms[0]->name ) );
+
+                if ( '' !== $brand ) {
+                    if ( $product_id ) {
+                        $brand_cache[ $product_id ] = $brand;
+                    }
+
+                    return $brand;
+                }
+            }
+
+            continue;
+        }
+
+        foreach ( (array) $attribute->get_options() as $option ) {
+            $brand = trim( wp_strip_all_tags( (string) $option ) );
+            if ( '' === $brand ) {
+                continue;
+            }
+
+            if ( $product_id ) {
+                $brand_cache[ $product_id ] = $brand;
+            }
+
+            return $brand;
+        }
+    }
+
     $meta_candidates = array( '_brand', '_manufacturer', 'brand', 'manufacturer' );
     foreach ( $meta_candidates as $meta_key ) {
         $value = trim( wp_strip_all_tags( (string) get_post_meta( $product->get_id(), $meta_key, true ) ) );
@@ -1601,6 +1650,7 @@ function dv_get_catalog_recommendation_products( $limit = 3 ) {
     }
 
     $products = array();
+    dv_prime_product_object_caches( array_slice( $ids, 0, $limit ) );
 
     foreach ( array_slice( $ids, 0, $limit ) as $product_id ) {
         $product = dv_get_product_cached( $product_id );
@@ -1638,6 +1688,31 @@ function dv_get_product_cached( $product_or_id ) {
     $product_cache[ $product_id ] = $product instanceof WC_Product ? $product : null;
 
     return $product_cache[ $product_id ];
+}
+
+function dv_prime_product_object_caches( $product_ids ) {
+    $product_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $product_ids ) ) ) );
+
+    if ( empty( $product_ids ) ) {
+        return;
+    }
+
+    static $primed_ids = array();
+    $ids_to_prime = array();
+
+    foreach ( $product_ids as $product_id ) {
+        if ( empty( $primed_ids[ $product_id ] ) ) {
+            $primed_ids[ $product_id ] = true;
+            $ids_to_prime[] = $product_id;
+        }
+    }
+
+    if ( empty( $ids_to_prime ) ) {
+        return;
+    }
+
+    update_meta_cache( 'post', $ids_to_prime );
+    update_object_term_cache( $ids_to_prime, 'product' );
 }
 
 function dv_get_current_product_cached() {
@@ -1757,6 +1832,8 @@ function dv_render_product_loop( $product_ids, $columns = 4 ) {
         return;
     }
 
+    dv_prime_product_object_caches( $product_ids );
+
     $columns     = max( 1, (int) $columns );
     $old_loop    = $GLOBALS['woocommerce_loop'] ?? null;
     $old_product = $GLOBALS['product'] ?? null;
@@ -1818,6 +1895,7 @@ function dv_get_recently_viewed_product_ids( $exclude_id = 0, $limit = 8 ) {
     }
 
     $visible_ids = array();
+    dv_prime_product_object_caches( $ids );
 
     foreach ( $ids as $product_id ) {
         $product = dv_get_product_cached( $product_id );
@@ -1873,6 +1951,7 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
 
     $similar_ids = array();
     $upsells     = array_values( array_filter( array_map( 'absint', (array) $base_product->get_upsell_ids() ) ) );
+    dv_prime_product_object_caches( $upsells );
 
     foreach ( $upsells as $upsell_id ) {
         $upsell_product = dv_get_product_cached( $upsell_id );
@@ -1916,6 +1995,8 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
         )
     );
 
+    dv_prime_product_object_caches( $query->posts );
+
     foreach ( (array) $query->posts as $candidate_id ) {
         $candidate = dv_get_product_cached( $candidate_id );
         if ( ! $candidate || ! $candidate->is_visible() ) {
@@ -1941,6 +2022,8 @@ function dv_render_product_section( $title, $product_ids, $section_class = '' ) 
     if ( empty( $product_ids ) ) {
         return;
     }
+
+    dv_prime_product_object_caches( $product_ids );
 
     $class_name = 'related-shell';
     if ( $section_class ) {
