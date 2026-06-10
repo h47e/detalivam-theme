@@ -1386,6 +1386,68 @@ function dv_get_term_trail( $term, $taxonomy ) {
     return $trail;
 }
 
+function dv_get_product_section_cache_version() {
+    $version = (int) get_option( 'dv_product_section_cache_version', 1 );
+
+    if ( $version < 1 ) {
+        $version = 1;
+        update_option( 'dv_product_section_cache_version', $version, false );
+    }
+
+    return $version;
+}
+
+function dv_product_section_cache_key( $suffix ) {
+    return 'dv_product_section_' . dv_get_product_section_cache_version() . '_' . md5( (string) $suffix );
+}
+
+function dv_flush_product_section_cache() {
+    update_option( 'dv_product_section_cache_version', time(), false );
+}
+add_action( 'save_post_product', 'dv_flush_product_section_cache' );
+add_action( 'deleted_post', 'dv_flush_product_section_cache' );
+add_action( 'created_product_cat', 'dv_flush_product_section_cache' );
+add_action( 'edited_product_cat', 'dv_flush_product_section_cache' );
+add_action( 'delete_product_cat', 'dv_flush_product_section_cache' );
+add_action( 'woocommerce_update_product', 'dv_flush_product_section_cache' );
+
+function dv_get_catalog_recommendation_products( $limit = 3 ) {
+    if ( ! function_exists( 'wc_get_products' ) || ! function_exists( 'wc_get_product' ) ) {
+        return array();
+    }
+
+    $limit     = max( 1, (int) $limit );
+    $cache_key = dv_product_section_cache_key( 'catalog_recs|' . $limit );
+    $ids       = get_transient( $cache_key );
+
+    if ( ! is_array( $ids ) ) {
+        $ids = wc_get_products(
+            array(
+                'limit'      => $limit,
+                'status'     => 'publish',
+                'visibility' => 'catalog',
+                'orderby'    => 'popularity',
+                'return'     => 'ids',
+            )
+        );
+
+        $ids = array_values( array_filter( array_map( 'absint', (array) $ids ) ) );
+        set_transient( $cache_key, $ids, 6 * HOUR_IN_SECONDS );
+    }
+
+    $products = array();
+
+    foreach ( array_slice( $ids, 0, $limit ) as $product_id ) {
+        $product = wc_get_product( $product_id );
+
+        if ( $product && $product->is_visible() ) {
+            $products[] = $product;
+        }
+    }
+
+    return $products;
+}
+
 function dv_get_recently_viewed_product_ids( $exclude_id = 0, $limit = 8 ) {
     $raw = sanitize_text_field( wp_unslash( $_COOKIE['dv_recently_viewed'] ?? '' ) );
     $ids = array_values( array_filter( array_map( 'absint', explode( ',', $raw ) ) ) );
@@ -1439,7 +1501,16 @@ add_action( 'template_redirect', 'dv_track_recently_viewed_product' );
 
 function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit = 4 ) {
     $product_id   = absint( $product_id );
+    $limit        = max( 1, (int) $limit );
     $exclude_ids  = array_values( array_unique( array_filter( array_map( 'absint', (array) $exclude_ids ) ) ) );
+    sort( $exclude_ids );
+    $cache_key    = dv_product_section_cache_key( 'similar|' . $product_id . '|' . $limit . '|' . implode( ',', $exclude_ids ) );
+    $cached_ids   = get_transient( $cache_key );
+
+    if ( is_array( $cached_ids ) ) {
+        return array_slice( array_values( array_filter( array_map( 'absint', $cached_ids ) ) ), 0, $limit );
+    }
+
     $base_product = wc_get_product( $product_id );
 
     if ( ! $base_product ) {
@@ -1459,12 +1530,18 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
     }
 
     if ( count( $similar_ids ) >= $limit ) {
-        return array_slice( $similar_ids, 0, $limit );
+        $similar_ids = array_slice( array_values( array_unique( $similar_ids ) ), 0, $limit );
+        set_transient( $cache_key, $similar_ids, 6 * HOUR_IN_SECONDS );
+
+        return $similar_ids;
     }
 
     $term_ids = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'ids' ) );
     if ( empty( $term_ids ) || is_wp_error( $term_ids ) ) {
-        return array_slice( $similar_ids, 0, $limit );
+        $similar_ids = array_slice( array_values( array_unique( $similar_ids ) ), 0, $limit );
+        set_transient( $cache_key, $similar_ids, 6 * HOUR_IN_SECONDS );
+
+        return $similar_ids;
     }
 
     $query = new WP_Query(
@@ -1498,7 +1575,10 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
         }
     }
 
-    return array_slice( array_values( array_unique( $similar_ids ) ), 0, $limit );
+    $similar_ids = array_slice( array_values( array_unique( $similar_ids ) ), 0, $limit );
+    set_transient( $cache_key, $similar_ids, 6 * HOUR_IN_SECONDS );
+
+    return $similar_ids;
 }
 
 function dv_render_product_section( $title, $product_ids, $section_class = '' ) {

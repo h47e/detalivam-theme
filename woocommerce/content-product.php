@@ -18,6 +18,10 @@ $permalink    = $product->get_permalink();
 $display_name = function_exists( 'dv_get_product_display_name' ) ? dv_get_product_display_name( $product ) : $product->get_name();
 $img_id       = $product->get_image_id();
 $img_html     = '';
+$card_index   = isset( $GLOBALS['dv_product_card_render_index'] ) ? (int) $GLOBALS['dv_product_card_render_index'] : 0;
+$is_single_product_context = function_exists( 'is_product' ) && is_product();
+$is_priority_image = ! $is_single_product_context && $card_index < 4;
+$GLOBALS['dv_product_card_render_index'] = $card_index + 1;
 
 if ( $img_id ) {
     $img_html = wp_get_attachment_image(
@@ -26,9 +30,9 @@ if ( $img_id ) {
         false,
         array(
             'alt'           => $display_name,
-            'loading'       => 'lazy',
+            'loading'       => $is_priority_image ? 'eager' : 'lazy',
             'decoding'      => 'async',
-            'fetchpriority' => 'low',
+            'fetchpriority' => $is_priority_image ? 'high' : 'low',
             'class'         => 'dv-card-image',
         )
     );
@@ -36,9 +40,11 @@ if ( $img_id ) {
 
 if ( '' === $img_html ) {
     $img_html = sprintf(
-        '<img src="%s" alt="%s" loading="lazy" decoding="async" fetchpriority="low" class="dv-card-image">',
+        '<img src="%s" alt="%s" loading="%s" decoding="async" fetchpriority="%s" class="dv-card-image">',
         esc_url( wc_placeholder_img_src() ),
-        esc_attr( $display_name )
+        esc_attr( $display_name ),
+        esc_attr( $is_priority_image ? 'eager' : 'lazy' ),
+        esc_attr( $is_priority_image ? 'high' : 'low' )
     );
 }
 

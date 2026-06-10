@@ -305,15 +305,8 @@ if ( $current_cat ) {
     }
 }
 
-$recs = $recs_enabled
-    ? wc_get_products(
-        [
-            'limit'      => $recs_limit,
-            'status'     => 'publish',
-            'visibility' => 'catalog',
-            'orderby'    => 'popularity',
-        ]
-    )
+$recs = $recs_enabled && function_exists( 'dv_get_catalog_recommendation_products' )
+    ? dv_get_catalog_recommendation_products( $recs_limit )
     : array();
 
 $seo_h1     = '';
