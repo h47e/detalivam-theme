@@ -103,7 +103,8 @@ function dv_frontend_script_labels() {
         return $labels;
     }
 
-    $content       = function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array();
+    $content       = get_option( 'dv_theme_content', array() );
+    $content       = is_array( $content ) ? $content : array();
     $compare_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'compare_limit', 4, 2, 8 ) : 4;
 
     $labels = array(
@@ -173,7 +174,7 @@ function dv_get_store_profile() {
         'footer_description' => sprintf(
             '%1$s %2$s. %3$s, %4$s, %5$s, %6$s. %7$s %8$s.',
             html_entity_decode( '&#1048;&#1085;&#1090;&#1077;&#1088;&#1085;&#1077;&#1090;-&#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085; &#1072;&#1074;&#1090;&#1086;&#1079;&#1072;&#1087;&#1095;&#1072;&#1089;&#1090;&#1077;&#1081; &#1074;', ENT_QUOTES, 'UTF-8' ),
-            $labels['city'],
+            dv_core_default_label( 'city' ),
             html_entity_decode( '&#1050;&#1091;&#1079;&#1086;&#1074;&#1085;&#1099;&#1077; &#1076;&#1077;&#1090;&#1072;&#1083;&#1080;', ENT_QUOTES, 'UTF-8' ),
             html_entity_decode( '&#1089;&#1080;&#1089;&#1090;&#1077;&#1084;&#1072; &#1074;&#1099;&#1087;&#1091;&#1089;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
             html_entity_decode( '&#1087;&#1086;&#1076;&#1074;&#1077;&#1089;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
