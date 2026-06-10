@@ -104,6 +104,34 @@ body.single-product .product-marketplace-text {
   font-size: 13px;
 }
 
+body.single-product .product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+body.single-product .product-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 0;
+  gap: 7px;
+  line-height: 1.2;
+}
+
+body.single-product .product-action-link svg {
+  flex: 0 0 auto;
+}
+
+body.single-product .product-action-link span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 body.single-product .related-head {
   display: flex;
   align-items: center;
@@ -130,5 +158,22 @@ body.single-product .related-title {
 
   body.single-product .product-purchase-panel form.cart .dv-buy-now-button {
     grid-column: 1 / -1;
+  }
+
+  body.single-product .product-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  body.single-product .product-action-link {
+    width: 100%;
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  body.single-product .product-actions {
+    grid-template-columns: 1fr;
   }
 }
