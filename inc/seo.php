@@ -1529,10 +1529,10 @@ function dv_output_collection_page_schema() {
 
     if ( is_product_category() ) {
         $term = get_queried_object();
-        if ( $term instanceof WP_Term ) {
+        if ( $term instanceof WP_Term && dv_require_seo_sitemap_module() && function_exists( 'dv_sitemap_latest_product_date' ) ) {
             $modified = dv_sitemap_latest_product_date( $term->term_id );
         }
-    } elseif ( is_post_type_archive( 'product' ) ) {
+    } elseif ( is_post_type_archive( 'product' ) && dv_require_seo_sitemap_module() && function_exists( 'dv_sitemap_latest_product_date' ) ) {
         $modified = dv_sitemap_latest_product_date();
     }
 
@@ -1595,6 +1595,10 @@ function dv_get_service_page_modified_date() {
     }
 
     if ( '' === $virtual_type ) {
+        return '';
+    }
+
+    if ( ! dv_require_seo_sitemap_module() || ! function_exists( 'dv_sitemap_service_page_date' ) ) {
         return '';
     }
 
