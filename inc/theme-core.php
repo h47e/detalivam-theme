@@ -276,14 +276,24 @@ function dv_theme_visual_preset_body_class( $classes ) {
 add_filter( 'body_class', 'dv_theme_visual_preset_body_class' );
 
 function dv_is_woocommerce_context() {
+    static $is_context = null;
+
+    if ( null !== $is_context ) {
+        return $is_context;
+    }
+
     if ( ! class_exists( 'WooCommerce' ) ) {
-        return false;
+        $is_context = false;
+
+        return $is_context;
     }
 
     $checks = array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page', 'is_shop', 'is_product', 'is_product_category', 'is_product_tag' );
     foreach ( $checks as $check ) {
         if ( function_exists( $check ) && $check() ) {
-            return true;
+            $is_context = true;
+
+            return $is_context;
         }
     }
 
@@ -300,11 +310,36 @@ function dv_is_woocommerce_context() {
             || has_shortcode( $body, 'woocommerce_checkout' )
             || has_shortcode( $body, 'woocommerce_my_account' )
         ) {
-            return true;
+            $is_context = true;
+
+            return $is_context;
         }
     }
 
-    return false;
+    $is_context = false;
+
+    return $is_context;
+}
+
+function dv_theme_asset_version( $relative_path ) {
+    static $versions = array();
+
+    $relative_path = ltrim( (string) $relative_path, '/' );
+
+    if ( isset( $versions[ $relative_path ] ) ) {
+        return $versions[ $relative_path ];
+    }
+
+    $path    = get_stylesheet_directory() . '/' . $relative_path;
+    $version = DV_VERSION;
+
+    if ( file_exists( $path ) ) {
+        $version .= '.' . filemtime( $path );
+    }
+
+    $versions[ $relative_path ] = $version;
+
+    return $versions[ $relative_path ];
 }
 
 function dv_optimize_woocommerce_assets() {
@@ -418,7 +453,7 @@ function dv_enqueue() {
         'dv-main',
         DV_URI . '/assets/css/main.css',
         array( 'dv-fonts' ),
-        DV_VERSION . '.' . filemtime( get_stylesheet_directory() . '/assets/css/main.css' )
+        dv_theme_asset_version( 'assets/css/main.css' )
     );
 
     if ( dv_is_woocommerce_context() ) {
@@ -432,7 +467,7 @@ function dv_enqueue() {
                 'dv-single-product',
                 DV_URI . '/assets/css/single-product.css',
                 array( 'dv-main' ),
-                DV_VERSION . '.' . filemtime( $single_product_css )
+                dv_theme_asset_version( 'assets/css/single-product.css' )
             );
         }
     }
@@ -441,7 +476,7 @@ function dv_enqueue() {
         'dv-main',
         DV_URI . '/assets/js/main.js',
         array( 'jquery' ),
-        DV_VERSION . '.' . filemtime( get_stylesheet_directory() . '/assets/js/main.js' ),
+        dv_theme_asset_version( 'assets/js/main.js' ),
         true
     );
     wp_script_add_data( 'dv-main', 'defer', true );

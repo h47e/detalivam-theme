@@ -82,7 +82,7 @@ function dv_wholesale_enqueue_assets() {
             'dv-wholesale',
             DV_URI . '/assets/css/wholesale.css',
             array( 'dv-main' ),
-            DV_VERSION . '.' . filemtime( $css_path )
+            dv_theme_asset_version( 'assets/css/wholesale.css' )
         );
     }
 
@@ -91,9 +91,10 @@ function dv_wholesale_enqueue_assets() {
             'dv-wholesale',
             DV_URI . '/assets/js/wholesale.js',
             array(),
-            DV_VERSION . '.' . filemtime( $js_path ),
+            dv_theme_asset_version( 'assets/js/wholesale.js' ),
             true
         );
+        wp_script_add_data( 'dv-wholesale', 'defer', true );
 
         $labels = dv_wholesale_labels();
         wp_localize_script(
@@ -149,21 +150,53 @@ function dv_wholesale_get_categories() {
         return array();
     }
 
-    return dv_wholesale_get_category_branch( 0, 0 );
+    $cache_key = function_exists( 'dv_product_section_cache_key' ) ? dv_product_section_cache_key( 'wholesale_categories' ) : '';
+    $terms     = $cache_key ? get_transient( $cache_key ) : false;
+
+    if ( ! is_array( $terms ) ) {
+        $terms = get_terms(
+            array(
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'orderby'    => 'name',
+                'order'      => 'ASC',
+            )
+        );
+
+        if ( is_wp_error( $terms ) ) {
+            $terms = array();
+        }
+
+        if ( $cache_key ) {
+            set_transient( $cache_key, $terms, 6 * HOUR_IN_SECONDS );
+        }
+    }
+
+    if ( empty( $terms ) ) {
+        return array();
+    }
+
+    $children_map = array();
+    foreach ( $terms as $term ) {
+        if ( ! $term instanceof WP_Term ) {
+            continue;
+        }
+
+        $parent = (int) $term->parent;
+        if ( ! isset( $children_map[ $parent ] ) ) {
+            $children_map[ $parent ] = array();
+        }
+
+        $children_map[ $parent ][] = $term;
+    }
+
+    return dv_wholesale_get_category_branch( 0, 0, $children_map );
 }
 
-function dv_wholesale_get_category_branch( $parent_id = 0, $depth = 0 ) {
-    $terms = get_terms(
-        array(
-            'taxonomy'   => 'product_cat',
-            'hide_empty' => true,
-            'parent'     => absint( $parent_id ),
-            'orderby'    => 'name',
-            'order'      => 'ASC',
-        )
-    );
+function dv_wholesale_get_category_branch( $parent_id = 0, $depth = 0, $children_map = array() ) {
+    $terms = $children_map[ absint( $parent_id ) ] ?? array();
 
-    if ( is_wp_error( $terms ) ) {
+    if ( empty( $terms ) ) {
         return array();
     }
 
@@ -171,7 +204,7 @@ function dv_wholesale_get_category_branch( $parent_id = 0, $depth = 0 ) {
     foreach ( $terms as $term ) {
         $term->dv_depth = $depth;
         $branch[]       = $term;
-        $branch         = array_merge( $branch, dv_wholesale_get_category_branch( $term->term_id, $depth + 1 ) );
+        $branch         = array_merge( $branch, dv_wholesale_get_category_branch( $term->term_id, $depth + 1, $children_map ) );
     }
 
     return $branch;
