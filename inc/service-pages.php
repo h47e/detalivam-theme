@@ -170,6 +170,67 @@ function dv_get_custom_service_pages() {
     return $pages;
 }
 
+function dv_get_footer_custom_service_pages() {
+    static $pages_cache = null;
+
+    if ( is_array( $pages_cache ) ) {
+        return $pages_cache;
+    }
+
+    $saved = get_option( 'dv_theme_content', array() );
+    if ( ! is_array( $saved ) ) {
+        $saved = array();
+    }
+
+    $defaults = array(
+        'custom_page_1_enabled'        => '1',
+        'custom_page_1_title'          => html_entity_decode( '&#1054;&#1087;&#1090;&#1086;&#1074;&#1080;&#1082;&#1072;&#1084;', ENT_QUOTES, 'UTF-8' ),
+        'custom_page_1_slug'           => 'optovikam',
+        'custom_page_1_footer_enabled' => '1',
+    );
+
+    for ( $i = 2; $i <= 5; $i++ ) {
+        $defaults[ 'custom_page_' . $i . '_enabled' ]        = '0';
+        $defaults[ 'custom_page_' . $i . '_title' ]          = '';
+        $defaults[ 'custom_page_' . $i . '_slug' ]           = '';
+        $defaults[ 'custom_page_' . $i . '_footer_enabled' ] = '1';
+    }
+
+    $settings   = wp_parse_args( array_intersect_key( $saved, $defaults ), $defaults );
+    $pages      = array();
+    $used_slugs = array_fill_keys( dv_reserved_service_page_slugs(), true );
+
+    for ( $i = 1; $i <= 5; $i++ ) {
+        $prefix         = 'custom_page_' . $i;
+        $enabled        = '1' === (string) ( $settings[ $prefix . '_enabled' ] ?? '0' );
+        $footer_enabled = (string) ( $settings[ $prefix . '_footer_enabled' ] ?? '1' );
+        $title          = trim( (string) ( $settings[ $prefix . '_title' ] ?? '' ) );
+        $slug           = sanitize_title( $settings[ $prefix . '_slug' ] ?? '' );
+
+        if ( ! $enabled || '1' !== $footer_enabled || '' === $title || '' === $slug ) {
+            continue;
+        }
+
+        if ( isset( $used_slugs[ $slug ] ) ) {
+            continue;
+        }
+
+        $used_slugs[ $slug ] = true;
+
+        $pages[] = array(
+            'type'           => 'custom_page_' . $i,
+            'slot'           => $i,
+            'title'          => $title,
+            'slug'           => $slug,
+            'footer_enabled' => $footer_enabled,
+        );
+    }
+
+    $pages_cache = $pages;
+
+    return $pages_cache;
+}
+
 function dv_get_custom_service_page_by_type( $type ) {
     foreach ( dv_get_custom_service_pages() as $page ) {
         if ( $type === $page['type'] ) {

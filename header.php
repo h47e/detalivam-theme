@@ -8,7 +8,7 @@
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 <?php $dv_store = function_exists( 'dv_get_store_profile' ) ? dv_get_store_profile() : array(); ?>
-<?php $dv_content = function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array(); ?>
+<?php $dv_content = function_exists( 'dv_get_theme_header_footer_content_settings' ) ? dv_get_theme_header_footer_content_settings() : ( function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array() ); ?>
 <?php
 $dv_logo_url       = function_exists( 'dv_get_theme_logo_url' ) ? dv_get_theme_logo_url() : get_template_directory_uri() . '/assets/logo.png';
 $dv_compare_count  = function_exists( 'dv_get_cookie_id_list' ) ? count( dv_get_cookie_id_list( 'dv_compare' ) ) : 0;

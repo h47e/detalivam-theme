@@ -1,6 +1,6 @@
 </div><!-- /#page-content -->
 <?php $dv_store = function_exists( 'dv_get_store_profile' ) ? dv_get_store_profile() : array(); ?>
-<?php $dv_content = function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array(); ?>
+<?php $dv_content = function_exists( 'dv_get_theme_header_footer_content_settings' ) ? dv_get_theme_header_footer_content_settings() : ( function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array() ); ?>
 <?php
 $dv_logo_url = function_exists( 'dv_get_theme_logo_url' ) ? dv_get_theme_logo_url() : get_template_directory_uri() . '/assets/logo.png';
 $dv_footer_brand_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'footer_brand_enabled' ) : true;
@@ -39,7 +39,7 @@ $dv_footer_payment_icons = array_values(
         array_map( 'trim', is_array( $dv_footer_payment_icons ) ? $dv_footer_payment_icons : array() )
     )
 );
-$dv_footer_custom_service_pages = function_exists( 'dv_get_custom_service_pages' ) ? dv_get_custom_service_pages() : array();
+$dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service_pages' ) ? dv_get_footer_custom_service_pages() : ( function_exists( 'dv_get_custom_service_pages' ) ? dv_get_custom_service_pages() : array() );
 ?>
 
 <footer class="site-footer">
@@ -141,9 +141,7 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_custom_service_pages'
                 }
 
                 $dv_footer_custom_label = trim( (string) ( $dv_footer_custom_service_page['title'] ?? '' ) );
-                $dv_footer_custom_url   = function_exists( 'dv_service_page_url' )
-                    ? dv_service_page_url( $dv_footer_custom_service_page['type'] ?? '' )
-                    : home_url( '/' . ( $dv_footer_custom_service_page['slug'] ?? '' ) );
+                $dv_footer_custom_url   = home_url( '/' . ( $dv_footer_custom_service_page['slug'] ?? '' ) );
                 $dv_footer_custom_key   = untrailingslashit( (string) $dv_footer_custom_url );
 
                 if ( '' === $dv_footer_custom_label || '' === $dv_footer_custom_key || in_array( $dv_footer_custom_key, $dv_footer_rendered_customer_urls, true ) ) {

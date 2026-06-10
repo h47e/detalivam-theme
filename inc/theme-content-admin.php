@@ -221,6 +221,80 @@ function dv_get_theme_content_settings() {
     return $settings_cache;
 }
 
+function dv_get_theme_header_footer_content_defaults() {
+    $shop_page_id = function_exists( 'wc_get_page_id' ) ? wc_get_page_id( 'shop' ) : 0;
+    $shop_url     = $shop_page_id > 0 ? get_permalink( $shop_page_id ) : home_url( '/shop/' );
+
+    $about_url    = function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'about' ) : home_url( '/o-kompanii' );
+    $delivery_url = function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'delivery' ) : home_url( '/dostavka' );
+    $contacts_url = function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'contacts' ) : home_url( '/kontakty' );
+    $return_url   = function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'return' ) : home_url( '/vozvrat' );
+
+    return array(
+        'topbar_shop_label'        => html_entity_decode( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
+        'topbar_shop_url'          => $shop_url,
+        'topbar_delivery_label'    => html_entity_decode( '&#1044;&#1086;&#1089;&#1090;&#1072;&#1074;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
+        'topbar_delivery_url'      => $delivery_url,
+        'topbar_about_label'       => html_entity_decode( '&#1054; &#1082;&#1086;&#1084;&#1087;&#1072;&#1085;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'topbar_about_url'         => $about_url,
+        'topbar_contacts_label'    => html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ),
+        'topbar_contacts_url'      => $contacts_url,
+        'footer_catalog_title'     => html_entity_decode( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_title'   => html_entity_decode( '&#1055;&#1086;&#1082;&#1091;&#1087;&#1072;&#1090;&#1077;&#1083;&#1103;&#1084;', ENT_QUOTES, 'UTF-8' ),
+        'footer_company_title'     => html_entity_decode( '&#1050;&#1086;&#1084;&#1087;&#1072;&#1085;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_1_label' => html_entity_decode( '&#1044;&#1086;&#1089;&#1090;&#1072;&#1074;&#1082;&#1072; &#1080; &#1086;&#1087;&#1083;&#1072;&#1090;&#1072;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_1_url'   => $delivery_url,
+        'footer_customers_2_label' => html_entity_decode( '&#1042;&#1086;&#1079;&#1074;&#1088;&#1072;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1072;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_2_url'   => $return_url,
+        'footer_customers_3_label' => html_entity_decode( '&#1043;&#1072;&#1088;&#1072;&#1085;&#1090;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_3_url'   => home_url( '/garantiya' ),
+        'footer_customers_4_label' => html_entity_decode( '&#1050;&#1072;&#1082; &#1079;&#1072;&#1082;&#1072;&#1079;&#1072;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_4_url'   => home_url( '/kak-zakazat' ),
+        'footer_customers_5_label' => html_entity_decode( '&#1054;&#1087;&#1090;&#1086;&#1074;&#1080;&#1082;&#1072;&#1084;', ENT_QUOTES, 'UTF-8' ),
+        'footer_customers_5_url'   => home_url( '/optovikam' ),
+        'footer_company_1_label'   => html_entity_decode( '&#1054; &#1085;&#1072;&#1089;', ENT_QUOTES, 'UTF-8' ),
+        'footer_company_1_url'     => $about_url,
+        'footer_company_2_label'   => html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ),
+        'footer_company_2_url'     => $contacts_url,
+        'footer_company_3_label'   => html_entity_decode( '&#1042;&#1072;&#1082;&#1072;&#1085;&#1089;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'footer_company_3_url'     => home_url( '/vakansii' ),
+        'footer_company_4_label'   => html_entity_decode( '&#1041;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
+        'footer_company_4_url'     => home_url( '/blog' ),
+        'footer_privacy_label'     => html_entity_decode( '&#1055;&#1086;&#1083;&#1080;&#1090;&#1080;&#1082;&#1072; &#1082;&#1086;&#1085;&#1092;&#1080;&#1076;&#1077;&#1085;&#1094;&#1080;&#1072;&#1083;&#1100;&#1085;&#1086;&#1089;&#1090;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'footer_privacy_url'       => home_url( '/politika-konfidencialnosti' ),
+        'footer_offer_label'       => html_entity_decode( '&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1100;&#1089;&#1082;&#1086;&#1077; &#1089;&#1086;&#1075;&#1083;&#1072;&#1096;&#1077;&#1085;&#1080;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'footer_offer_url'         => home_url( '/polzovatelskoe-soglashenie' ),
+        'footer_copyright_text'    => html_entity_decode( '&copy; {year} &#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;. &#1042;&#1089;&#1077; &#1087;&#1088;&#1072;&#1074;&#1072; &#1079;&#1072;&#1097;&#1080;&#1097;&#1077;&#1085;&#1099;.', ENT_QUOTES, 'UTF-8' ),
+        'footer_payment_icons'     => html_entity_decode( 'VISA' . "\n" . 'MIR' . "\n" . 'MC' . "\n" . '&#1057;&#1044;&#1069;&#1050;', ENT_QUOTES, 'UTF-8' ),
+    );
+}
+
+function dv_get_theme_header_footer_content_settings() {
+    static $settings_cache = null;
+
+    if ( is_array( $settings_cache ) ) {
+        return $settings_cache;
+    }
+
+    $saved = get_option( 'dv_theme_content', array() );
+    if ( ! is_array( $saved ) ) {
+        $saved = array();
+    }
+
+    $defaults        = dv_get_theme_header_footer_content_defaults();
+    $settings        = array_intersect_key( $saved, $defaults );
+    $settings        = wp_parse_args( $settings, $defaults );
+    $old_offer_label = html_entity_decode( '&#1055;&#1091;&#1073;&#1083;&#1080;&#1095;&#1085;&#1072;&#1103; &#1086;&#1092;&#1077;&#1088;&#1090;&#1072;', ENT_QUOTES, 'UTF-8' );
+
+    if ( isset( $settings['footer_offer_label'] ) && $old_offer_label === trim( (string) $settings['footer_offer_label'] ) ) {
+        $settings['footer_offer_label'] = html_entity_decode( '&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1100;&#1089;&#1082;&#1086;&#1077; &#1089;&#1086;&#1075;&#1083;&#1072;&#1096;&#1077;&#1085;&#1080;&#1077;', ENT_QUOTES, 'UTF-8' );
+    }
+
+    $settings_cache = $settings;
+
+    return $settings_cache;
+}
+
 function dv_theme_content_url( $value, $fallback = '' ) {
     $value = trim( (string) $value );
 
