@@ -10,7 +10,7 @@ get_header();
 
 <?php
 $product_page_id   = get_queried_object_id();
-$product_preview   = wc_get_product( $product_page_id );
+$product_preview   = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : wc_get_product( $product_page_id );
 $product_page_name = function_exists( 'dv_get_product_display_name' ) ? dv_get_product_display_name( $product_preview ?: $product_page_id ) : get_the_title( $product_page_id );
 $primary_cat       = $product_preview ? dv_get_primary_product_cat( $product_page_id ) : null;
 $product_cat_trail = $primary_cat ? dv_get_term_trail( $primary_cat, 'product_cat' ) : array();
@@ -105,6 +105,9 @@ $product_summary_description_enabled = function_exists( 'dv_theme_option_enabled
 $product_tab_description_enabled     = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_tab_description_enabled' ) : true;
 $product_tab_specs_enabled           = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_tab_specs_enabled' ) : true;
 $product_tab_reviews_enabled         = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_tab_reviews_enabled' ) : true;
+$product_sku                         = $product_meta_sku_enabled ? $product->get_sku() : '';
+$product_rating                      = $product_tab_reviews_enabled ? (float) $product->get_average_rating() : 0;
+$product_review_count                = $product_tab_reviews_enabled ? (int) $product->get_review_count() : 0;
 $product_tabs                        = array();
 
 if ( $product_tab_description_enabled ) {
@@ -124,7 +127,7 @@ if ( $product_tab_reviews_enabled ) {
         'label' => sprintf(
             '%s (%d)',
             html_entity_decode( '&#1054;&#1090;&#1079;&#1099;&#1074;&#1099;', ENT_QUOTES, 'UTF-8' ),
-            (int) $product->get_review_count()
+            $product_review_count
         ),
     );
 }
@@ -199,8 +202,8 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
         <h1 class="product-title"><?php echo esc_html( $product_page_name ); ?></h1>
 
         <div class="product-meta-row">
-          <?php if ( $product_meta_sku_enabled && $product->get_sku() ) : ?>
-            <span class="product-sku">&#1040;&#1088;&#1090;.: <?php echo esc_html( $product->get_sku() ); ?></span>
+          <?php if ( $product_meta_sku_enabled && $product_sku ) : ?>
+            <span class="product-sku">&#1040;&#1088;&#1090;.: <?php echo esc_html( $product_sku ); ?></span>
           <?php endif; ?>
 
           <?php
@@ -231,10 +234,10 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
             <span class="product-brand"><?php echo esc_html( $brand ); ?></span>
           <?php endif; ?>
 
-          <?php if ( $product_tab_reviews_enabled && $product->get_average_rating() > 0 ) : ?>
+          <?php if ( $product_tab_reviews_enabled && $product_rating > 0 ) : ?>
           <div class="product-rating-row">
-            <?php echo dv_render_stars( $product->get_average_rating(), $product->get_review_count() ); ?>
-            <a href="#tab-reviews" class="rating-link js-open-reviews-tab"><?php echo esc_html( $product->get_review_count() ); ?> &#1086;&#1090;&#1079;&#1099;&#1074;&#1086;&#1074;</a>
+            <?php echo dv_render_stars( $product_rating, $product_review_count ); ?>
+            <a href="#tab-reviews" class="rating-link js-open-reviews-tab"><?php echo esc_html( $product_review_count ); ?> &#1086;&#1090;&#1079;&#1099;&#1074;&#1086;&#1074;</a>
           </div>
           <?php endif; ?>
         </div>
@@ -451,7 +454,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
           <div class="woocommerce">
             <ul class="products">
               <?php foreach ( $related as $rel_id ) :
-                    $rel_product = wc_get_product( $rel_id );
+                    $rel_product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $rel_id ) : wc_get_product( $rel_id );
                     if ( ! $rel_product || ! $rel_product->is_visible() ) {
                         continue;
                     }

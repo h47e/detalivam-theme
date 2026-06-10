@@ -723,16 +723,35 @@ function dv_get_product_seo_sku( $product ) {
         return '';
     }
 
+    $product_id = (int) $product->get_id();
+    static $sku_cache = array();
+
+    if ( $product_id && array_key_exists( $product_id, $sku_cache ) ) {
+        return $sku_cache[ $product_id ];
+    }
+
     $attribute_candidates = array( 'SKU', 'sku', 'pa_sku' );
     foreach ( $attribute_candidates as $attribute_name ) {
         $value = trim( wp_strip_all_tags( (string) $product->get_attribute( $attribute_name ) ) );
         if ( '' !== $value ) {
             $parts = array_filter( array_map( 'trim', explode( ',', $value ) ) );
-            return $parts ? reset( $parts ) : $value;
+            $sku = $parts ? reset( $parts ) : $value;
+
+            if ( $product_id ) {
+                $sku_cache[ $product_id ] = $sku;
+            }
+
+            return $sku;
         }
     }
 
-    return trim( (string) $product->get_sku() );
+    $sku = trim( (string) $product->get_sku() );
+
+    if ( $product_id ) {
+        $sku_cache[ $product_id ] = $sku;
+    }
+
+    return $sku;
 }
 
 function dv_build_product_seo_title( $product, $paged_suffix = '' ) {
@@ -838,7 +857,7 @@ function dv_get_seo_description() {
     }
 
     if ( is_singular( 'product' ) ) {
-        $product = wc_get_product( get_queried_object_id() );
+        $product = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : wc_get_product( get_queried_object_id() );
         if ( $product ) {
             $custom_description = dv_get_product_seo_description_override( $product->get_id() );
             if ( '' !== $custom_description ) {
@@ -927,7 +946,7 @@ function dv_get_seo_description() {
 
 function dv_get_seo_image_url() {
     if ( is_singular( 'product' ) ) {
-        $product  = function_exists( 'wc_get_product' ) ? wc_get_product( get_queried_object_id() ) : null;
+        $product  = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : ( function_exists( 'wc_get_product' ) ? wc_get_product( get_queried_object_id() ) : null );
         $image_id = get_post_thumbnail_id( get_queried_object_id() );
 
         if ( ! $image_id && $product instanceof WC_Product ) {
@@ -1074,7 +1093,7 @@ function dv_get_social_preview_title() {
     $shop = dv_get_seo_shop_name();
 
     if ( is_singular( 'product' ) ) {
-        $product = wc_get_product( get_queried_object_id() );
+        $product = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : wc_get_product( get_queried_object_id() );
         if ( $product ) {
             $name = function_exists( 'dv_get_product_display_name' ) ? dv_get_product_display_name( $product ) : $product->get_name();
             return dv_trim_seo_text( $name, 96 ) . ' | ' . $shop;
@@ -1133,7 +1152,7 @@ function dv_filter_document_title_parts( $parts ) {
     }
 
     if ( is_singular( 'product' ) ) {
-        $product = wc_get_product( get_queried_object_id() );
+        $product = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : wc_get_product( get_queried_object_id() );
         $custom_title = $product ? dv_get_product_seo_title_override( $product->get_id() ) : '';
         if ( '' !== $custom_title ) {
             $parts['title'] = $custom_title . $paged_suffix;
@@ -1219,7 +1238,7 @@ function dv_output_seo_meta() {
     echo '<meta name="twitter:image:alt" content="' . esc_attr( $image['alt'] ) . '">' . "\n";
 
     if ( is_singular( 'product' ) ) {
-        $product = wc_get_product( get_queried_object_id() );
+        $product = function_exists( 'dv_get_current_product_cached' ) ? dv_get_current_product_cached() : wc_get_product( get_queried_object_id() );
         if ( $product ) {
             $price = $product->get_price();
             if ( '' !== (string) $price ) {
@@ -1400,8 +1419,9 @@ function dv_output_product_list_schema() {
     $items    = array();
     $position = 1;
 
-    foreach ( $wp_query->posts as $post ) {
-        $product = wc_get_product( $post );
+    foreach ( array_slice( $wp_query->posts, 0, 12 ) as $post ) {
+        $product_id = $post instanceof WP_Post ? (int) $post->ID : absint( $post );
+        $product    = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $product_id ) : wc_get_product( $post );
         if ( ! $product ) {
             continue;
         }

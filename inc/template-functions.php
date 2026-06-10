@@ -707,6 +707,13 @@ function dv_get_product_brand_name( $product ) {
         return '';
     }
 
+    $product_id = (int) $product->get_id();
+    static $brand_cache = array();
+
+    if ( $product_id && array_key_exists( $product_id, $brand_cache ) ) {
+        return $brand_cache[ $product_id ];
+    }
+
     $attribute_candidates = array(
         'car_brand',
         'pa_brand',
@@ -719,7 +726,13 @@ function dv_get_product_brand_name( $product ) {
         $value = trim( wp_strip_all_tags( (string) $product->get_attribute( $taxonomy ) ) );
         if ( '' !== $value ) {
             $parts = array_filter( array_map( 'trim', explode( ',', $value ) ) );
-            return $parts ? reset( $parts ) : $value;
+            $brand = $parts ? reset( $parts ) : $value;
+
+            if ( $product_id ) {
+                $brand_cache[ $product_id ] = $brand;
+            }
+
+            return $brand;
         }
     }
 
@@ -727,8 +740,16 @@ function dv_get_product_brand_name( $product ) {
     foreach ( $meta_candidates as $meta_key ) {
         $value = trim( wp_strip_all_tags( (string) get_post_meta( $product->get_id(), $meta_key, true ) ) );
         if ( '' !== $value ) {
+            if ( $product_id ) {
+                $brand_cache[ $product_id ] = $value;
+            }
+
             return $value;
         }
+    }
+
+    if ( $product_id ) {
+        $brand_cache[ $product_id ] = '';
     }
 
     return '';
@@ -1543,7 +1564,7 @@ function dv_get_catalog_recommendation_products( $limit = 3 ) {
     $products = array();
 
     foreach ( array_slice( $ids, 0, $limit ) as $product_id ) {
-        $product = wc_get_product( $product_id );
+        $product = dv_get_product_cached( $product_id );
 
         if ( $product && $product->is_visible() ) {
             $products[] = $product;
@@ -1551,6 +1572,48 @@ function dv_get_catalog_recommendation_products( $limit = 3 ) {
     }
 
     return $products;
+}
+
+function dv_get_product_cached( $product_or_id ) {
+    if ( $product_or_id instanceof WC_Product ) {
+        return $product_or_id;
+    }
+
+    if ( ! function_exists( 'wc_get_product' ) ) {
+        return null;
+    }
+
+    $product_id = absint( $product_or_id );
+
+    if ( ! $product_id ) {
+        return null;
+    }
+
+    static $product_cache = array();
+
+    if ( array_key_exists( $product_id, $product_cache ) ) {
+        return $product_cache[ $product_id ];
+    }
+
+    $product = wc_get_product( $product_id );
+    $product_cache[ $product_id ] = $product instanceof WC_Product ? $product : null;
+
+    return $product_cache[ $product_id ];
+}
+
+function dv_get_current_product_cached() {
+    static $resolved = false;
+    static $product = null;
+
+    if ( $resolved ) {
+        return $product;
+    }
+
+    $resolved   = true;
+    $product_id = function_exists( 'get_queried_object_id' ) ? get_queried_object_id() : 0;
+    $product    = $product_id ? dv_get_product_cached( $product_id ) : null;
+
+    return $product;
 }
 
 function dv_get_top_product_categories( $limit = 8, $parent = 0, $orderby = 'count', $order = 'DESC' ) {
@@ -1663,7 +1726,7 @@ function dv_render_product_loop( $product_ids, $columns = 4 ) {
         <ul class="products columns-<?php echo esc_attr( $columns ); ?>">
             <?php
             foreach ( $product_ids as $product_id ) {
-                $loop_product = wc_get_product( $product_id );
+                $loop_product = dv_get_product_cached( $product_id );
 
                 if ( ! $loop_product || ! $loop_product->is_visible() ) {
                     continue;
@@ -1718,7 +1781,7 @@ function dv_get_recently_viewed_product_ids( $exclude_id = 0, $limit = 8 ) {
     $visible_ids = array();
 
     foreach ( $ids as $product_id ) {
-        $product = wc_get_product( $product_id );
+        $product = dv_get_product_cached( $product_id );
         if ( ! $product || ! $product->is_visible() ) {
             continue;
         }
@@ -1763,7 +1826,7 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
         return array_slice( array_values( array_filter( array_map( 'absint', $cached_ids ) ) ), 0, $limit );
     }
 
-    $base_product = wc_get_product( $product_id );
+    $base_product = dv_get_product_cached( $product_id );
 
     if ( ! $base_product ) {
         return array();
@@ -1773,7 +1836,7 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
     $upsells     = array_values( array_filter( array_map( 'absint', (array) $base_product->get_upsell_ids() ) ) );
 
     foreach ( $upsells as $upsell_id ) {
-        $upsell_product = wc_get_product( $upsell_id );
+        $upsell_product = dv_get_product_cached( $upsell_id );
         if ( ! $upsell_product || ! $upsell_product->is_visible() || in_array( $upsell_id, $exclude_ids, true ) ) {
             continue;
         }
@@ -1815,7 +1878,7 @@ function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit
     );
 
     foreach ( (array) $query->posts as $candidate_id ) {
-        $candidate = wc_get_product( $candidate_id );
+        $candidate = dv_get_product_cached( $candidate_id );
         if ( ! $candidate || ! $candidate->is_visible() ) {
             continue;
         }
@@ -1855,7 +1918,7 @@ function dv_render_product_section( $title, $product_ids, $section_class = '' ) 
                 <ul class="products">
                     <?php
                     foreach ( $product_ids as $product_id ) {
-                        $loop_product = wc_get_product( $product_id );
+                        $loop_product = dv_get_product_cached( $product_id );
                         if ( ! $loop_product || ! $loop_product->is_visible() ) {
                             continue;
                         }
