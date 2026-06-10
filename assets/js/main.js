@@ -109,7 +109,6 @@
           dvUpdateCartUi(d.data);
           dvRefreshCartButtons(productId, true);
           dvToast(dvText('added_to_cart', 'Товар добавлен в корзину'));
-          $(document.body).trigger('wc_fragment_refresh');
         } else {
           dvToast((d.data && d.data.message) || dvText('add_error', 'Ошибка добавления'), 'error');
         }
@@ -460,7 +459,6 @@
         }
 
         dvToast(delta > 0 ? dvText('cart_qty_increased', 'Количество увеличено') : dvText('cart_qty_decreased', 'Количество уменьшено'));
-        $(document.body).trigger('wc_fragment_refresh');
       })
       .catch(function() {
         btn.disabled = false;

@@ -198,6 +198,12 @@ function dv_get_theme_content_defaults() {
 }
 
 function dv_get_theme_content_settings() {
+    static $settings_cache = null;
+
+    if ( is_array( $settings_cache ) ) {
+        return $settings_cache;
+    }
+
     $saved = get_option( 'dv_theme_content', array() );
     if ( ! is_array( $saved ) ) {
         $saved = array();
@@ -210,7 +216,9 @@ function dv_get_theme_content_settings() {
         $settings['footer_offer_label'] = html_entity_decode( '&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1100;&#1089;&#1082;&#1086;&#1077; &#1089;&#1086;&#1075;&#1083;&#1072;&#1096;&#1077;&#1085;&#1080;&#1077;', ENT_QUOTES, 'UTF-8' );
     }
 
-    return $settings;
+    $settings_cache = $settings;
+
+    return $settings_cache;
 }
 
 function dv_theme_content_url( $value, $fallback = '' ) {

@@ -85,10 +85,6 @@
         setQty(input, 1);
         toast(text('added', 'Добавлено'));
 
-        if (window.jQuery) {
-          window.jQuery(document.body).trigger('wc_fragment_refresh');
-        }
-
         window.setTimeout(function () {
           button.textContent = original;
           button.classList.remove('is-added');

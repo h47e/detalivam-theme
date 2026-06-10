@@ -5,7 +5,13 @@
 defined( 'ABSPATH' ) || exit;
 
 function dv_get_theme_options_defaults() {
-    return array(
+    static $defaults_cache = null;
+
+    if ( is_array( $defaults_cache ) ) {
+        return $defaults_cache;
+    }
+
+    $defaults_cache = array(
         'catalog_per_page'        => 24,
         'catalog_columns'         => 4,
         'theme_visual_preset'     => 'default',
@@ -126,15 +132,25 @@ function dv_get_theme_options_defaults() {
         'product_similar_order'     => 60,
         'product_recent_order'      => 70,
     );
+
+    return $defaults_cache;
 }
 
 function dv_get_theme_options() {
+    static $options_cache = null;
+
+    if ( is_array( $options_cache ) ) {
+        return $options_cache;
+    }
+
     $saved = get_option( 'dv_theme_options', array() );
     if ( ! is_array( $saved ) ) {
         $saved = array();
     }
 
-    return wp_parse_args( $saved, dv_get_theme_options_defaults() );
+    $options_cache = wp_parse_args( $saved, dv_get_theme_options_defaults() );
+
+    return $options_cache;
 }
 
 function dv_theme_option_int( $key, $fallback = 1, $min = 1, $max = 999 ) {
