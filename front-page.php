@@ -24,6 +24,7 @@ $dv_home_sections = array(
             ? dv_theme_content_url( $dv_content['home_popular_link_url'] ?? '', add_query_arg( 'orderby', 'popularity', $dv_shop_url ) )
             : ( $dv_content['home_popular_link_url'] ?? add_query_arg( 'orderby', 'popularity', $dv_shop_url ) ),
         'classes'   => array( 'home-section', 'home-section--surface', 'home-section--compact', 'home-section--bordered' ),
+        'product_type' => 'popular',
         'shortcode'  => sprintf( '[products limit="%d" columns="%d" orderby="popularity" order="DESC"]', $dv_popular_limit, $dv_home_columns ),
     ),
     'sale'       => array(
@@ -36,6 +37,7 @@ $dv_home_sections = array(
             ? dv_theme_content_url( $dv_content['home_sale_link_url'] ?? '', add_query_arg( 'orderby', 'date', $dv_shop_url ) )
             : ( $dv_content['home_sale_link_url'] ?? add_query_arg( 'orderby', 'date', $dv_shop_url ) ),
         'classes'   => array( 'home-section', 'home-section--surface', 'home-section--compact', 'home-section--bordered' ),
+        'product_type' => 'sale',
         'shortcode'  => sprintf( '[sale_products limit="%d" columns="%d"]', $dv_sale_limit, $dv_home_columns ),
     ),
     'categories' => array(
@@ -79,7 +81,7 @@ $dv_visible_section_number = 0;
     if ( $dv_is_first_section ) {
         $dv_section_classes[] = 'home-section-first';
 
-        if ( ! empty( $dv_section['shortcode'] ) ) {
+        if ( ! empty( $dv_section['product_type'] ) || ! empty( $dv_section['shortcode'] ) ) {
             $dv_section_classes[] = 'home-section--first-compact';
         }
     }
@@ -94,23 +96,36 @@ $dv_visible_section_number = 0;
           <?php endif; ?>
         </div>
 
-        <?php if ( ! empty( $dv_section['shortcode'] ) ) : ?>
+        <?php if ( ! empty( $dv_section['product_type'] ) || ! empty( $dv_section['shortcode'] ) ) : ?>
           <div class="home-products-grid" style="--dv-home-product-columns: <?php echo esc_attr( $dv_home_columns ); ?>;">
-            <?php echo do_shortcode( $dv_section['shortcode'] ); ?>
+            <?php
+            $dv_product_limit = 'sale' === ( $dv_section['product_type'] ?? '' ) ? $dv_sale_limit : $dv_popular_limit;
+            $dv_product_ids   = function_exists( 'dv_get_home_product_ids' )
+                ? dv_get_home_product_ids( $dv_section['product_type'] ?? 'popular', $dv_product_limit )
+                : array();
+
+            if ( $dv_product_ids && function_exists( 'dv_render_product_loop' ) ) {
+                dv_render_product_loop( $dv_product_ids, $dv_home_columns );
+            } elseif ( ! empty( $dv_section['shortcode'] ) ) {
+                echo do_shortcode( $dv_section['shortcode'] );
+            }
+            ?>
           </div>
         <?php elseif ( 'categories' === $dv_section_key ) : ?>
           <div class="cats-grid">
             <?php
-            $cats = get_terms(
-                array(
-                    'taxonomy'   => 'product_cat',
-                    'hide_empty' => true,
-                    'parent'     => 0,
-                    'number'     => $dv_categories_limit,
-                    'orderby'    => 'count',
-                    'order'      => 'DESC',
-                )
-            );
+            $cats = function_exists( 'dv_get_top_product_categories' )
+                ? dv_get_top_product_categories( $dv_categories_limit )
+                : get_terms(
+                    array(
+                        'taxonomy'   => 'product_cat',
+                        'hide_empty' => true,
+                        'parent'     => 0,
+                        'number'     => $dv_categories_limit,
+                        'orderby'    => 'count',
+                        'order'      => 'DESC',
+                    )
+                );
             if ( $cats && ! is_wp_error( $cats ) ) :
                 foreach ( $cats as $cat ) :
                     $icon = dv_cat_icon( $cat->slug );

@@ -254,54 +254,62 @@ if ( '' !== $selected_marka && ! $has_active_marka ) {
 }
 
 $filter_title = $labels['categories'];
-$cats         = get_terms(
-    [
-        'taxonomy'   => 'product_cat',
-        'hide_empty' => true,
-        'parent'     => 0,
-        'orderby'    => 'count',
-        'order'      => 'DESC',
-        'number'     => $cats_limit,
-    ]
-);
-
-if ( $current_cat ) {
-    $filter_title = $labels['subcategories'];
-    $cats         = get_terms(
+$cats         = function_exists( 'dv_get_top_product_categories' )
+    ? dv_get_top_product_categories( $cats_limit )
+    : get_terms(
         [
             'taxonomy'   => 'product_cat',
             'hide_empty' => true,
-            'parent'     => $current_cat->term_id,
-            'orderby'    => 'name',
-            'order'      => 'ASC',
+            'parent'     => 0,
+            'orderby'    => 'count',
+            'order'      => 'DESC',
+            'number'     => $cats_limit,
         ]
     );
 
-    if ( empty( $cats ) && ! empty( $current_cat->parent ) ) {
-        $filter_title = $labels['neighbor_sections'];
-        $cats         = get_terms(
+if ( $current_cat ) {
+    $filter_title = $labels['subcategories'];
+    $cats         = function_exists( 'dv_get_top_product_categories' )
+        ? dv_get_top_product_categories( 0, $current_cat->term_id, 'name', 'ASC' )
+        : get_terms(
             [
                 'taxonomy'   => 'product_cat',
                 'hide_empty' => true,
-                'parent'     => $current_cat->parent,
+                'parent'     => $current_cat->term_id,
                 'orderby'    => 'name',
                 'order'      => 'ASC',
             ]
         );
+
+    if ( empty( $cats ) && ! empty( $current_cat->parent ) ) {
+        $filter_title = $labels['neighbor_sections'];
+        $cats         = function_exists( 'dv_get_top_product_categories' )
+            ? dv_get_top_product_categories( 0, $current_cat->parent, 'name', 'ASC' )
+            : get_terms(
+                [
+                    'taxonomy'   => 'product_cat',
+                    'hide_empty' => true,
+                    'parent'     => $current_cat->parent,
+                    'orderby'    => 'name',
+                    'order'      => 'ASC',
+                ]
+            );
     }
 
     if ( empty( $cats ) ) {
         $filter_title = $labels['categories'];
-        $cats         = get_terms(
-            [
-                'taxonomy'   => 'product_cat',
-                'hide_empty' => true,
-                'parent'     => 0,
-                'orderby'    => 'count',
-                'order'      => 'DESC',
-                'number'     => $cats_limit,
-            ]
-        );
+        $cats         = function_exists( 'dv_get_top_product_categories' )
+            ? dv_get_top_product_categories( $cats_limit )
+            : get_terms(
+                [
+                    'taxonomy'   => 'product_cat',
+                    'hide_empty' => true,
+                    'parent'     => 0,
+                    'orderby'    => 'count',
+                    'order'      => 'DESC',
+                    'number'     => $cats_limit,
+                ]
+            );
     }
 }
 

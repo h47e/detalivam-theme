@@ -1371,6 +1371,24 @@ function dv_output_product_list_schema() {
         return;
     }
 
+    $schema_post_ids = array();
+    foreach ( array_slice( $wp_query->posts, 0, 12 ) as $schema_post ) {
+        $schema_post_ids[] = $schema_post instanceof WP_Post ? (int) $schema_post->ID : absint( $schema_post );
+    }
+
+    $schema_cache_key = function_exists( 'dv_product_section_cache_key' )
+        ? dv_product_section_cache_key( 'product_list_schema|' . dv_get_seo_canonical_url() . '|' . implode( ',', $schema_post_ids ) )
+        : '';
+
+    if ( $schema_cache_key ) {
+        $cached_schema = get_transient( $schema_cache_key );
+        if ( is_string( $cached_schema ) && '' !== $cached_schema ) {
+            echo $cached_schema; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+            return;
+        }
+    }
+
     $items    = array();
     $position = 1;
 
@@ -1442,7 +1460,7 @@ function dv_output_product_list_schema() {
         return;
     }
 
-    echo "\n" . '<script type="application/ld+json">' . wp_json_encode(
+    $schema_output = "\n" . '<script type="application/ld+json">' . wp_json_encode(
         array(
             '@context'        => 'https://schema.org',
             '@type'           => 'ItemList',
@@ -1454,6 +1472,12 @@ function dv_output_product_list_schema() {
         ),
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     ) . '</script>' . "\n";
+
+    if ( $schema_cache_key ) {
+        set_transient( $schema_cache_key, $schema_output, 6 * HOUR_IN_SECONDS );
+    }
+
+    echo $schema_output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 add_action( 'wp_head', 'dv_output_product_list_schema', 8 );
 

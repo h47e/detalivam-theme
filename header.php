@@ -194,16 +194,21 @@ if ( function_exists( 'wc_get_page_id' ) ) {
         <?php if ( $dv_header_nav_links_enabled ) : ?>
         <?php
         $header_categories_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'header_categories_limit', 8, 0, 16 ) : 8;
-        $cats = get_terms(
-            array(
-                'taxonomy'   => 'product_cat',
-                'hide_empty' => true,
-                'parent'     => 0,
-                'number'     => $header_categories_limit,
-                'orderby'    => 'count',
-                'order'      => 'DESC',
-            )
-        );
+        $cats = array();
+        if ( $header_categories_limit > 0 ) {
+            $cats = function_exists( 'dv_get_top_product_categories' )
+                ? dv_get_top_product_categories( $header_categories_limit )
+                : get_terms(
+                    array(
+                        'taxonomy'   => 'product_cat',
+                        'hide_empty' => true,
+                        'parent'     => 0,
+                        'number'     => $header_categories_limit,
+                        'orderby'    => 'count',
+                        'order'      => 'DESC',
+                    )
+                );
+        }
         if ( $header_categories_limit > 0 && $cats && ! is_wp_error( $cats ) ) :
             foreach ( $cats as $cat ) :
                 $active = is_product_category( $cat->slug ) ? 'active' : '';

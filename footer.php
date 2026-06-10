@@ -69,16 +69,21 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_custom_service_pages'
           <div class="footer-links">
             <?php
             $footer_categories_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'footer_categories_limit', 6, 0, 16 ) : 6;
-            $cats = get_terms(
-                array(
-                    'taxonomy'   => 'product_cat',
-                    'hide_empty' => true,
-                    'parent'     => 0,
-                    'number'     => $footer_categories_limit,
-                    'orderby'    => 'count',
-                    'order'      => 'DESC',
-                )
-            );
+            $cats = array();
+            if ( $footer_categories_limit > 0 ) {
+                $cats = function_exists( 'dv_get_top_product_categories' )
+                    ? dv_get_top_product_categories( $footer_categories_limit )
+                    : get_terms(
+                        array(
+                            'taxonomy'   => 'product_cat',
+                            'hide_empty' => true,
+                            'parent'     => 0,
+                            'number'     => $footer_categories_limit,
+                            'orderby'    => 'count',
+                            'order'      => 'DESC',
+                        )
+                    );
+            }
             if ( $footer_categories_limit > 0 && $cats && ! is_wp_error( $cats ) ) :
                 foreach ( $cats as $c ) :
                     ?>

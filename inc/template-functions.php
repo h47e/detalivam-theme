@@ -595,14 +595,23 @@ function dv_render_product_category_dropdown_root( $children_map, $active_ids = 
 }
 
 function dv_render_product_category_dropdown() {
-    $terms = get_terms(
-        array(
-            'taxonomy'   => 'product_cat',
-            'hide_empty' => true,
-            'orderby'    => 'name',
-            'order'      => 'ASC',
-        )
-    );
+    $cache_key = function_exists( 'dv_product_section_cache_key' ) ? dv_product_section_cache_key( 'product_cat_dropdown_terms' ) : '';
+    $terms     = $cache_key ? get_transient( $cache_key ) : false;
+
+    if ( ! is_array( $terms ) ) {
+        $terms = get_terms(
+            array(
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'orderby'    => 'name',
+                'order'      => 'ASC',
+            )
+        );
+
+        if ( $cache_key && ! is_wp_error( $terms ) ) {
+            set_transient( $cache_key, $terms, 6 * HOUR_IN_SECONDS );
+        }
+    }
 
     if ( empty( $terms ) || is_wp_error( $terms ) ) {
         return '';
@@ -1410,6 +1419,9 @@ add_action( 'created_product_cat', 'dv_flush_product_section_cache' );
 add_action( 'edited_product_cat', 'dv_flush_product_section_cache' );
 add_action( 'delete_product_cat', 'dv_flush_product_section_cache' );
 add_action( 'woocommerce_update_product', 'dv_flush_product_section_cache' );
+add_action( 'updated_option_dv_seo_settings', 'dv_flush_product_section_cache' );
+add_action( 'updated_option_dv_theme_options', 'dv_flush_product_section_cache' );
+add_action( 'updated_option_dv_theme_content', 'dv_flush_product_section_cache' );
 
 function dv_get_catalog_recommendation_products( $limit = 3 ) {
     if ( ! function_exists( 'wc_get_products' ) || ! function_exists( 'wc_get_product' ) ) {
@@ -1446,6 +1458,153 @@ function dv_get_catalog_recommendation_products( $limit = 3 ) {
     }
 
     return $products;
+}
+
+function dv_get_top_product_categories( $limit = 8, $parent = 0, $orderby = 'count', $order = 'DESC' ) {
+    if ( ! taxonomy_exists( 'product_cat' ) ) {
+        return array();
+    }
+
+    $limit   = max( 0, (int) $limit );
+    $parent  = absint( $parent );
+    $orderby = sanitize_key( $orderby );
+    $order   = 'ASC' === strtoupper( (string) $order ) ? 'ASC' : 'DESC';
+
+    if ( ! in_array( $orderby, array( 'count', 'name', 'term_id', 'slug' ), true ) ) {
+        $orderby = 'count';
+    }
+
+    $cache_key = dv_product_section_cache_key( 'product_cats|' . $limit . '|' . $parent . '|' . $orderby . '|' . $order );
+    $terms     = get_transient( $cache_key );
+
+    if ( ! is_array( $terms ) ) {
+        $terms = get_terms(
+            array(
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'parent'     => $parent,
+                'number'     => $limit,
+                'orderby'    => $orderby,
+                'order'      => $order,
+            )
+        );
+
+        if ( is_wp_error( $terms ) ) {
+            $terms = array();
+        }
+
+        set_transient( $cache_key, $terms, 6 * HOUR_IN_SECONDS );
+    }
+
+    return array_values(
+        array_filter(
+            $terms,
+            static function ( $term ) {
+                return $term instanceof WP_Term;
+            }
+        )
+    );
+}
+
+function dv_get_home_product_ids( $type = 'popular', $limit = 8 ) {
+    if ( ! function_exists( 'wc_get_products' ) ) {
+        return array();
+    }
+
+    $type  = 'sale' === $type ? 'sale' : 'popular';
+    $limit = max( 1, (int) $limit );
+    $cache_key = dv_product_section_cache_key( 'home_products|' . $type . '|' . $limit );
+    $ids = get_transient( $cache_key );
+
+    if ( is_array( $ids ) ) {
+        return array_slice( array_values( array_filter( array_map( 'absint', $ids ) ) ), 0, $limit );
+    }
+
+    $args = array(
+        'limit'      => $limit,
+        'status'     => 'publish',
+        'visibility' => 'catalog',
+        'return'     => 'ids',
+    );
+
+    if ( 'sale' === $type ) {
+        $sale_ids = function_exists( 'wc_get_product_ids_on_sale' ) ? wc_get_product_ids_on_sale() : array();
+
+        if ( empty( $sale_ids ) ) {
+            set_transient( $cache_key, array(), 6 * HOUR_IN_SECONDS );
+
+            return array();
+        }
+
+        $args['include'] = array_values( array_filter( array_map( 'absint', (array) $sale_ids ) ) );
+        $args['orderby'] = 'date';
+        $args['order']   = 'DESC';
+    } else {
+        $args['orderby'] = 'popularity';
+        $args['order']   = 'DESC';
+    }
+
+    $ids = wc_get_products( $args );
+    $ids = array_values( array_filter( array_map( 'absint', (array) $ids ) ) );
+    set_transient( $cache_key, $ids, 6 * HOUR_IN_SECONDS );
+
+    return array_slice( $ids, 0, $limit );
+}
+
+function dv_render_product_loop( $product_ids, $columns = 4 ) {
+    if ( ! function_exists( 'wc_get_product' ) || ! function_exists( 'wc_get_template_part' ) ) {
+        return;
+    }
+
+    $product_ids = array_values( array_filter( array_map( 'absint', (array) $product_ids ) ) );
+
+    if ( empty( $product_ids ) ) {
+        return;
+    }
+
+    $columns     = max( 1, (int) $columns );
+    $old_loop    = $GLOBALS['woocommerce_loop'] ?? null;
+    $old_product = $GLOBALS['product'] ?? null;
+    ?>
+    <div class="woocommerce">
+        <ul class="products columns-<?php echo esc_attr( $columns ); ?>">
+            <?php
+            foreach ( $product_ids as $product_id ) {
+                $loop_product = wc_get_product( $product_id );
+
+                if ( ! $loop_product || ! $loop_product->is_visible() ) {
+                    continue;
+                }
+
+                global $post;
+                $post = get_post( $product_id );
+
+                if ( ! $post ) {
+                    continue;
+                }
+
+                $GLOBALS['product'] = $loop_product;
+                setup_postdata( $post );
+                wc_get_template_part( 'content', 'product' );
+            }
+
+            wp_reset_postdata();
+
+            if ( null !== $old_product ) {
+                $GLOBALS['product'] = $old_product;
+            } else {
+                unset( $GLOBALS['product'] );
+            }
+
+            if ( null !== $old_loop ) {
+                $GLOBALS['woocommerce_loop'] = $old_loop;
+            } else {
+                unset( $GLOBALS['woocommerce_loop'] );
+            }
+            ?>
+        </ul>
+    </div>
+    <?php
 }
 
 function dv_get_recently_viewed_product_ids( $exclude_id = 0, $limit = 8 ) {
@@ -1592,6 +1751,7 @@ function dv_render_product_section( $title, $product_ids, $section_class = '' ) 
     if ( $section_class ) {
         $class_name .= ' ' . sanitize_html_class( $section_class );
     }
+    $old_product = $GLOBALS['product'] ?? null;
     ?>
     <div class="<?php echo esc_attr( $class_name ); ?>">
         <div class="related-head">
@@ -1614,9 +1774,16 @@ function dv_render_product_section( $title, $product_ids, $section_class = '' ) 
                         }
 
                         setup_postdata( $post );
+                        $GLOBALS['product'] = $loop_product;
                         wc_get_template_part( 'content', 'product' );
                     }
                     wp_reset_postdata();
+
+                    if ( null !== $old_product ) {
+                        $GLOBALS['product'] = $old_product;
+                    } else {
+                        unset( $GLOBALS['product'] );
+                    }
                     ?>
                 </ul>
             </div>

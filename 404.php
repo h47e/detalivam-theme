@@ -10,16 +10,18 @@ $categories_enabled = ! function_exists( 'dv_theme_option_enabled' ) || dv_theme
 $popular_terms = array();
 $not_found_categories_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'not_found_categories_limit', 6, 0, 20 ) : 6;
 if ( $categories_enabled && taxonomy_exists( 'product_cat' ) && $not_found_categories_limit > 0 ) {
-    $terms = get_terms(
-        array(
-            'taxonomy'   => 'product_cat',
-            'hide_empty' => true,
-            'parent'     => 0,
-            'number'     => $not_found_categories_limit,
-            'orderby'    => 'count',
-            'order'      => 'DESC',
-        )
-    );
+    $terms = function_exists( 'dv_get_top_product_categories' )
+        ? dv_get_top_product_categories( $not_found_categories_limit )
+        : get_terms(
+            array(
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'parent'     => 0,
+                'number'     => $not_found_categories_limit,
+                'orderby'    => 'count',
+                'order'      => 'DESC',
+            )
+        );
 
     if ( ! is_wp_error( $terms ) && is_array( $terms ) ) {
         $popular_terms = $terms;
