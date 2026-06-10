@@ -498,6 +498,12 @@ function dv_get_primary_product_cat( $product_id ) {
 }
 
 function dv_get_current_product_cat_path_ids() {
+    static $path_ids = null;
+
+    if ( null !== $path_ids ) {
+        return $path_ids;
+    }
+
     $term = null;
 
     if ( is_product_category() ) {
@@ -510,12 +516,16 @@ function dv_get_current_product_cat_path_ids() {
     }
 
     if ( ! $term instanceof WP_Term ) {
-        return array();
+        $path_ids = array();
+
+        return $path_ids;
     }
 
     $ids = array_merge( get_ancestors( $term->term_id, 'product_cat' ), array( $term->term_id ) );
 
-    return array_map( 'absint', $ids );
+    $path_ids = array_map( 'absint', $ids );
+
+    return $path_ids;
 }
 
 function dv_render_product_category_dropdown_branch( $parent_id, $children_map, $active_ids = array(), $depth = 0 ) {
@@ -655,8 +665,24 @@ function dv_render_product_category_dropdown_root( $children_map, $active_ids = 
 }
 
 function dv_render_product_category_dropdown() {
-    $cache_key = function_exists( 'dv_product_section_cache_key' ) ? dv_product_section_cache_key( 'product_cat_dropdown_terms' ) : '';
-    $terms     = $cache_key ? get_transient( $cache_key ) : false;
+    $active_ids = dv_get_current_product_cat_path_ids();
+    $shop_url   = function_exists( 'wc_get_page_id' ) ? get_permalink( wc_get_page_id( 'shop' ) ) : home_url( '/catalog/' );
+    $labels     = function_exists( 'dv_theme_labels' ) ? dv_theme_labels() : array();
+    $all_label  = $labels['go_catalog'] ?? html_entity_decode( '&#1055;&#1077;&#1088;&#1077;&#1081;&#1090;&#1080; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' );
+
+    $html_cache_key = function_exists( 'dv_product_section_cache_key' )
+        ? dv_product_section_cache_key( 'product_cat_dropdown_html|' . implode( ',', $active_ids ) . '|' . md5( $shop_url . '|' . $all_label ) )
+        : '';
+
+    if ( $html_cache_key ) {
+        $cached_html = get_transient( $html_cache_key );
+        if ( is_string( $cached_html ) && '' !== $cached_html ) {
+            return $cached_html;
+        }
+    }
+
+    $terms_cache_key = function_exists( 'dv_product_section_cache_key' ) ? dv_product_section_cache_key( 'product_cat_dropdown_terms' ) : '';
+    $terms           = $terms_cache_key ? get_transient( $terms_cache_key ) : false;
 
     if ( ! is_array( $terms ) ) {
         $terms = get_terms(
@@ -668,8 +694,8 @@ function dv_render_product_category_dropdown() {
             )
         );
 
-        if ( $cache_key && ! is_wp_error( $terms ) ) {
-            set_transient( $cache_key, $terms, 6 * HOUR_IN_SECONDS );
+        if ( $terms_cache_key && ! is_wp_error( $terms ) ) {
+            set_transient( $terms_cache_key, $terms, 6 * HOUR_IN_SECONDS );
         }
     }
 
@@ -686,11 +712,6 @@ function dv_render_product_category_dropdown() {
         $children_map[ $parent ][] = $term;
     }
 
-    $active_ids = dv_get_current_product_cat_path_ids();
-    $shop_url   = function_exists( 'wc_get_page_id' ) ? get_permalink( wc_get_page_id( 'shop' ) ) : home_url( '/catalog/' );
-    $labels     = function_exists( 'dv_theme_labels' ) ? dv_theme_labels() : array();
-    $all_label  = $labels['go_catalog'] ?? html_entity_decode( '&#1055;&#1077;&#1088;&#1077;&#1081;&#1090;&#1080; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' );
-
     $html  = '<div class="dv-cat-dropdown-inner">';
     $html .= '<div class="dv-cat-dropdown-head">';
     $html .= '<span class="dv-cat-dropdown-title">' . esc_html__( 'Категории товаров', 'dv' ) . '</span>';
@@ -698,6 +719,10 @@ function dv_render_product_category_dropdown() {
     $html .= '</div>';
     $html .= dv_render_product_category_dropdown_branch( 0, $children_map, $active_ids, 0 );
     $html .= '</div>';
+
+    if ( $html_cache_key ) {
+        set_transient( $html_cache_key, $html, 6 * HOUR_IN_SECONDS );
+    }
 
     return $html;
 }
@@ -772,6 +797,14 @@ function dv_is_marka_attribute_name( $name, $label = '' ) {
 function dv_get_product_marka_values( $product, $preferred_taxonomy = '' ) {
     if ( ! $product instanceof WC_Product ) {
         return array();
+    }
+
+    $product_id = (int) $product->get_id();
+    $cache_key  = $product_id . '|' . sanitize_key( $preferred_taxonomy );
+    static $values_cache = array();
+
+    if ( $product_id && array_key_exists( $cache_key, $values_cache ) ) {
+        return $values_cache[ $cache_key ];
     }
 
     $values = array();
@@ -866,7 +899,13 @@ function dv_get_product_marka_values( $product, $preferred_taxonomy = '' ) {
         }
     }
 
-    return array_values( $values );
+    $values = array_values( $values );
+
+    if ( $product_id ) {
+        $values_cache[ $cache_key ] = $values;
+    }
+
+    return $values;
 }
 
 function dv_get_product_offer_shipping_schema() {

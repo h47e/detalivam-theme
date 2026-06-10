@@ -252,6 +252,12 @@ function dv_search_extract_terms( $query ) {
 }
 
 function dv_get_marka_taxonomy() {
+    static $resolved_taxonomy = null;
+
+    if ( null !== $resolved_taxonomy ) {
+        return $resolved_taxonomy;
+    }
+
     $candidates = array(
         'car_brand',
         'pa_car_brand',
@@ -268,7 +274,9 @@ function dv_get_marka_taxonomy() {
 
     foreach ( $candidates as $taxonomy ) {
         if ( taxonomy_exists( $taxonomy ) ) {
-            return $taxonomy;
+            $resolved_taxonomy = $taxonomy;
+
+            return $resolved_taxonomy;
         }
     }
 
@@ -286,13 +294,17 @@ function dv_get_marka_taxonomy() {
             ) {
                 $taxonomy = wc_attribute_taxonomy_name( $attribute->attribute_name );
                 if ( taxonomy_exists( $taxonomy ) ) {
-                    return $taxonomy;
+                    $resolved_taxonomy = $taxonomy;
+
+                    return $resolved_taxonomy;
                 }
             }
         }
     }
 
-    return '';
+    $resolved_taxonomy = '';
+
+    return $resolved_taxonomy;
 }
 
 function dv_register_query_vars( $vars ) {

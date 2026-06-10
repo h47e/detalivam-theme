@@ -158,15 +158,26 @@ $marka_taxonomy = function_exists( 'dv_get_marka_taxonomy' ) ? dv_get_marka_taxo
 $marka_terms    = array();
 
 if ( $marka_taxonomy ) {
-    $marka_terms = get_terms(
-        array(
-            'taxonomy'   => $marka_taxonomy,
-            'hide_empty' => true,
-            'orderby'    => 'count',
-            'order'      => 'DESC',
-            'number'     => $marka_limit,
-        )
-    );
+    $marka_cache_key = function_exists( 'dv_product_section_cache_key' )
+        ? dv_product_section_cache_key( 'catalog_marka_terms|' . $marka_taxonomy . '|' . $marka_limit )
+        : '';
+    $marka_terms     = $marka_cache_key ? get_transient( $marka_cache_key ) : false;
+
+    if ( ! is_array( $marka_terms ) ) {
+        $marka_terms = get_terms(
+            array(
+                'taxonomy'   => $marka_taxonomy,
+                'hide_empty' => true,
+                'orderby'    => 'count',
+                'order'      => 'DESC',
+                'number'     => $marka_limit,
+            )
+        );
+
+        if ( $marka_cache_key && ! is_wp_error( $marka_terms ) ) {
+            set_transient( $marka_cache_key, $marka_terms, 6 * HOUR_IN_SECONDS );
+        }
+    }
 
     if ( is_wp_error( $marka_terms ) ) {
         $marka_terms = array();
@@ -178,7 +189,7 @@ if ( empty( $marka_terms ) && function_exists( 'wc_get_product' ) && $wp_query i
 
         foreach ( $wp_query->posts as $query_product_post ) {
             $fallback_product_id = $query_product_post instanceof WP_Post ? $query_product_post->ID : absint( $query_product_post );
-            $fallback_product    = wc_get_product( $fallback_product_id );
+            $fallback_product    = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $fallback_product_id ) : wc_get_product( $fallback_product_id );
 
             if ( ! $fallback_product || ! $fallback_product->is_visible() ) {
                 continue;
