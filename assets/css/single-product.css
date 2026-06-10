@@ -107,13 +107,14 @@ body.single-product .product-marketplace-text {
 body.single-product .related-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  justify-content: flex-start;
+  min-height: 60px;
+  text-align: left;
 }
 
 body.single-product .related-title {
   width: 100%;
-  text-align: center;
+  text-align: left;
 }
 
 @media (max-width: 640px) {
