@@ -76,6 +76,70 @@ function dv_theme_labels() {
     return $labels_cache;
 }
 
+function dv_core_default_label( $key ) {
+    static $labels = null;
+
+    if ( null === $labels ) {
+        $labels = array(
+            'store_name'      => html_entity_decode( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;', ENT_QUOTES, 'UTF-8' ),
+            'city'            => html_entity_decode( '&#1058;&#1086;&#1083;&#1100;&#1103;&#1090;&#1090;&#1080;', ENT_QUOTES, 'UTF-8' ),
+            'region'          => html_entity_decode( '&#1057;&#1072;&#1084;&#1072;&#1088;&#1089;&#1082;&#1072;&#1103; &#1086;&#1073;&#1083;&#1072;&#1089;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
+            'country'         => html_entity_decode( '&#1056;&#1086;&#1089;&#1089;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+            'menu_primary'    => html_entity_decode( '&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1072;&#1103; &#1085;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+            'menu_footer'     => html_entity_decode( '&#1055;&#1086;&#1076;&#1074;&#1072;&#1083;', ENT_QUOTES, 'UTF-8' ),
+            'sidebar_catalog' => html_entity_decode( '&#1041;&#1086;&#1082;&#1086;&#1074;&#1072;&#1103; &#1087;&#1072;&#1085;&#1077;&#1083;&#1100; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;&#1072;', ENT_QUOTES, 'UTF-8' ),
+            'footer_col_1'    => html_entity_decode( '&#1055;&#1086;&#1076;&#1074;&#1072;&#1083; &mdash; &#1050;&#1086;&#1083;&#1086;&#1085;&#1082;&#1072; 1', ENT_QUOTES, 'UTF-8' ),
+            'footer_col_2'    => html_entity_decode( '&#1055;&#1086;&#1076;&#1074;&#1072;&#1083; &mdash; &#1050;&#1086;&#1083;&#1086;&#1085;&#1082;&#1072; 2', ENT_QUOTES, 'UTF-8' ),
+        );
+    }
+
+    return $labels[ $key ] ?? '';
+}
+
+function dv_frontend_script_labels() {
+    static $labels = null;
+
+    if ( is_array( $labels ) ) {
+        return $labels;
+    }
+
+    $content       = function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array();
+    $compare_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'compare_limit', 4, 2, 8 ) : 4;
+
+    $labels = array(
+        'adding'                 => html_entity_decode( '&#1044;&#1086;&#1073;&#1072;&#1074;&#1083;&#1103;&#1077;&#1084;...', ENT_QUOTES, 'UTF-8' ),
+        'added_to_cart'          => html_entity_decode( '&#1058;&#1086;&#1074;&#1072;&#1088; &#1076;&#1086;&#1073;&#1072;&#1074;&#1083;&#1077;&#1085; &#1074; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
+        'add_error'              => html_entity_decode( '&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1076;&#1086;&#1073;&#1072;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+        'security_error'         => html_entity_decode( '&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1073;&#1077;&#1079;&#1086;&#1087;&#1072;&#1089;&#1085;&#1086;&#1089;&#1090;&#1080;. &#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1077; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091;.', ENT_QUOTES, 'UTF-8' ),
+        'connection_error'       => html_entity_decode( '&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1089;&#1086;&#1077;&#1076;&#1080;&#1085;&#1077;&#1085;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+        'wishlist_error'         => html_entity_decode( '&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1075;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'wishlist_added'         => html_entity_decode( '&#1044;&#1086;&#1073;&#1072;&#1074;&#1083;&#1077;&#1085;&#1086; &#1074; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'wishlist_removed'       => html_entity_decode( '&#1059;&#1076;&#1072;&#1083;&#1077;&#1085;&#1086; &#1080;&#1079; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1075;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'wishlist_empty_short'   => html_entity_decode( '&#1055;&#1091;&#1089;&#1090;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'compare_limit'          => sprintf( html_entity_decode( '&#1052;&#1086;&#1078;&#1085;&#1086; &#1089;&#1088;&#1072;&#1074;&#1085;&#1080;&#1074;&#1072;&#1090;&#1100; &#1085;&#1077; &#1073;&#1086;&#1083;&#1077;&#1077; %d &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;', ENT_QUOTES, 'UTF-8' ), $compare_limit ),
+        'compare_added'          => html_entity_decode( '&#1044;&#1086;&#1073;&#1072;&#1074;&#1083;&#1077;&#1085;&#1086; &#1082; &#1089;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1102;', ENT_QUOTES, 'UTF-8' ),
+        'compare_removed'        => html_entity_decode( '&#1059;&#1076;&#1072;&#1083;&#1077;&#1085;&#1086; &#1080;&#1079; &#1089;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1103;', ENT_QUOTES, 'UTF-8' ),
+        'compare_empty'          => html_entity_decode( '&#1057;&#1087;&#1080;&#1089;&#1086;&#1082; &#1089;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1103; &#1087;&#1091;&#1089;&#1090;', ENT_QUOTES, 'UTF-8' ),
+        'compare_load_error'     => html_entity_decode( '&#1053;&#1077; &#1091;&#1076;&#1072;&#1083;&#1086;&#1089;&#1100; &#1079;&#1072;&#1075;&#1088;&#1091;&#1079;&#1080;&#1090;&#1100; &#1089;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1077;.', ENT_QUOTES, 'UTF-8' ),
+        'wishlist_load_error'    => html_entity_decode( '&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1079;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1080;. &#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1077; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091;.', ENT_QUOTES, 'UTF-8' ),
+        'cart_qty_increased'     => html_entity_decode( '&#1050;&#1086;&#1083;&#1080;&#1095;&#1077;&#1089;&#1090;&#1074;&#1086; &#1091;&#1074;&#1077;&#1083;&#1080;&#1095;&#1077;&#1085;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'cart_qty_decreased'     => html_entity_decode( '&#1050;&#1086;&#1083;&#1080;&#1095;&#1077;&#1089;&#1090;&#1074;&#1086; &#1091;&#1084;&#1077;&#1085;&#1100;&#1096;&#1077;&#1085;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'recounting'             => html_entity_decode( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1095;&#1080;&#1090;&#1099;&#1074;&#1072;&#1077;&#1084;...', ENT_QUOTES, 'UTF-8' ),
+        'update_cart'            => html_entity_decode( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
+        'search_empty'           => html_entity_decode( '&#1053;&#1080;&#1095;&#1077;&#1075;&#1086; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1086; &#1087;&#1086; &#1079;&#1072;&#1087;&#1088;&#1086;&#1089;&#1091; &laquo;%s&raquo;', ENT_QUOTES, 'UTF-8' ),
+        'search_found'           => html_entity_decode( '&#1053;&#1072;&#1081;&#1076;&#1077;&#1085;&#1086;:', ENT_QUOTES, 'UTF-8' ),
+        'search_in_stock'        => html_entity_decode( '&#1042; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'search_out_of_stock'    => html_entity_decode( '&#1053;&#1077;&#1090; &#1074; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'search_all_results_link' => html_entity_decode( '&#1057;&#1084;&#1086;&#1090;&#1088;&#1077;&#1090;&#1100; &#1074;&#1089;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'search_loading'         => html_entity_decode( '&#1055;&#1086;&#1080;&#1089;&#1082;...', ENT_QUOTES, 'UTF-8' ),
+        'go_catalog'             => html_entity_decode( '&#1055;&#1077;&#1088;&#1077;&#1081;&#1090;&#1080; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
+        'to_cart'                => $content['cta_to_cart'] ?? html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
+        'in_cart'                => $content['cta_in_cart'] ?? html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1077;', ENT_QUOTES, 'UTF-8' ),
+    );
+
+    return $labels;
+}
+
 function dv_get_store_profile() {
     static $profile_cache = null;
 
@@ -83,17 +147,16 @@ function dv_get_store_profile() {
         return $profile_cache;
     }
 
-    $labels = dv_theme_labels();
     $defaults = array(
-        'name'         => $labels['store_name'],
+        'name'         => dv_core_default_label( 'store_name' ),
         'site_url'     => home_url( '/' ),
         'logo_url'     => '',
         'phone'        => '+7-927-216-60-99',
         'phone_display'=> '+7 (927) 216-60-99',
         'email'        => 'info@detalivam63.ru',
-        'city'         => $labels['city'],
-        'region'       => $labels['region'],
-        'country_name' => $labels['country'],
+        'city'         => dv_core_default_label( 'city' ),
+        'region'       => dv_core_default_label( 'region' ),
+        'country_name' => dv_core_default_label( 'country' ),
         'country_code' => 'RU',
         'currency'     => 'RUB',
         'ozon_url'     => 'https://www.ozon.ru/seller/detali-vam/',
@@ -194,7 +257,6 @@ function dv_get_ozon_icon_url() {
 }
 
 function dv_setup() {
-    $labels = dv_theme_labels();
     add_theme_support( 'title-tag' );
     add_theme_support( 'post-thumbnails' );
     add_theme_support( 'html5', array( 'search-form', 'comment-form', 'comment-list', 'gallery', 'caption' ) );
@@ -207,8 +269,8 @@ function dv_setup() {
 
     register_nav_menus(
         array(
-            'primary' => $labels['menu_primary'],
-            'footer'  => $labels['menu_footer'],
+            'primary' => dv_core_default_label( 'menu_primary' ),
+            'footer'  => dv_core_default_label( 'menu_footer' ),
         )
     );
 
@@ -441,7 +503,7 @@ function dv_cleanup_frontend_assets() {
 add_action( 'wp_enqueue_scripts', 'dv_cleanup_frontend_assets', 110 );
 
 function dv_enqueue() {
-    $labels = dv_theme_labels();
+    $labels = dv_frontend_script_labels();
     wp_enqueue_style(
         'dv-fonts',
         'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap',
@@ -508,12 +570,17 @@ function dv_enqueue() {
                 'search_empty'          => $labels['search_empty'],
                 'search_found'          => $labels['search_found'],
                 'search_in_stock'       => $labels['search_in_stock'],
-                'search_out_of_stock'   => $labels['search_out_stock'],
-                'search_all_results'    => $labels['search_all_results'],
+                'search_out_of_stock'   => $labels['search_out_of_stock'],
+                'search_all_results_link' => $labels['search_all_results_link'],
                 'search_loading'        => $labels['search_loading'],
                 'compare_load_error'    => $labels['compare_load_error'],
                 'wishlist_load_error'   => $labels['wishlist_load_error'],
                 'compare_empty'         => $labels['compare_empty'],
+                'wishlist_empty_short'  => $labels['wishlist_empty_short'],
+                'cart_qty_increased'    => $labels['cart_qty_increased'],
+                'cart_qty_decreased'    => $labels['cart_qty_decreased'],
+                'to_cart'               => $labels['to_cart'],
+                'in_cart'               => $labels['in_cart'],
                 'go_catalog'            => $labels['go_catalog'],
             ),
         )
@@ -566,10 +633,9 @@ function dv_load_wc_cart_for_ajax() {
 add_action( 'wp_loaded', 'dv_load_wc_cart_for_ajax' );
 
 function dv_register_sidebars() {
-    $labels = dv_theme_labels();
     register_sidebar(
         array(
-            'name'          => $labels['sidebar_catalog'],
+            'name'          => dv_core_default_label( 'sidebar_catalog' ),
             'id'            => 'shop-sidebar',
             'before_widget' => '<div class="filter-widget">',
             'after_widget'  => '</div>',
@@ -580,7 +646,7 @@ function dv_register_sidebars() {
 
     register_sidebar(
         array(
-            'name'          => $labels['footer_col_1'],
+            'name'          => dv_core_default_label( 'footer_col_1' ),
             'id'            => 'footer-1',
             'before_widget' => '<div>',
             'after_widget'  => '</div>',
@@ -591,7 +657,7 @@ function dv_register_sidebars() {
 
     register_sidebar(
         array(
-            'name'          => $labels['footer_col_2'],
+            'name'          => dv_core_default_label( 'footer_col_2' ),
             'id'            => 'footer-2',
             'before_widget' => '<div>',
             'after_widget'  => '</div>',
