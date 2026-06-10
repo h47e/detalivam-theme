@@ -23,6 +23,12 @@ function dv_search_variants( $query ) {
         return array();
     }
 
+    static $variants_cache = array();
+
+    if ( array_key_exists( $query, $variants_cache ) ) {
+        return $variants_cache[ $query ];
+    }
+
     $variants = array( $query );
     $lat      = dv_cyr_to_lat( $query );
     $cyr      = dv_lat_to_cyr( $query );
@@ -41,37 +47,47 @@ function dv_search_variants( $query ) {
         }
     }
 
-    return array_values( array_unique( array_filter( $variants ) ) );
+    $variants_cache[ $query ] = array_values( array_unique( array_filter( $variants ) ) );
+
+    return $variants_cache[ $query ];
 }
 
 function dv_cyr_to_lat( $text ) {
-    return strtr(
-        $text,
-        array(
+    static $map = null;
+
+    if ( null === $map ) {
+        $map = array(
             'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd', 'е' => 'e', 'ё' => 'yo',
             'ж' => 'zh', 'з' => 'z', 'и' => 'i', 'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm',
             'н' => 'n', 'о' => 'o', 'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't', 'у' => 'u',
             'ф' => 'f', 'х' => 'kh', 'ц' => 'ts', 'ч' => 'ch', 'ш' => 'sh', 'щ' => 'sch',
             'ъ' => '', 'ы' => 'y', 'ь' => '', 'э' => 'e', 'ю' => 'yu', 'я' => 'ya',
-        )
-    );
+        );
+    }
+
+    return strtr( $text, $map );
 }
 
 function dv_lat_to_cyr( $text ) {
-    $map = array(
-        'sch' => 'щ', 'sh' => 'ш', 'ch' => 'ч', 'zh' => 'ж', 'ts' => 'ц', 'yu' => 'ю', 'ya' => 'я', 'yo' => 'ё', 'kh' => 'х',
-        'a' => 'а', 'b' => 'б', 'v' => 'в', 'g' => 'г', 'd' => 'д', 'e' => 'е', 'z' => 'з', 'i' => 'и', 'y' => 'й', 'k' => 'к',
-        'l' => 'л', 'm' => 'м', 'n' => 'н', 'o' => 'о', 'p' => 'п', 'r' => 'р', 's' => 'с', 't' => 'т', 'u' => 'у', 'f' => 'ф',
-        'h' => 'х', 'w' => 'в', 'q' => 'к', 'x' => 'кс',
-    );
+    static $map = null;
 
+    if ( null === $map ) {
+        $map = array(
+            'sch' => 'щ', 'sh' => 'ш', 'ch' => 'ч', 'zh' => 'ж', 'ts' => 'ц', 'yu' => 'ю', 'ya' => 'я', 'yo' => 'ё', 'kh' => 'х',
+            'a' => 'а', 'b' => 'б', 'v' => 'в', 'g' => 'г', 'd' => 'д', 'e' => 'е', 'z' => 'з', 'i' => 'и', 'y' => 'й', 'k' => 'к',
+            'l' => 'л', 'm' => 'м', 'n' => 'н', 'o' => 'о', 'p' => 'п', 'r' => 'р', 's' => 'с', 't' => 'т', 'u' => 'у', 'f' => 'ф',
+            'h' => 'х', 'w' => 'в', 'q' => 'к', 'x' => 'кс',
+        );
+    }
+
+    $chunk_sizes = array( 3, 2, 1 );
     $result = '';
     $length = mb_strlen( $text );
     $index  = 0;
 
     while ( $index < $length ) {
         $matched = false;
-        foreach ( array( 3, 2, 1 ) as $size ) {
+        foreach ( $chunk_sizes as $size ) {
             if ( $index + $size > $length ) {
                 continue;
             }
@@ -93,7 +109,13 @@ function dv_lat_to_cyr( $text ) {
 }
 
 function dv_brand_pairs() {
-    return array(
+    static $pairs = null;
+
+    if ( is_array( $pairs ) ) {
+        return $pairs;
+    }
+
+    $pairs = array(
         'ваз' => 'vaz', 'vaz' => 'ваз', 'лада' => 'lada', 'lada' => 'лада', 'экрис' => 'ekris', 'ekris' => 'экрис',
         'стилл' => 'still', 'still' => 'стилл', 'тольятти' => 'tolyatti', 'tolyatti' => 'тольятти',
         'кия' => 'kia', 'kia' => 'кия', 'рено' => 'renault', 'renault' => 'рено', 'ниссан' => 'nissan', 'nissan' => 'ниссан',
@@ -103,9 +125,17 @@ function dv_brand_pairs() {
         'опель' => 'opel', 'opel' => 'опель', 'мазда' => 'mazda', 'mazda' => 'мазда', 'хонда' => 'honda', 'honda' => 'хонда',
         'ауди' => 'audi', 'audi' => 'ауди', 'субару' => 'subaru', 'subaru' => 'субару', 'митсубиси' => 'mitsubishi', 'mitsubishi' => 'митсубиси',
     );
+
+    return $pairs;
 }
 
 function dv_lada_model_alias_groups() {
+    static $groups = null;
+
+    if ( is_array( $groups ) ) {
+        return $groups;
+    }
+
     $numeric_models = array(
         '1111',
         '2101',
@@ -164,6 +194,12 @@ function dv_lada_model_terms_for_query( $query ) {
         return array();
     }
 
+    static $terms_cache = array();
+
+    if ( array_key_exists( $query, $terms_cache ) ) {
+        return $terms_cache[ $query ];
+    }
+
     $terms = array();
     $is_samara2_query = (bool) preg_match( '/(?<![\p{L}\p{N}])(самара\s*2|samara\s*2|samara\s*ii)(?![\p{L}\p{N}])/u', $query );
 
@@ -185,7 +221,7 @@ function dv_lada_model_terms_for_query( $query ) {
         }
     }
 
-    return array_values(
+    $terms_cache[ $query ] = array_values(
         array_unique(
             array_filter(
                 array_map(
@@ -197,6 +233,8 @@ function dv_lada_model_terms_for_query( $query ) {
             )
         )
     );
+
+    return $terms_cache[ $query ];
 }
 
 function dv_search_extract_terms( $query ) {
@@ -327,9 +365,21 @@ function dv_get_request_filter_args() {
 }
 
 function dv_search_explicit_query_tokens( $query ) {
+    $cache_key = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $query ) ) ), 'UTF-8' );
+
+    if ( '' === $cache_key ) {
+        return array();
+    }
+
+    static $tokens_cache = array();
+
+    if ( array_key_exists( $cache_key, $tokens_cache ) ) {
+        return $tokens_cache[ $cache_key ];
+    }
+
     $tokens = array();
 
-    foreach ( dv_search_variants( $query ) as $variant ) {
+    foreach ( dv_search_variants( $cache_key ) as $variant ) {
         foreach ( preg_split( '/[^\p{L}\p{N}]+/u', $variant, -1, PREG_SPLIT_NO_EMPTY ) as $token ) {
             $token = mb_strtolower( trim( (string) $token ), 'UTF-8' );
 
@@ -339,7 +389,9 @@ function dv_search_explicit_query_tokens( $query ) {
         }
     }
 
-    return array_values( array_unique( array_filter( $tokens ) ) );
+    $tokens_cache[ $cache_key ] = array_values( array_unique( array_filter( $tokens ) ) );
+
+    return $tokens_cache[ $cache_key ];
 }
 
 function dv_search_required_query_tokens( $query ) {
@@ -347,6 +399,12 @@ function dv_search_required_query_tokens( $query ) {
 
     if ( '' === $query ) {
         return array();
+    }
+
+    static $tokens_cache = array();
+
+    if ( array_key_exists( $query, $tokens_cache ) ) {
+        return $tokens_cache[ $query ];
     }
 
     $tokens = array();
@@ -359,14 +417,31 @@ function dv_search_required_query_tokens( $query ) {
         }
     }
 
-    return array_values( array_unique( array_filter( $tokens ) ) );
+    $tokens_cache[ $query ] = array_values( array_unique( array_filter( $tokens ) ) );
+
+    return $tokens_cache[ $query ];
 }
 
 function dv_search_title_priority_terms( $query ) {
+    $cache_key = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $query ) ) ), 'UTF-8' );
+
+    if ( '' === $cache_key ) {
+        return array(
+            'text'   => array(),
+            'number' => array(),
+        );
+    }
+
+    static $terms_cache = array();
+
+    if ( array_key_exists( $cache_key, $terms_cache ) ) {
+        return $terms_cache[ $cache_key ];
+    }
+
     $text_terms   = array();
     $number_terms = array();
 
-    foreach ( dv_search_explicit_query_tokens( $query ) as $token ) {
+    foreach ( dv_search_explicit_query_tokens( $cache_key ) as $token ) {
         if ( preg_match( '/\p{L}/u', $token ) ) {
             $text_terms[] = $token;
         } elseif ( preg_match( '/^\d{3,}$/u', $token ) ) {
@@ -374,10 +449,12 @@ function dv_search_title_priority_terms( $query ) {
         }
     }
 
-    return array(
+    $terms_cache[ $cache_key ] = array(
         'text'   => array_values( array_unique( $text_terms ) ),
         'number' => array_values( array_unique( $number_terms ) ),
     );
+
+    return $terms_cache[ $cache_key ];
 }
 
 function dv_search_numeric_boundary_pattern( $number ) {
