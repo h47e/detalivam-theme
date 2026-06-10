@@ -122,7 +122,17 @@ function dv_parse_id_list( $raw ) {
 }
 
 function dv_get_cookie_id_list( $cookie_name ) {
-    return dv_parse_id_list( $_COOKIE[ $cookie_name ] ?? '' );
+    static $cookie_list_cache = array();
+
+    $cookie_name = sanitize_key( $cookie_name );
+
+    if ( isset( $cookie_list_cache[ $cookie_name ] ) ) {
+        return $cookie_list_cache[ $cookie_name ];
+    }
+
+    $cookie_list_cache[ $cookie_name ] = dv_parse_id_list( $_COOKIE[ $cookie_name ] ?? '' );
+
+    return $cookie_list_cache[ $cookie_name ];
 }
 
 function dv_ajax_toggle_wishlist() {

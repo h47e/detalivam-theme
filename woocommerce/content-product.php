@@ -104,9 +104,8 @@ $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product
 
     <div class="dv-card-body">
       <?php
-      $terms = get_the_terms( $product_id, 'product_cat' );
-      if ( $terms && ! is_wp_error( $terms ) ) :
-          $cat = $terms[0];
+      $cat = function_exists( 'dv_get_primary_product_cat' ) ? dv_get_primary_product_cat( $product_id ) : null;
+      if ( $cat instanceof WP_Term ) :
       ?>
       <div class="dv-card-cat"><?php echo esc_html( $cat->name ); ?></div>
       <?php endif; ?>

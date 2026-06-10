@@ -380,6 +380,13 @@ function dv_get_compat_tags( $product ) {
         return array();
     }
 
+    $product_id = $product instanceof WC_Product ? (int) $product->get_id() : 0;
+    static $tags_cache = array();
+
+    if ( $product_id && isset( $tags_cache[ $product_id ] ) ) {
+        return $tags_cache[ $product_id ];
+    }
+
     $tags  = array();
     $attrs = $product->get_attributes();
 
@@ -421,7 +428,13 @@ function dv_get_compat_tags( $product ) {
         }
     }
 
-    return array_values( $tags );
+    $tags = array_values( $tags );
+
+    if ( $product_id ) {
+        $tags_cache[ $product_id ] = $tags;
+    }
+
+    return $tags;
 }
 
 function dv_cat_icon( $slug ) {
@@ -445,6 +458,12 @@ function dv_get_primary_product_cat( $product_id ) {
         return null;
     }
 
+    static $primary_cat_cache = array();
+
+    if ( array_key_exists( $product_id, $primary_cat_cache ) ) {
+        return $primary_cat_cache[ $product_id ];
+    }
+
     if ( class_exists( 'WPSEO_Primary_Term' ) ) {
         $primary = new WPSEO_Primary_Term( 'product_cat', $product_id );
         $term_id = absint( $primary->get_primary_term() );
@@ -452,13 +471,17 @@ function dv_get_primary_product_cat( $product_id ) {
         if ( $term_id ) {
             $term = get_term( $term_id, 'product_cat' );
             if ( $term && ! is_wp_error( $term ) ) {
-                return $term;
+                $primary_cat_cache[ $product_id ] = $term;
+
+                return $primary_cat_cache[ $product_id ];
             }
         }
     }
 
     $terms = wp_get_post_terms( $product_id, 'product_cat' );
     if ( empty( $terms ) || is_wp_error( $terms ) ) {
+        $primary_cat_cache[ $product_id ] = null;
+
         return null;
     }
 
@@ -469,7 +492,9 @@ function dv_get_primary_product_cat( $product_id ) {
         }
     );
 
-    return $terms[0];
+    $primary_cat_cache[ $product_id ] = $terms[0];
+
+    return $primary_cat_cache[ $product_id ];
 }
 
 function dv_get_current_product_cat_path_ids() {
@@ -1193,12 +1218,38 @@ function dv_normalize_product_title_text( $title ) {
 }
 
 function dv_get_product_display_name( $product_or_id, $fallback = '' ) {
+    static $display_name_cache = array();
+
     if ( $product_or_id instanceof WC_Product ) {
-        return dv_normalize_product_title_text( $product_or_id->get_name() );
+        $product_id = (int) $product_or_id->get_id();
+
+        if ( $product_id && isset( $display_name_cache[ $product_id ] ) ) {
+            return $display_name_cache[ $product_id ];
+        }
+
+        $display_name = dv_normalize_product_title_text( $product_or_id->get_name() );
+
+        if ( $product_id ) {
+            $display_name_cache[ $product_id ] = $display_name;
+        }
+
+        return $display_name;
     }
 
     if ( is_numeric( $product_or_id ) ) {
-        return dv_normalize_product_title_text( get_the_title( (int) $product_or_id ) );
+        $product_id = (int) $product_or_id;
+
+        if ( $product_id && isset( $display_name_cache[ $product_id ] ) ) {
+            return $display_name_cache[ $product_id ];
+        }
+
+        $display_name = dv_normalize_product_title_text( get_the_title( $product_id ) );
+
+        if ( $product_id ) {
+            $display_name_cache[ $product_id ] = $display_name;
+        }
+
+        return $display_name;
     }
 
     if ( is_string( $product_or_id ) && '' !== $product_or_id ) {
