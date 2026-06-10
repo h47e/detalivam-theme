@@ -2,7 +2,13 @@
 defined( 'ABSPATH' ) || exit;
 
 function dv_cart_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'cart_short_title' => html_entity_decode( '&#1050;&#1086;&#1088;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ),
         'cart_empty'       => html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1077; &#1087;&#1086;&#1082;&#1072; &#1087;&#1091;&#1089;&#1090;&#1086;', ENT_QUOTES, 'UTF-8' ),
         'subtotal'         => html_entity_decode( '&#1048;&#1090;&#1086;&#1075;&#1086;', ENT_QUOTES, 'UTF-8' ),
@@ -10,6 +16,8 @@ function dv_cart_labels() {
         'go_cart_short'    => html_entity_decode( '&#1054;&#1090;&#1082;&#1088;&#1099;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
         'go_checkout'      => html_entity_decode( '&#1054;&#1092;&#1086;&#1088;&#1084;&#1080;&#1090;&#1100; &#1079;&#1072;&#1082;&#1072;&#1079;', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_cart_prepare_json_response() {

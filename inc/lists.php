@@ -23,7 +23,13 @@ function dv_lists_verify_ajax_nonce() {
 }
 
 function dv_lists_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'wishlist_empty'        => html_entity_decode( '&#1057;&#1087;&#1080;&#1089;&#1086;&#1082; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1075;&#1086; &#1087;&#1091;&#1089;&#1090;', ENT_QUOTES, 'UTF-8' ),
         'compare_loading'       => html_entity_decode( '&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072; &#1089;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1103;...', ENT_QUOTES, 'UTF-8' ),
         'wishlist_loading'      => html_entity_decode( '&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1075;&#1086;...', ENT_QUOTES, 'UTF-8' ),
@@ -50,6 +56,8 @@ function dv_lists_labels() {
         'remove'                => html_entity_decode( '&#1059;&#1073;&#1088;&#1072;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
         'details'               => html_entity_decode( '&#1055;&#1086;&#1076;&#1088;&#1086;&#1073;&#1085;&#1077;&#1077;', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_get_list_preview_products( $ids, $limit = 4 ) {

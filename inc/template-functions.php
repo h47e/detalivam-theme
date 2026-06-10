@@ -238,12 +238,20 @@ function dv_get_product_card_labels() {
 }
 
 function dv_get_cart_button_labels() {
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
     $labels = function_exists( 'dv_theme_labels' ) ? dv_theme_labels() : array();
 
-    return array(
+    $labels_cache = array(
         'to_cart' => $labels['to_cart'] ?? html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
         'in_cart' => $labels['in_cart'] ?? html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1077;', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_compat_normalize_text( $text ) {
