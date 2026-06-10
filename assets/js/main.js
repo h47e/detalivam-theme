@@ -1184,7 +1184,10 @@
     var results = document.getElementById('dv-live-results');
     var timer = null;
     var activeRequest = 0;
+    var activeController = null;
     var lastQuery = '';
+    var liveCache = {};
+    var liveCacheKeys = [];
     var liveUrl;
 
     if (!form || !input || !results) return;
@@ -1224,12 +1227,13 @@
     function renderItems(data, query) {
       var items = data.items || [];
       var html = '';
+      var totalLabel = data.total_label || String(Number(data.total || items.length));
 
       if (!items.length) {
         return '<div class="dv-search-empty">' + escapeHtml(dvFormatText(dvText('search_empty', 'Ничего не найдено по запросу «%s»'), query)) + '</div>';
       }
 
-      html += '<div class="dv-search-meta">' + escapeHtml(dvText('search_found', 'Найдено:')) + ' ' + Number(data.total || items.length) + '</div>';
+      html += '<div class="dv-search-meta">' + escapeHtml(dvText('search_found', 'Найдено:')) + ' ' + escapeHtml(totalLabel) + '</div>';
 
       items.forEach(function(item) {
         var stockHtml = item.in_stock
@@ -1250,7 +1254,7 @@
       });
 
       if (items.length) {
-        html += '<a href="' + escapeHtml(data.search_url || ('/?s=' + encodeURIComponent(query) + '&post_type=product')) + '" class="dv-search-all">' + escapeHtml(dvFormatText(dvText('search_all_results', 'Смотреть все результаты (%s) →'), Number(data.total))) + '</a>';
+        html += '<a href="' + escapeHtml(data.search_url || ('/?s=' + encodeURIComponent(query) + '&post_type=product')) + '" class="dv-search-all">' + escapeHtml(dvText('search_all_results_link', '\u0421\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u0432\u0441\u0435')) + '</a>';
       }
 
       return html;
@@ -1258,11 +1262,17 @@
 
     input.addEventListener('input', function() {
       var query = this.value.trim();
+      var cacheKey = query.toLowerCase();
       var requestId;
+      var requestController = null;
 
       clearTimeout(timer);
 
       if (query.length < 2) {
+        activeRequest++;
+        if (activeController && typeof activeController.abort === 'function') {
+          activeController.abort();
+        }
         lastQuery = '';
         hideResults();
         return;
@@ -1272,10 +1282,30 @@
       lastQuery = query;
       requestId = ++activeRequest;
 
+      if (liveCache[cacheKey]) {
+        if (activeController && typeof activeController.abort === 'function') {
+          activeController.abort();
+        }
+        showResults(renderItems(liveCache[cacheKey], query));
+        return;
+      }
+
+      if (activeController && typeof activeController.abort === 'function') {
+        activeController.abort();
+      }
+
+      if (window.AbortController) {
+        requestController = new AbortController();
+        activeController = requestController;
+      }
+
       showResults('<div class="dv-search-loading">' + escapeHtml(dvText('search_loading', 'Поиск...')) + '</div>');
 
       timer = setTimeout(function() {
-        fetch(liveUrl + '?action=dv_live_search&q=' + encodeURIComponent(query))
+        fetch(
+          liveUrl + '?action=dv_live_search&q=' + encodeURIComponent(query),
+          requestController ? { signal: requestController.signal } : {}
+        )
           .then(function(r) { return r.json(); })
           .then(function(d) {
             if (requestId !== activeRequest) return;
@@ -1283,13 +1313,19 @@
               hideResults();
               return;
             }
+            liveCache[cacheKey] = d.data || {};
+            liveCacheKeys.push(cacheKey);
+            if (liveCacheKeys.length > 30) {
+              delete liveCache[liveCacheKeys.shift()];
+            }
             showResults(renderItems(d.data || {}, query));
           })
-          .catch(function() {
+          .catch(function(error) {
+            if (error && error.name === 'AbortError') return;
             if (requestId !== activeRequest) return;
             hideResults();
           });
-      }, 280);
+      }, 160);
     });
 
     input.addEventListener('focus', function() {

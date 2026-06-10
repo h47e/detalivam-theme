@@ -4693,6 +4693,11 @@ function dv_render_theme_options_page() {
                 <p><?php echo esc_html( dv_theme_options_label( '&#1057;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;&#1099;: dashboard, &#1072;&#1091;&#1076;&#1080;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap.' ) ); ?></p>
             </div>
         <?php endif; ?>
+        <?php if ( isset( $_GET['search-index'] ) && 'rebuilt' === sanitize_key( wp_unslash( $_GET['search-index'] ) ) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html( dv_theme_options_label( '&#1048;&#1085;&#1076;&#1077;&#1082;&#1089; &#1087;&#1086;&#1080;&#1089;&#1082;&#1072; &#1087;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1085;.' ) ); ?></p>
+            </div>
+        <?php endif; ?>
         <?php if ( isset( $_GET['settings-history'] ) && 'cleared' === sanitize_key( wp_unslash( $_GET['settings-history'] ) ) ) : ?>
             <div class="notice notice-success is-dismissible">
                 <p><?php echo esc_html( dv_theme_options_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103; &#1080;&#1079;&#1084;&#1077;&#1085;&#1077;&#1085;&#1080;&#1081; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;&#1072;.' ) ); ?></p>
@@ -5242,6 +5247,12 @@ function dv_render_theme_options_page() {
                         dv_theme_options_label( '&#1041;&#1083;&#1086;&#1082; &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1081; &#1087;&#1086;&#1076; &#1073;&#1099;&#1089;&#1090;&#1088;&#1099;&#1084;&#1080; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;&#1084;&#1080;.' )
                     );
                     ?>
+                    <div class="dv-admin-actions">
+                        <button type="submit" class="button button-secondary" form="dv-live-search-index-rebuild">
+                            <?php echo esc_html( dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1090;&#1100; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089; &#1087;&#1086;&#1080;&#1089;&#1082;&#1072;' ) ); ?>
+                        </button>
+                        <p class="description"><?php echo esc_html( dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1103;&#1077;&#1090; &#1073;&#1099;&#1089;&#1090;&#1088;&#1099;&#1081; live-search &#1087;&#1086;&#1089;&#1083;&#1077; &#1084;&#1072;&#1089;&#1089;&#1086;&#1074;&#1086;&#1075;&#1086; &#1080;&#1084;&#1087;&#1086;&#1088;&#1090;&#1072; &#1080;&#1083;&#1080; &#1087;&#1088;&#1072;&#1074;&#1086;&#1082; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;.' ) ); ?></p>
+                    </div>
                 </section>
 
                 <section class="dv-admin-card" id="dv-options-footer">
@@ -5654,6 +5665,11 @@ function dv_render_theme_options_page() {
         <form id="dv-theme-service-cache-clear" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
             <?php wp_nonce_field( 'dv_theme_service_cache_clear' ); ?>
             <input type="hidden" name="action" value="dv_theme_service_cache_clear">
+        </form>
+
+        <form id="dv-live-search-index-rebuild" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_live_search_index_rebuild' ); ?>
+            <input type="hidden" name="action" value="dv_live_search_index_rebuild">
         </form>
 
         <form id="dv-theme-settings-history-export" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

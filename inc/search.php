@@ -306,36 +306,715 @@ function dv_get_request_filter_args() {
     );
 }
 
+function dv_search_explicit_query_tokens( $query ) {
+    $tokens = array();
+
+    foreach ( dv_search_variants( $query ) as $variant ) {
+        foreach ( preg_split( '/[^\p{L}\p{N}]+/u', $variant, -1, PREG_SPLIT_NO_EMPTY ) as $token ) {
+            $token = mb_strtolower( trim( (string) $token ), 'UTF-8' );
+
+            if ( mb_strlen( $token, 'UTF-8' ) >= 2 ) {
+                $tokens[] = $token;
+            }
+        }
+    }
+
+    return array_values( array_unique( array_filter( $tokens ) ) );
+}
+
+function dv_search_required_query_tokens( $query ) {
+    $query = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $query ) ) ), 'UTF-8' );
+
+    if ( '' === $query ) {
+        return array();
+    }
+
+    $tokens = array();
+
+    foreach ( preg_split( '/[^\p{L}\p{N}]+/u', $query, -1, PREG_SPLIT_NO_EMPTY ) as $token ) {
+        $token = mb_strtolower( trim( (string) $token ), 'UTF-8' );
+
+        if ( mb_strlen( $token, 'UTF-8' ) >= 2 ) {
+            $tokens[] = $token;
+        }
+    }
+
+    return array_values( array_unique( array_filter( $tokens ) ) );
+}
+
+function dv_search_title_priority_terms( $query ) {
+    $text_terms   = array();
+    $number_terms = array();
+
+    foreach ( dv_search_explicit_query_tokens( $query ) as $token ) {
+        if ( preg_match( '/\p{L}/u', $token ) ) {
+            $text_terms[] = $token;
+        } elseif ( preg_match( '/^\d{3,}$/u', $token ) ) {
+            $number_terms[] = $token;
+        }
+    }
+
+    return array(
+        'text'   => array_values( array_unique( $text_terms ) ),
+        'number' => array_values( array_unique( $number_terms ) ),
+    );
+}
+
+function dv_search_numeric_boundary_pattern( $number ) {
+    return '(^|[^[:digit:]])' . preg_replace( '/\D+/', '', (string) $number ) . '([^[:digit:]]|$)';
+}
+
+function dv_search_live_terms( $query ) {
+    $terms = dv_search_explicit_query_tokens( $query );
+
+    return array_slice( array_values( array_unique( array_filter( $terms ) ) ), 0, 8 );
+}
+
+function dv_search_normalize_index_text( $text ) {
+    $text = mb_strtolower( wp_strip_all_tags( (string) $text ), 'UTF-8' );
+    $text = str_replace( 'ё', 'е', $text );
+    $text = preg_replace( '/[^\p{L}\p{N}]+/u', ' ', $text );
+
+    return trim( preg_replace( '/\s+/u', ' ', (string) $text ) );
+}
+
+function dv_search_index_cache_key() {
+    return 'dv_live_product_search_index_v2';
+}
+
+function dv_search_index_version() {
+    $version = (int) get_option( 'dv_live_product_search_index_version', 1 );
+
+    return $version > 0 ? $version : 1;
+}
+
+function dv_live_search_results_cache_key( $query, $limit ) {
+    return 'dv_live_product_search_results_v2_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $query ) . '|' . (int) $limit );
+}
+
+function dv_flush_live_search_index() {
+    delete_transient( dv_search_index_cache_key() );
+    update_option( 'dv_live_product_search_index_version', time(), false );
+    dv_schedule_live_search_index_rebuild();
+}
+
+function dv_schedule_live_search_index_rebuild() {
+    if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_schedule_single_event' ) ) {
+        return;
+    }
+
+    if ( ! wp_next_scheduled( 'dv_rebuild_live_search_index' ) ) {
+        wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'dv_rebuild_live_search_index' );
+    }
+}
+
+function dv_rebuild_live_search_index() {
+    delete_transient( dv_search_index_cache_key() );
+    dv_get_live_search_index();
+}
+
+add_action( 'dv_rebuild_live_search_index', 'dv_rebuild_live_search_index' );
+add_action( 'after_switch_theme', 'dv_schedule_live_search_index_rebuild' );
+
+function dv_handle_live_search_index_rebuild() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'Insufficient permissions.', 'detalivam' ) );
+    }
+
+    check_admin_referer( 'dv_live_search_index_rebuild' );
+    dv_rebuild_live_search_index();
+
+    $redirect = add_query_arg(
+        'search-index',
+        'rebuilt',
+        admin_url( 'admin.php?page=dv-theme-options' )
+    );
+
+    wp_safe_redirect( $redirect . '#dv-options-search' );
+    exit;
+}
+add_action( 'admin_post_dv_live_search_index_rebuild', 'dv_handle_live_search_index_rebuild' );
+
+function dv_search_index_token_map_keys( $text ) {
+    $keys = array();
+    $text = dv_search_normalize_index_text( $text );
+
+    if ( '' === $text ) {
+        return array();
+    }
+
+    foreach ( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $token ) {
+        $length = mb_strlen( $token, 'UTF-8' );
+
+        if ( $length < 2 ) {
+            continue;
+        }
+
+        $prefix_limit = min( $length, 16 );
+
+        for ( $size = 2; $size <= $prefix_limit; $size++ ) {
+            $keys[] = 'p:' . mb_substr( $token, 0, $size, 'UTF-8' );
+        }
+
+        if ( preg_match( '/^\d+$/', $token ) ) {
+            $keys[] = 'n:' . $token;
+        }
+    }
+
+    return array_values( array_unique( array_filter( $keys ) ) );
+}
+
+function dv_search_query_candidate_key( $token ) {
+    $token = dv_search_normalize_index_text( $token );
+
+    if ( '' === $token ) {
+        return '';
+    }
+
+    if ( preg_match( '/^\d{4,}$/', $token ) ) {
+        return 'n:' . $token;
+    }
+
+    return 'p:' . $token;
+}
+
+function dv_flush_live_search_index_for_post( $post_id ) {
+    if ( $post_id && 'product' !== get_post_type( $post_id ) ) {
+        return;
+    }
+
+    dv_flush_live_search_index();
+}
+
+function dv_flush_live_search_index_for_meta( $meta_id, $object_id, $meta_key = '' ) {
+    $watched_keys = array(
+        '_sku',
+        '_price',
+        '_regular_price',
+        '_sale_price',
+        '_stock',
+        '_stock_status',
+        '_thumbnail_id',
+        '_compatibility',
+    );
+
+    if ( ! in_array( (string) $meta_key, $watched_keys, true ) || 'product' !== get_post_type( $object_id ) ) {
+        return;
+    }
+
+    dv_flush_live_search_index();
+}
+
+add_action( 'save_post_product', 'dv_flush_live_search_index_for_post' );
+add_action( 'before_delete_post', 'dv_flush_live_search_index_for_post' );
+add_action( 'deleted_post', 'dv_flush_live_search_index_for_post' );
+add_action( 'trashed_post', 'dv_flush_live_search_index_for_post' );
+add_action( 'untrashed_post', 'dv_flush_live_search_index_for_post' );
+add_action( 'added_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
+add_action( 'updated_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
+add_action( 'deleted_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
+
+function dv_get_live_search_index() {
+    global $wpdb;
+
+    $cache_key = dv_search_index_cache_key();
+    $cached    = get_transient( $cache_key );
+
+    if ( is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $rows = $wpdb->get_results(
+        "
+        SELECT
+            p.ID,
+            p.post_title,
+            p.post_name,
+            p.menu_order,
+            sku.meta_value AS sku,
+            price.meta_value AS price,
+            stock_status.meta_value AS stock_status,
+            stock_qty.meta_value AS stock_quantity,
+            thumb.meta_value AS thumbnail_id,
+            compat.meta_value AS compatibility
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'
+        LEFT JOIN {$wpdb->postmeta} price ON price.post_id = p.ID AND price.meta_key = '_price'
+        LEFT JOIN {$wpdb->postmeta} stock_status ON stock_status.post_id = p.ID AND stock_status.meta_key = '_stock_status'
+        LEFT JOIN {$wpdb->postmeta} stock_qty ON stock_qty.post_id = p.ID AND stock_qty.meta_key = '_stock'
+        LEFT JOIN {$wpdb->postmeta} thumb ON thumb.post_id = p.ID AND thumb.meta_key = '_thumbnail_id'
+        LEFT JOIN {$wpdb->postmeta} compat ON compat.post_id = p.ID AND compat.meta_key = '_compatibility'
+        WHERE p.post_type = 'product'
+          AND p.post_status = 'publish'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM {$wpdb->term_relationships} tr_visibility
+              INNER JOIN {$wpdb->term_taxonomy} tt_visibility ON tt_visibility.term_taxonomy_id = tr_visibility.term_taxonomy_id
+              INNER JOIN {$wpdb->terms} t_visibility ON t_visibility.term_id = tt_visibility.term_id
+              WHERE tr_visibility.object_id = p.ID
+                AND tt_visibility.taxonomy = 'product_visibility'
+                AND t_visibility.slug IN ('exclude-from-search','exclude-from-catalog')
+          )
+        ORDER BY p.menu_order ASC, p.post_title ASC
+        ",
+        ARRAY_A
+    );
+
+    if ( ! is_array( $rows ) ) {
+        return array();
+    }
+
+    $index     = array(
+        'rows'      => array(),
+        'token_map' => array(),
+    );
+    $labels    = dv_search_labels();
+
+    foreach ( $rows as $row ) {
+        $product_id     = (int) ( $row['ID'] ?? 0 );
+        $title         = (string) ( $row['post_title'] ?? '' );
+        $slug          = (string) ( $row['post_name'] ?? '' );
+        $sku           = (string) ( $row['sku'] ?? '' );
+        $compatibility = (string) ( $row['compatibility'] ?? '' );
+        $search_text   = dv_search_normalize_index_text( $title . ' ' . $slug . ' ' . $sku . ' ' . $compatibility );
+        $price         = (string) ( $row['price'] ?? '' );
+        $thumbnail_id  = (int) ( $row['thumbnail_id'] ?? 0 );
+
+        if ( ! $product_id || '' === $search_text ) {
+            continue;
+        }
+
+        $indexed_row = array(
+            'id'             => $product_id,
+            'title'          => $title,
+            'title_text'     => dv_search_normalize_index_text( $title ),
+            'slug_text'      => dv_search_normalize_index_text( $slug ),
+            'sku_text'       => dv_search_normalize_index_text( $sku ),
+            'compat_text'    => dv_search_normalize_index_text( $compatibility ),
+            'search_text'    => $search_text,
+            'sku'            => $sku,
+            'price'          => $price,
+            'price_label'    => '' !== $price ? number_format( (float) $price, 0, '.', ' ' ) . ' ' . $labels['currency_symbol'] : $labels['price_request'],
+            'stock_status'   => (string) ( $row['stock_status'] ?? '' ),
+            'stock_quantity' => (string) ( $row['stock_quantity'] ?? '' ),
+            'in_stock'       => 'instock' === (string) ( $row['stock_status'] ?? '' ),
+            'stock_q'        => '' !== (string) ( $row['stock_quantity'] ?? '' ) ? (int) $row['stock_quantity'] : '',
+            'thumbnail_id'   => $thumbnail_id,
+            'menu_order'     => (int) ( $row['menu_order'] ?? 0 ),
+        );
+
+        $index['rows'][ $product_id ] = $indexed_row;
+
+        foreach ( dv_search_index_token_map_keys( $search_text ) as $token_key ) {
+            if ( ! isset( $index['token_map'][ $token_key ] ) ) {
+                $index['token_map'][ $token_key ] = array();
+            }
+
+            $index['token_map'][ $token_key ][] = $product_id;
+        }
+    }
+
+    foreach ( $index['token_map'] as $token_key => $product_ids ) {
+        $index['token_map'][ $token_key ] = array_values( array_unique( array_map( 'absint', $product_ids ) ) );
+    }
+
+    set_transient( $cache_key, $index, 12 * HOUR_IN_SECONDS );
+
+    return $index;
+}
+
+function dv_search_index_contains_number( $text, $number ) {
+    $number = preg_replace( '/\D+/', '', (string) $number );
+
+    if ( '' === $number ) {
+        return false;
+    }
+
+    return (bool) preg_match( '/(^|[^\d])' . preg_quote( $number, '/' ) . '([^\d]|$)/u', (string) $text );
+}
+
+function dv_live_search_score_row( $row, $full_query, $required_tokens, $priority_terms ) {
+    $score       = 0;
+    $search_text = (string) ( $row['search_text'] ?? '' );
+    $title_text  = (string) ( $row['title_text'] ?? '' );
+    $slug_text   = (string) ( $row['slug_text'] ?? '' );
+    $sku_text    = (string) ( $row['sku_text'] ?? '' );
+    $compat_text = (string) ( $row['compat_text'] ?? '' );
+
+    foreach ( $required_tokens as $token ) {
+        if ( '' === $token || false === strpos( $search_text, $token ) ) {
+            return null;
+        }
+    }
+
+    if ( '' !== $full_query ) {
+        if ( $title_text === $full_query ) {
+            $score += 1000;
+        } elseif ( 0 === strpos( $title_text, $full_query ) ) {
+            $score += 820;
+        } elseif ( false !== strpos( $title_text, $full_query ) ) {
+            $score += 620;
+        }
+
+        if ( $sku_text === $full_query ) {
+            $score += 1100;
+        } elseif ( 0 === strpos( $sku_text, $full_query ) ) {
+            $score += 900;
+        }
+    }
+
+    $all_title_text_terms = true;
+    foreach ( $priority_terms['text'] as $text_term ) {
+        if ( '' === $text_term || false === strpos( $title_text, $text_term ) ) {
+            $all_title_text_terms = false;
+        } else {
+            $score += 260;
+        }
+
+        if ( false !== strpos( $sku_text, $text_term ) ) {
+            $score += 80;
+        }
+
+        if ( false !== strpos( $compat_text, $text_term ) ) {
+            $score += 35;
+        }
+    }
+
+    $all_title_number_terms = true;
+    foreach ( $priority_terms['number'] as $number_term ) {
+        if ( ! dv_search_index_contains_number( $title_text, $number_term ) ) {
+            $all_title_number_terms = false;
+        } else {
+            $score += 160;
+        }
+
+        if ( false !== strpos( $sku_text, (string) $number_term ) ) {
+            $score += 180;
+        }
+
+        if ( false !== strpos( $compat_text, (string) $number_term ) ) {
+            $score += 45;
+        }
+    }
+
+    if ( ! empty( $priority_terms['text'] ) && $all_title_text_terms ) {
+        $score += 520;
+    }
+
+    if ( ! empty( $priority_terms['number'] ) && $all_title_number_terms ) {
+        $score += 260;
+    }
+
+    if ( ! empty( $priority_terms['text'] ) && ! empty( $priority_terms['number'] ) && $all_title_text_terms && $all_title_number_terms ) {
+        $score += 900;
+    }
+
+    foreach ( $required_tokens as $token ) {
+        if ( false !== strpos( $title_text, $token ) ) {
+            $score += 120;
+        } elseif ( false !== strpos( $slug_text, $token ) ) {
+            $score += 80;
+        } elseif ( false !== strpos( $sku_text, $token ) ) {
+            $score += 70;
+        } elseif ( false !== strpos( $compat_text, $token ) ) {
+            $score += 25;
+        }
+    }
+
+    return $score;
+}
+
+function dv_get_live_search_candidate_rows( $index, $required_tokens ) {
+    if ( empty( $index['rows'] ) || empty( $index['token_map'] ) || ! is_array( $index['rows'] ) || ! is_array( $index['token_map'] ) ) {
+        return array();
+    }
+
+    $candidate_ids = null;
+
+    foreach ( $required_tokens as $token ) {
+        $candidate_key = dv_search_query_candidate_key( $token );
+
+        if ( '' === $candidate_key || empty( $index['token_map'][ $candidate_key ] ) ) {
+            return array();
+        }
+
+        $ids = array_map( 'absint', (array) $index['token_map'][ $candidate_key ] );
+
+        if ( null === $candidate_ids ) {
+            $candidate_ids = $ids;
+        } else {
+            $candidate_ids = array_values( array_intersect( $candidate_ids, $ids ) );
+        }
+
+        if ( empty( $candidate_ids ) ) {
+            return array();
+        }
+    }
+
+    if ( null === $candidate_ids ) {
+        return array_values( $index['rows'] );
+    }
+
+    $rows = array();
+
+    foreach ( $candidate_ids as $product_id ) {
+        if ( isset( $index['rows'][ $product_id ] ) ) {
+            $rows[] = $index['rows'][ $product_id ];
+        }
+    }
+
+    return $rows;
+}
+
+function dv_get_search_index_matches( $raw_query ) {
+    $cache_key = 'dv_product_search_index_matches_v1_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $raw_query ) );
+    $cached    = get_transient( $cache_key );
+
+    if ( is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $required_tokens = array_values(
+        array_filter(
+            array_map( 'dv_search_normalize_index_text', dv_search_required_query_tokens( $raw_query ) )
+        )
+    );
+
+    if ( empty( $required_tokens ) ) {
+        return array();
+    }
+
+    $priority_terms = dv_search_title_priority_terms( $raw_query );
+    $priority_terms = array(
+        'text'   => array_values( array_filter( array_map( 'dv_search_normalize_index_text', $priority_terms['text'] ) ) ),
+        'number' => $priority_terms['number'],
+    );
+    $full_query     = dv_search_normalize_index_text( $raw_query );
+    $matches        = array();
+    $index          = dv_get_live_search_index();
+    $candidate_rows = dv_get_live_search_candidate_rows( $index, $required_tokens );
+
+    if ( empty( $candidate_rows ) && ! empty( $index['rows'] ) && is_array( $index['rows'] ) ) {
+        $candidate_rows = array_values( $index['rows'] );
+    }
+
+    foreach ( $candidate_rows as $row ) {
+        $score = dv_live_search_score_row( $row, $full_query, $required_tokens, $priority_terms );
+
+        if ( null === $score ) {
+            continue;
+        }
+
+        $row['score'] = $score;
+        $matches[]    = $row;
+    }
+
+    usort(
+        $matches,
+        static function ( $a, $b ) {
+            if ( (int) $a['score'] !== (int) $b['score'] ) {
+                return (int) $b['score'] <=> (int) $a['score'];
+            }
+
+            if ( (int) $a['menu_order'] !== (int) $b['menu_order'] ) {
+                return (int) $a['menu_order'] <=> (int) $b['menu_order'];
+            }
+
+            return strnatcasecmp( (string) $a['title'], (string) $b['title'] );
+        }
+    );
+
+    set_transient( $cache_key, $matches, 10 * MINUTE_IN_SECONDS );
+
+    return $matches;
+}
+
+function dv_get_live_search_results( $raw_query, $limit = 8 ) {
+    $limit     = max( 1, min( 20, absint( $limit ) ) );
+    $cache_key = dv_live_search_results_cache_key( $raw_query, $limit );
+    $cached          = get_transient( $cache_key );
+
+    if ( is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $matches = dv_get_search_index_matches( $raw_query );
+
+    $results = array(
+        'items' => array_slice( $matches, 0, $limit ),
+        'total' => count( $matches ),
+    );
+
+    set_transient( $cache_key, $results, 10 * MINUTE_IN_SECONDS );
+
+    return $results;
+}
+
+function dv_search_filters_are_empty( $filter_args ) {
+    $filter_args = wp_parse_args( $filter_args, dv_get_request_filter_args() );
+
+    return '' === (string) ( $filter_args['marka'] ?? '' )
+        && '' === (string) ( $filter_args['stock'] ?? '' )
+        && '' === (string) ( $filter_args['min_price'] ?? '' )
+        && '' === (string) ( $filter_args['max_price'] ?? '' );
+}
+
+function dv_get_product_search_ids_from_index( $raw_query, $limit = 0 ) {
+    $matches = dv_get_search_index_matches( $raw_query );
+    $ids     = array();
+
+    foreach ( $matches as $row ) {
+        if ( ! empty( $row['id'] ) ) {
+            $ids[] = (int) $row['id'];
+        }
+    }
+
+    $ids   = array_values( array_unique( array_filter( $ids ) ) );
+    $total = count( $ids );
+
+    if ( $limit > 0 ) {
+        $ids = array_slice( $ids, 0, $limit );
+    }
+
+    return array(
+        'ids'   => $ids,
+        'total' => $total,
+    );
+}
+
 function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array() ) {
     global $wpdb;
 
-    $terms = dv_search_extract_terms( $raw_query );
+    $filter_args = wp_parse_args( $filter_args, dv_get_request_filter_args() );
+    $fast_live   = $limit > 0 && ! empty( $filter_args['fast_live'] );
+    if ( ! $fast_live && dv_search_filters_are_empty( $filter_args ) ) {
+        $index_results = dv_get_product_search_ids_from_index( $raw_query, $limit );
+
+        if ( ! empty( $index_results['ids'] ) ) {
+            return $index_results;
+        }
+    }
+
+    $terms       = $fast_live ? dv_search_live_terms( $raw_query ) : dv_search_extract_terms( $raw_query );
+
     if ( empty( $terms ) ) {
         return array( 'ids' => array(), 'total' => 0 );
     }
 
     $full_query    = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $raw_query ) ) ), 'UTF-8' );
     $compact_query = preg_replace( '/[^\p{L}\p{N}]+/u', '', $full_query );
+    $priority_terms = dv_search_title_priority_terms( $raw_query );
 
-    $where_parts = array();
-    $score_parts = array();
+    $where_parts               = array();
+    $required_where_parts      = array();
+    $score_parts               = array();
+    $title_text_conditions     = array();
+    $title_number_conditions   = array();
+    $title_all_query_priority  = '0';
+    $title_text_priority       = '0';
+    $title_number_priority     = '0';
+
+    foreach ( $priority_terms['text'] as $text_term ) {
+        $title_text_conditions[] = $wpdb->prepare( 'LOWER(p.post_title) LIKE %s', '%' . $wpdb->esc_like( $text_term ) . '%' );
+        $score_parts[]           = $wpdb->prepare( "CASE WHEN LOWER(p.post_title) LIKE %s THEN 240 ELSE 0 END", '%' . $wpdb->esc_like( $text_term ) . '%' );
+    }
+
+    foreach ( $priority_terms['number'] as $number_term ) {
+        $title_number_conditions[] = $wpdb->prepare( 'LOWER(p.post_title) REGEXP %s', dv_search_numeric_boundary_pattern( $number_term ) );
+        $score_parts[]             = $wpdb->prepare( "CASE WHEN LOWER(p.post_title) REGEXP %s THEN 90 ELSE 0 END", dv_search_numeric_boundary_pattern( $number_term ) );
+    }
+
+    if ( ! empty( $title_text_conditions ) ) {
+        $title_text_priority = 'CASE WHEN (' . implode( ' AND ', $title_text_conditions ) . ') THEN 1 ELSE 0 END';
+        $score_parts[]       = 'CASE WHEN (' . implode( ' AND ', $title_text_conditions ) . ') THEN 420 ELSE 0 END';
+    }
+
+    if ( ! empty( $title_number_conditions ) ) {
+        $title_number_priority = 'CASE WHEN (' . implode( ' AND ', $title_number_conditions ) . ') THEN 1 ELSE 0 END';
+        $score_parts[]         = 'CASE WHEN (' . implode( ' AND ', $title_number_conditions ) . ') THEN 160 ELSE 0 END';
+    }
+
+    if ( ! empty( $title_text_conditions ) && ! empty( $title_number_conditions ) ) {
+        $title_all_conditions     = array_merge( $title_text_conditions, $title_number_conditions );
+        $title_all_query_priority = 'CASE WHEN (' . implode( ' AND ', $title_all_conditions ) . ') THEN 1 ELSE 0 END';
+        $score_parts[]            = 'CASE WHEN (' . implode( ' AND ', $title_all_conditions ) . ') THEN 700 ELSE 0 END';
+    }
+
+    foreach ( dv_search_required_query_tokens( $raw_query ) as $required_term ) {
+        $required_like = '%' . $wpdb->esc_like( $required_term ) . '%';
+
+        if ( $fast_live ) {
+            $required_where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_required WHERE pm_sku_required.post_id = p.ID AND pm_sku_required.meta_key = '_sku' AND LOWER(pm_sku_required.meta_value) LIKE %s)
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_required WHERE pm_compat_required.post_id = p.ID AND pm_compat_required.meta_key = '_compatibility' AND LOWER(pm_compat_required.meta_value) LIKE %s)
+                )",
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like
+            );
+        } else {
+            $required_where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR LOWER(p.post_excerpt) LIKE %s
+                    OR LOWER(p.post_content) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_required WHERE pm_sku_required.post_id = p.ID AND pm_sku_required.meta_key = '_sku' AND LOWER(pm_sku_required.meta_value) LIKE %s)
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_required WHERE pm_compat_required.post_id = p.ID AND pm_compat_required.meta_key = '_compatibility' AND LOWER(pm_compat_required.meta_value) LIKE %s)
+                    OR EXISTS (
+                        SELECT 1 FROM {$wpdb->term_relationships} tr_required
+                        INNER JOIN {$wpdb->term_taxonomy} tt_required ON tt_required.term_taxonomy_id = tr_required.term_taxonomy_id
+                        INNER JOIN {$wpdb->terms} t_required ON t_required.term_id = tt_required.term_id
+                        WHERE tr_required.object_id = p.ID
+                          AND tt_required.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model')
+                          AND (LOWER(t_required.name) LIKE %s OR LOWER(t_required.slug) LIKE %s)
+                    )
+                )",
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like,
+                $required_like
+            );
+        }
+    }
 
     if ( '' !== $full_query ) {
         $full_prefix = $wpdb->esc_like( $full_query ) . '%';
         $full_like   = '%' . $wpdb->esc_like( $full_query ) . '%';
 
-        $where_parts[] = $wpdb->prepare(
-            "(
-                LOWER(p.post_title) LIKE %s
-                OR LOWER(p.post_name) LIKE %s
-                OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_full WHERE pm_sku_full.post_id = p.ID AND pm_sku_full.meta_key = '_sku' AND LOWER(pm_sku_full.meta_value) LIKE %s)
-                OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_full WHERE pm_compat_full.post_id = p.ID AND pm_compat_full.meta_key = '_compatibility' AND LOWER(pm_compat_full.meta_value) LIKE %s)
-            )",
-            $full_like,
-            $full_like,
-            $full_like,
-            $full_like
-        );
+        if ( $fast_live ) {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_full WHERE pm_sku_full.post_id = p.ID AND pm_sku_full.meta_key = '_sku' AND LOWER(pm_sku_full.meta_value) LIKE %s)
+                )",
+                $full_like,
+                $full_like,
+                $full_like
+            );
+        } else {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_full WHERE pm_sku_full.post_id = p.ID AND pm_sku_full.meta_key = '_sku' AND LOWER(pm_sku_full.meta_value) LIKE %s)
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_full WHERE pm_compat_full.post_id = p.ID AND pm_compat_full.meta_key = '_compatibility' AND LOWER(pm_compat_full.meta_value) LIKE %s)
+                )",
+                $full_like,
+                $full_like,
+                $full_like,
+                $full_like
+            );
+        }
 
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_title) = %s THEN 320 ELSE 0 END", $full_query );
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_title) LIKE %s THEN 260 ELSE 0 END", $full_prefix );
@@ -345,36 +1024,57 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_name) LIKE %s THEN 120 ELSE 0 END", $full_like );
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_full WHERE pm_sku_full.post_id = p.ID AND pm_sku_full.meta_key = '_sku' AND LOWER(pm_sku_full.meta_value) = %s) THEN 340 ELSE 0 END", $full_query );
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_full WHERE pm_sku_full.post_id = p.ID AND pm_sku_full.meta_key = '_sku' AND LOWER(pm_sku_full.meta_value) LIKE %s) THEN 280 ELSE 0 END", $full_prefix );
-        $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_full WHERE pm_compat_full.post_id = p.ID AND pm_compat_full.meta_key = '_compatibility' AND LOWER(pm_compat_full.meta_value) LIKE %s) THEN 110 ELSE 0 END", $full_like );
+        if ( ! $fast_live ) {
+            $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_full WHERE pm_compat_full.post_id = p.ID AND pm_compat_full.meta_key = '_compatibility' AND LOWER(pm_compat_full.meta_value) LIKE %s) THEN 110 ELSE 0 END", $full_like );
+        }
     }
 
     if ( $compact_query && $compact_query !== $full_query && mb_strlen( $compact_query, 'UTF-8' ) >= 3 ) {
         $compact_like = '%' . $wpdb->esc_like( $compact_query ) . '%';
 
-        $where_parts[] = $wpdb->prepare(
-            "(
-                EXISTS (
-                    SELECT 1 FROM {$wpdb->postmeta} pm_sku_compact
-                    WHERE pm_sku_compact.post_id = p.ID
-                      AND pm_sku_compact.meta_key = '_sku'
-                      AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_sku_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
-                )
-                OR EXISTS (
-                    SELECT 1 FROM {$wpdb->postmeta} pm_compat_compact
-                    WHERE pm_compat_compact.post_id = p.ID
-                      AND pm_compat_compact.meta_key = '_compatibility'
-                      AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_compat_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
-                )
-                OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.post_title, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
-            )",
-            $compact_like,
-            $compact_like,
-            $compact_like
-        );
+        if ( $fast_live ) {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    EXISTS (
+                        SELECT 1 FROM {$wpdb->postmeta} pm_sku_compact
+                        WHERE pm_sku_compact.post_id = p.ID
+                          AND pm_sku_compact.meta_key = '_sku'
+                          AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_sku_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
+                    )
+                    OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.post_title, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
+                )",
+                $compact_like,
+                $compact_like
+            );
+        } else {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    EXISTS (
+                        SELECT 1 FROM {$wpdb->postmeta} pm_sku_compact
+                        WHERE pm_sku_compact.post_id = p.ID
+                          AND pm_sku_compact.meta_key = '_sku'
+                          AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_sku_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM {$wpdb->postmeta} pm_compat_compact
+                        WHERE pm_compat_compact.post_id = p.ID
+                          AND pm_compat_compact.meta_key = '_compatibility'
+                          AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_compat_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
+                    )
+                    OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.post_title, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s
+                )",
+                $compact_like,
+                $compact_like,
+                $compact_like
+            );
+        }
 
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku_compact WHERE pm_sku_compact.post_id = p.ID AND pm_sku_compact.meta_key = '_sku' AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_sku_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s) THEN 300 ELSE 0 END", $compact_like );
-        $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_compact WHERE pm_compat_compact.post_id = p.ID AND pm_compat_compact.meta_key = '_compatibility' AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_compat_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s) THEN 140 ELSE 0 END", $compact_like );
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.post_title, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s THEN 180 ELSE 0 END", $compact_like );
+
+        if ( ! $fast_live ) {
+            $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat_compact WHERE pm_compat_compact.post_id = p.ID AND pm_compat_compact.meta_key = '_compatibility' AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(pm_compat_compact.meta_value, '-', ''), ' ', ''), '/', ''), '(', ''), ')', ''), '.', '')) LIKE %s) THEN 140 ELSE 0 END", $compact_like );
+        }
     }
 
     foreach ( $terms as $term ) {
@@ -382,32 +1082,47 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         $prefix = $wpdb->esc_like( $exact ) . '%';
         $like   = '%' . $wpdb->esc_like( $exact ) . '%';
 
-        $where_parts[] = $wpdb->prepare(
-            "(
-                LOWER(p.post_title) LIKE %s
-                OR LOWER(p.post_name) LIKE %s
-                OR LOWER(p.post_excerpt) LIKE %s
-                OR LOWER(p.post_content) LIKE %s
-                OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku WHERE pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku' AND LOWER(pm_sku.meta_value) LIKE %s)
-                OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat WHERE pm_compat.post_id = p.ID AND pm_compat.meta_key = '_compatibility' AND LOWER(pm_compat.meta_value) LIKE %s)
-                OR EXISTS (
-                    SELECT 1 FROM {$wpdb->term_relationships} tr
-                    INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
-                    INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
-                    WHERE tr.object_id = p.ID
-                      AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model')
-                      AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)
-                )
-            )",
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like
-        );
+        if ( $fast_live ) {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku WHERE pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku' AND LOWER(pm_sku.meta_value) LIKE %s)
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat WHERE pm_compat.post_id = p.ID AND pm_compat.meta_key = '_compatibility' AND LOWER(pm_compat.meta_value) LIKE %s)
+                )",
+                $like,
+                $like,
+                $like,
+                $like
+            );
+        } else {
+            $where_parts[] = $wpdb->prepare(
+                "(
+                    LOWER(p.post_title) LIKE %s
+                    OR LOWER(p.post_name) LIKE %s
+                    OR LOWER(p.post_excerpt) LIKE %s
+                    OR LOWER(p.post_content) LIKE %s
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku WHERE pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku' AND LOWER(pm_sku.meta_value) LIKE %s)
+                    OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat WHERE pm_compat.post_id = p.ID AND pm_compat.meta_key = '_compatibility' AND LOWER(pm_compat.meta_value) LIKE %s)
+                    OR EXISTS (
+                        SELECT 1 FROM {$wpdb->term_relationships} tr
+                        INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+                        INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
+                        WHERE tr.object_id = p.ID
+                          AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model')
+                          AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)
+                    )
+                )",
+                $like,
+                $like,
+                $like,
+                $like,
+                $like,
+                $like,
+                $like,
+                $like
+            );
+        }
 
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku WHERE pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku' AND LOWER(pm_sku.meta_value) = %s) THEN 260 ELSE 0 END", $exact );
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_sku WHERE pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku' AND LOWER(pm_sku.meta_value) LIKE %s) THEN 220 ELSE 0 END", $prefix );
@@ -418,14 +1133,16 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_name) = %s THEN 140 ELSE 0 END", $exact );
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_name) LIKE %s THEN 110 ELSE 0 END", $prefix );
         $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_name) LIKE %s THEN 80 ELSE 0 END", $like );
-        $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_excerpt) LIKE %s THEN 40 ELSE 0 END", $like );
-        $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_content) LIKE %s THEN 25 ELSE 0 END", $like );
         $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_compat WHERE pm_compat.post_id = p.ID AND pm_compat.meta_key = '_compatibility' AND LOWER(pm_compat.meta_value) LIKE %s) THEN 55 ELSE 0 END", $like );
-        $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->term_relationships} tr INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE tr.object_id = p.ID AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model') AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)) THEN 70 ELSE 0 END", $like, $like );
+
+        if ( ! $fast_live ) {
+            $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_excerpt) LIKE %s THEN 40 ELSE 0 END", $like );
+            $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_content) LIKE %s THEN 25 ELSE 0 END", $like );
+            $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->term_relationships} tr INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE tr.object_id = p.ID AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model') AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)) THEN 70 ELSE 0 END", $like, $like );
+        }
     }
 
     $filter_sql  = '';
-    $filter_args = wp_parse_args( $filter_args, dv_get_request_filter_args() );
     $marka_tax   = dv_get_marka_taxonomy();
 
     if ( $marka_tax && '' !== $filter_args['marka'] ) {
@@ -471,15 +1188,31 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         }
     }
 
+    $query_limit = '';
+    if ( $fast_live ) {
+        $query_limit = $wpdb->prepare( ' LIMIT %d', max( 40, min( 160, $limit * 12 ) ) );
+    }
+
+    $required_sql = '';
+    if ( count( $required_where_parts ) > 1 ) {
+        $required_sql = ' AND (' . implode( ' AND ', $required_where_parts ) . ')';
+    }
+
     $sql = "
-        SELECT p.ID, (" . implode( ' + ', $score_parts ) . ") AS relevance
+        SELECT p.ID,
+               (" . implode( ' + ', $score_parts ) . ") AS relevance,
+               {$title_all_query_priority} AS title_all_query_priority,
+               {$title_text_priority} AS title_text_priority,
+               {$title_number_priority} AS title_number_priority
         FROM {$wpdb->posts} p
         WHERE p.post_type = 'product'
           AND p.post_status = 'publish'
           AND (" . implode( ' OR ', $where_parts ) . ")
           {$filter_sql}
+          {$required_sql}
         GROUP BY p.ID
-        ORDER BY relevance DESC, p.menu_order ASC, p.post_title ASC
+        ORDER BY title_all_query_priority DESC, title_text_priority DESC, title_number_priority DESC, relevance DESC, p.menu_order ASC, p.post_title ASC
+        {$query_limit}
     ";
 
     $rows = $wpdb->get_results( $sql );
@@ -500,15 +1233,22 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         $ids[] = $product_id;
     }
 
-    $total = count( $ids );
+    $has_more = false;
+    $total    = count( $ids );
 
     if ( $limit > 0 ) {
+        $has_more = count( $ids ) > $limit || ( $fast_live && count( $rows ) >= max( 40, min( 160, $limit * 12 ) ) );
         $ids = array_slice( $ids, 0, $limit );
+
+        if ( $fast_live && count( $ids ) >= $limit ) {
+            $has_more = true;
+        }
     }
 
     return array(
-        'ids'   => $ids,
-        'total' => $total,
+        'ids'      => $ids,
+        'total'    => $fast_live && $has_more ? $limit : $total,
+        'has_more' => $has_more,
     );
 }
 
@@ -636,7 +1376,10 @@ function dv_apply_product_search_to_main_query( $query ) {
         return;
     }
 
-    $results = dv_get_product_search_ids( $search, 0, dv_get_request_filter_args() );
+    $filter_args = dv_get_request_filter_args();
+    $results     = dv_search_filters_are_empty( $filter_args )
+        ? dv_get_product_search_ids_from_index( $search, 0 )
+        : dv_get_product_search_ids( $search, 0, $filter_args );
     $ids     = ! empty( $results['ids'] ) ? $results['ids'] : array( 0 );
 
     $query->set( 'post__in', $ids );
@@ -705,41 +1448,43 @@ function dv_ajax_live_search() {
     }
 
     $live_limit = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'search_live_limit', 8, 1, 20 ) : 8;
-    $results    = dv_get_product_search_ids( $query, $live_limit, array() );
-    $items   = array();
+    $fast_results = dv_get_live_search_results( $query, $live_limit );
+    $fast_items   = array();
 
-    foreach ( $results['ids'] as $product_id ) {
-        $product = wc_get_product( $product_id );
-        if ( ! $product || ! $product->is_visible() ) {
+    foreach ( $fast_results['items'] as $item ) {
+        $product_id = (int) ( $item['id'] ?? 0 );
+
+        if ( ! $product_id ) {
             continue;
         }
 
-        $image_url = wp_get_attachment_image_url( $product->get_image_id(), 'thumbnail' );
+        $image_url = ! empty( $item['thumbnail_id'] ) ? wp_get_attachment_image_url( (int) $item['thumbnail_id'], 'thumbnail' ) : '';
         if ( ! $image_url ) {
             $image_url = wc_placeholder_img_src( 'thumbnail' );
         }
 
-        $price   = $product->get_price();
-        $items[] = array(
-            'id'       => $product->get_id(),
-            'name'     => function_exists( 'dv_get_product_display_name' ) ? dv_get_product_display_name( $product ) : $product->get_name(),
-            'url'      => $product->get_permalink(),
+        $fast_items[] = array(
+            'id'       => $product_id,
+            'name'     => (string) ( $item['title'] ?? '' ),
+            'url'      => get_permalink( $product_id ),
             'img'      => $image_url,
-            'price'    => '' !== (string) $price ? number_format( (float) $price, 0, '.', ' ' ) . ' ₽' : 'Цена по запросу',
-            'sku'      => $product->get_sku(),
-            'in_stock' => $product->is_in_stock(),
-            'stock_q'  => $product->get_stock_quantity(),
+            'price'    => (string) ( $item['price_label'] ?? '' ),
+            'sku'      => (string) ( $item['sku'] ?? '' ),
+            'in_stock' => ! empty( $item['in_stock'] ),
+            'stock_q'  => $item['stock_q'] ?? '',
         );
     }
 
     wp_send_json_success(
         array(
-            'items'      => $items,
-            'total'      => (int) $results['total'],
-            'query'      => $query,
-            'search_url' => home_url( '/?s=' . rawurlencode( $query ) . '&post_type=product' ),
+            'items'       => $fast_items,
+            'total'       => (int) $fast_results['total'],
+            'total_label' => (string) (int) $fast_results['total'],
+            'query'       => $query,
+            'search_url'  => home_url( '/?s=' . rawurlencode( $query ) . '&post_type=product' ),
         )
     );
+
 }
 add_action( 'wp_ajax_dv_live_search', 'dv_ajax_live_search' );
 add_action( 'wp_ajax_nopriv_dv_live_search', 'dv_ajax_live_search' );
