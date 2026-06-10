@@ -11240,3 +11240,49 @@ body.dv-color-scheme-override .product-purchase-panel form.cart .dv-buy-now-butt
     font-size: 12px;
   }
 }
+
+/* Ozon action polish */
+.header-ozon-btn {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+}
+
+.header-ozon-btn .header-ozon-mark {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.header-ozon-btn .header-ozon-icon {
+  display: block !important;
+  width: 25px !important;
+  height: 25px !important;
+  max-width: 25px !important;
+  max-height: 25px !important;
+  border-radius: 0 !important;
+  object-fit: contain;
+}
+
+@media (max-width: 767px) {
+  .header-ozon-btn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+  }
+
+  .header-ozon-btn .header-ozon-mark {
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 9px !important;
+  }
+
+  .header-ozon-btn .header-ozon-icon {
+    width: 22px !important;
+    height: 22px !important;
+    max-width: 22px !important;
+    max-height: 22px !important;
+  }
+}
