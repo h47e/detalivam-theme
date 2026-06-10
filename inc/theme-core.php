@@ -339,6 +339,59 @@ function dv_optimize_cart_fragment_assets() {
 }
 add_action( 'wp_enqueue_scripts', 'dv_optimize_cart_fragment_assets', 120 );
 
+function dv_optimize_core_frontend_assets() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    foreach (
+        array(
+            'wp-block-library',
+            'wp-block-library-theme',
+            'global-styles',
+            'classic-theme-styles',
+        ) as $style_handle
+    ) {
+        wp_dequeue_style( $style_handle );
+        wp_deregister_style( $style_handle );
+    }
+
+    $keep_woocommerce_blocks =
+        ( function_exists( 'is_cart' ) && is_cart() )
+        || ( function_exists( 'is_checkout' ) && is_checkout() )
+        || ( function_exists( 'is_account_page' ) && is_account_page() );
+
+    if ( ! $keep_woocommerce_blocks ) {
+        foreach (
+            array(
+                'wc-blocks-style',
+                'wc-blocks-vendors-style',
+                'wc-blocks-packages-style',
+                'wc-block-style',
+                'wc-blocks-integration',
+                'wc-blocks-checkout-style',
+                'wc-blocks-cart-style',
+            ) as $style_handle
+        ) {
+            wp_dequeue_style( $style_handle );
+            wp_deregister_style( $style_handle );
+        }
+
+        foreach (
+            array(
+                'wc-blocks',
+                'wc-blocks-registry',
+                'wc-blocks-middleware',
+                'wc-blocks-data-store',
+            ) as $script_handle
+        ) {
+            wp_dequeue_script( $script_handle );
+            wp_deregister_script( $script_handle );
+        }
+    }
+}
+add_action( 'wp_enqueue_scripts', 'dv_optimize_core_frontend_assets', 130 );
+
 function dv_cleanup_frontend_assets() {
     if ( is_admin() ) {
         return;
@@ -453,6 +506,16 @@ function dv_disable_unused_core_frontend_assets() {
     remove_action( 'wp_print_styles', 'print_emoji_styles' );
     remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
     remove_action( 'admin_print_styles', 'print_emoji_styles' );
+    remove_action( 'wp_head', 'rsd_link' );
+    remove_action( 'wp_head', 'wlwmanifest_link' );
+    remove_action( 'wp_head', 'wp_generator' );
+    remove_action( 'wp_head', 'wp_shortlink_wp_head' );
+    remove_action( 'template_redirect', 'wp_shortlink_header', 11 );
+    remove_action( 'wp_head', 'rest_output_link_wp_head' );
+    remove_action( 'wp_head', 'wp_oembed_add_discovery_links' );
+    remove_action( 'wp_head', 'wp_oembed_add_host_js' );
+    remove_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+    remove_action( 'wp_body_open', 'wp_global_styles_render_svg_filters' );
     remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
     remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
     remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );

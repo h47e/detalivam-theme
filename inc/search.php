@@ -2,10 +2,18 @@
 defined( 'ABSPATH' ) || exit;
 
 function dv_search_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'currency_symbol' => html_entity_decode( '&#8381;', ENT_QUOTES, 'UTF-8' ),
         'price_request'   => html_entity_decode( '&#1062;&#1077;&#1085;&#1072; &#1087;&#1086; &#1079;&#1072;&#1087;&#1088;&#1086;&#1089;&#1091;', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_search_variants( $query ) {

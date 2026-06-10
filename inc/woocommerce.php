@@ -5,7 +5,13 @@
 defined( 'ABSPATH' ) || exit;
 
 function dv_woocommerce_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'View cart'                    => html_entity_decode( '&#1055;&#1077;&#1088;&#1077;&#1081;&#1090;&#1080; &#1074; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
         'Update cart'                  => html_entity_decode( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
         'Proceed to checkout'          => html_entity_decode( '&#1054;&#1092;&#1086;&#1088;&#1084;&#1080;&#1090;&#1100; &#1079;&#1072;&#1082;&#1072;&#1079;', ENT_QUOTES, 'UTF-8' ),
@@ -17,6 +23,8 @@ function dv_woocommerce_labels() {
         'Your order'                   => html_entity_decode( '&#1042;&#1072;&#1096; &#1079;&#1072;&#1082;&#1072;&#1079;', ENT_QUOTES, 'UTF-8' ),
         'Place order'                  => html_entity_decode( '&#1054;&#1092;&#1086;&#1088;&#1084;&#1080;&#1090;&#1100; &#1079;&#1072;&#1082;&#1072;&#1079;', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_loop_shop_per_page() {

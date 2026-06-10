@@ -2,7 +2,13 @@
 defined( 'ABSPATH' ) || exit;
 
 function dv_seo_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'price_range'             => html_entity_decode( '&#8381;&#8381;', ENT_QUOTES, 'UTF-8' ),
         'ellipsis'                => html_entity_decode( '&hellip;', ENT_QUOTES, 'UTF-8' ),
         'buy_in_store'            => html_entity_decode( '&#1050;&#1091;&#1087;&#1080;&#1090;&#1100; %1$s &#1074; %2$s &#1074; &#1080;&#1085;&#1090;&#1077;&#1088;&#1085;&#1077;&#1090;-&#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1077; %3$s', ENT_QUOTES, 'UTF-8' ),
@@ -46,6 +52,8 @@ function dv_seo_labels() {
         'catalog'                 => html_entity_decode( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
         'search_label'            => html_entity_decode( '&#1055;&#1086;&#1080;&#1089;&#1082;: %s', ENT_QUOTES, 'UTF-8' ),
     );
+
+    return $labels_cache;
 }
 
 function dv_schema() {

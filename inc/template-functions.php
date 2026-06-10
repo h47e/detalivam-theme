@@ -985,7 +985,13 @@ function dv_normalize_product_spec_label( $label ) {
 }
 
 function dv_product_description_spec_labels() {
-    return array(
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
         'категория'               => 'Категория',
         'бренд'                   => 'Бренд',
         'материал'                => 'Материал',
@@ -1008,6 +1014,7 @@ function dv_product_description_spec_labels() {
         'oem номер'               => 'OEM номер',
         'применяемость'           => 'Применяемость',
     );
+    return $labels_cache;
 }
 
 function dv_extract_product_spec_from_html_node( $html, &$rows ) {
