@@ -35,6 +35,12 @@ $dv_header_has_actions = $dv_header_actions_enabled && ( $dv_header_compare_enab
 $dv_service_about_enabled = ! function_exists( 'dv_service_page_enabled' ) || dv_service_page_enabled( 'about' );
 $dv_service_delivery_enabled = ! function_exists( 'dv_service_page_enabled' ) || dv_service_page_enabled( 'delivery' );
 $dv_service_contacts_enabled = ! function_exists( 'dv_service_page_enabled' ) || dv_service_page_enabled( 'contacts' );
+$dv_cart_count = 0;
+$dv_cart_total = '';
+if ( class_exists( 'WooCommerce' ) && WC()->cart ) {
+    $dv_cart_count = WC()->cart->get_cart_contents_count();
+    $dv_cart_total = WC()->cart->get_cart_total();
+}
 $dv_topbar_shop_fallback = home_url( '/catalog/' );
 if ( function_exists( 'wc_get_page_id' ) ) {
     $dv_shop_page_id = wc_get_page_id( 'shop' );
@@ -145,12 +151,12 @@ if ( function_exists( 'wc_get_page_id' ) ) {
           <div class="header-action-wrap" data-header-preview="cart">
             <a href="<?php echo esc_url( wc_get_cart_url() ); ?>" class="header-icon-btn">
               <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-              <?php if ( WC()->cart->get_cart_contents_count() > 0 ) : ?>
-                <span class="cart-badge" id="dv-cart-badge"><?php echo WC()->cart->get_cart_contents_count(); ?></span>
+              <?php if ( $dv_cart_count > 0 ) : ?>
+                <span class="cart-badge" id="dv-cart-badge"><?php echo esc_html( $dv_cart_count ); ?></span>
               <?php else : ?>
                 <span class="cart-badge is-hidden" id="dv-cart-badge"></span>
               <?php endif; ?>
-              <span class="cart-total" id="dv-cart-total"><?php echo WC()->cart->get_cart_total(); ?></span>
+              <span class="cart-total" id="dv-cart-total"><?php echo wp_kses_post( $dv_cart_total ); ?></span>
             </a>
             <div class="dv-header-preview" id="dv-cart-preview" data-preview-type="cart" data-view-url="<?php echo esc_url( wc_get_cart_url() ); ?>">
               <div class="dv-header-preview-loading">&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072;...</div>
@@ -182,7 +188,7 @@ if ( function_exists( 'wc_get_page_id' ) ) {
       <div class="nav-inner">
         <?php if ( $dv_header_dropdown_enabled ) : ?>
         <div class="nav-cats-dropdown">
-          <a href="<?php echo esc_url( get_permalink( wc_get_page_id( 'shop' ) ) ); ?>" class="nav-link all-cats">
+          <a href="<?php echo esc_url( $dv_topbar_shop_fallback ); ?>" class="nav-link all-cats">
             <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             &#1042;&#1089;&#1077; &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1080;
           </a>

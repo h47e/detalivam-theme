@@ -52,9 +52,6 @@ $is_sale      = $product->is_on_sale();
 $is_new       = strtotime( (string) $product->get_date_created() ) > strtotime( '-30 days' );
 $stock        = $product->get_stock_quantity();
 $in_stock     = $product->is_in_stock();
-$sku          = $product->get_sku();
-$rating       = $product->get_average_rating();
-$review_count = $product->get_review_count();
 $is_in_cart   = function_exists( 'dv_is_product_in_cart' ) ? dv_is_product_in_cart( $product ) : false;
 $show_badges  = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'catalog_card_badges_enabled' ) : true;
 $show_actions = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'catalog_card_actions_enabled' ) : true;
@@ -62,26 +59,16 @@ $show_compat  = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_e
 $show_rating  = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'catalog_card_rating_enabled' ) : true;
 $show_sku     = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'catalog_card_sku_enabled' ) : true;
 $show_stock_qty = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'catalog_card_stock_qty_enabled' ) : true;
+$sku          = $show_sku ? $product->get_sku() : '';
+$rating       = $show_rating ? (float) $product->get_average_rating() : 0;
+$review_count = $show_rating && $rating > 0 ? (int) $product->get_review_count() : 0;
 
 $price        = (float) $product->get_price();
 $reg_price    = (float) $product->get_regular_price();
 $sale_price   = (float) $product->get_sale_price();
 $discount_pct = ( $is_sale && $reg_price > 0 ) ? round( ( $reg_price - $sale_price ) / $reg_price * 100 ) : 0;
-$compat_tags  = function_exists( 'dv_get_compat_tags' ) ? dv_get_compat_tags( $product ) : array();
-$labels       = array(
-    'low'              => html_entity_decode( '&#1052;&#1072;&#1083;&#1086;', ENT_QUOTES, 'UTF-8' ),
-    'new'              => html_entity_decode( '&#1053;&#1086;&#1074;&#1080;&#1085;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
-    'compare'          => html_entity_decode( '&#1057;&#1088;&#1072;&#1074;&#1085;&#1080;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
-    'wishlist'         => html_entity_decode( '&#1042; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1077;', ENT_QUOTES, 'UTF-8' ),
-    'price_request'    => html_entity_decode( '&#1062;&#1077;&#1085;&#1072; &#1087;&#1086; &#1079;&#1072;&#1087;&#1088;&#1086;&#1089;&#1091;', ENT_QUOTES, 'UTF-8' ),
-    'in_stock'         => html_entity_decode( '&#1042; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
-    'out_of_stock'     => html_entity_decode( '&#1053;&#1077;&#1090; &#1074; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
-    'article'          => html_entity_decode( '&#1040;&#1088;&#1090;:', ENT_QUOTES, 'UTF-8' ),
-    'to_cart'          => html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
-    'in_cart'          => html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1077;', ENT_QUOTES, 'UTF-8' ),
-    'details'          => html_entity_decode( '&#1055;&#1086;&#1076;&#1088;&#1086;&#1073;&#1085;&#1077;&#1077;', ENT_QUOTES, 'UTF-8' ),
-    'stock_qty'        => html_entity_decode( '&#1096;&#1090;.', ENT_QUOTES, 'UTF-8' ),
-);
+$compat_tags  = $show_compat && function_exists( 'dv_get_compat_tags' ) ? dv_get_compat_tags( $product ) : array();
+$labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product_card_labels() : array();
 ?>
 
 <li <?php wc_product_class( 'dv-card', $product ); ?>>

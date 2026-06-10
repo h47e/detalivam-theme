@@ -190,16 +190,51 @@ function dv_is_product_in_cart( $product ) {
         return false;
     }
 
-    foreach ( WC()->cart->get_cart() as $cart_item ) {
-        $cart_product_id   = absint( $cart_item['product_id'] ?? 0 );
-        $cart_variation_id = absint( $cart_item['variation_id'] ?? 0 );
+    static $cart_product_ids = null;
 
-        if ( $cart_product_id === $product_id || $cart_variation_id === $product_id ) {
-            return true;
+    if ( null === $cart_product_ids ) {
+        $cart_product_ids = array();
+
+        foreach ( WC()->cart->get_cart() as $cart_item ) {
+            $cart_product_id   = absint( $cart_item['product_id'] ?? 0 );
+            $cart_variation_id = absint( $cart_item['variation_id'] ?? 0 );
+
+            if ( $cart_product_id ) {
+                $cart_product_ids[ $cart_product_id ] = true;
+            }
+
+            if ( $cart_variation_id ) {
+                $cart_product_ids[ $cart_variation_id ] = true;
+            }
         }
     }
 
-    return false;
+    return ! empty( $cart_product_ids[ $product_id ] );
+}
+
+function dv_get_product_card_labels() {
+    static $labels_cache = null;
+
+    if ( is_array( $labels_cache ) ) {
+        return $labels_cache;
+    }
+
+    $labels_cache = array(
+        'low'              => html_entity_decode( '&#1052;&#1072;&#1083;&#1086;', ENT_QUOTES, 'UTF-8' ),
+        'new'              => html_entity_decode( '&#1053;&#1086;&#1074;&#1080;&#1085;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
+        'compare'          => html_entity_decode( '&#1057;&#1088;&#1072;&#1074;&#1085;&#1080;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
+        'wishlist'         => html_entity_decode( '&#1042; &#1080;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'price_request'    => html_entity_decode( '&#1062;&#1077;&#1085;&#1072; &#1087;&#1086; &#1079;&#1072;&#1087;&#1088;&#1086;&#1089;&#1091;', ENT_QUOTES, 'UTF-8' ),
+        'in_stock'         => html_entity_decode( '&#1042; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'out_of_stock'     => html_entity_decode( '&#1053;&#1077;&#1090; &#1074; &#1085;&#1072;&#1083;&#1080;&#1095;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'article'          => html_entity_decode( '&#1040;&#1088;&#1090;:', ENT_QUOTES, 'UTF-8' ),
+        'to_cart'          => html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1091;', ENT_QUOTES, 'UTF-8' ),
+        'in_cart'          => html_entity_decode( '&#1042; &#1082;&#1086;&#1088;&#1079;&#1080;&#1085;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'details'          => html_entity_decode( '&#1055;&#1086;&#1076;&#1088;&#1086;&#1073;&#1085;&#1077;&#1077;', ENT_QUOTES, 'UTF-8' ),
+        'stock_qty'        => html_entity_decode( '&#1096;&#1090;.', ENT_QUOTES, 'UTF-8' ),
+    );
+
+    return $labels_cache;
 }
 
 function dv_get_cart_button_labels() {
