@@ -521,6 +521,17 @@ function dv_handle_live_search_index_rebuild() {
     check_admin_referer( 'dv_live_search_index_rebuild' );
     dv_rebuild_live_search_index();
 
+    if ( function_exists( 'dv_dashboard_status_clear_cache' ) ) {
+        dv_dashboard_status_clear_cache();
+    }
+
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'live_search_index_rebuild',
+            'Пересобран индекс live-search'
+        );
+    }
+
     $redirect = add_query_arg(
         'search-index',
         'rebuilt',

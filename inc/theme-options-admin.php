@@ -542,10 +542,20 @@ function dv_admin_suite_service_commands() {
             'keywords'    => 'action log journal audit cleanup backup service history',
         ),
         array(
-            'label'       => dv_theme_options_label( '&#1048;&#1085;&#1076;&#1077;&#1082;&#1089; &#1087;&#1086;&#1080;&#1089;&#1082;&#1072;' ),
-            'description' => dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089; live-search &#1080; &#1082;&#1101;&#1096;&#1080; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1086;&#1074;' ),
+            'label'       => dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1090;&#1100; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089; &#1087;&#1086;&#1080;&#1089;&#1082;&#1072;' ),
+            'description' => dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; live-search &#1087;&#1086;&#1089;&#1083;&#1077; &#1080;&#1084;&#1087;&#1086;&#1088;&#1090;&#1072; &#1080;&#1083;&#1080; &#1084;&#1072;&#1089;&#1089;&#1086;&#1074;&#1099;&#1093; &#1087;&#1088;&#1072;&#1074;&#1086;&#1082;' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-search' ),
+            'form'        => 'dv-suite-live-search-index-rebuild',
+            'confirm'     => dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1090;&#1100; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089; live-search &#1089;&#1077;&#1081;&#1095;&#1072;&#1089;?' ),
+            'keywords'    => 'search index live search cache rebuild быстрый поиск индекс',
+        ),
+        array(
+            'label'       => dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1082;&#1101;&#1096;&#1080;' ),
+            'description' => dv_theme_options_label( '&#1057;&#1073;&#1088;&#1086;&#1089; dashboard, &#1072;&#1091;&#1076;&#1080;&#1090;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap' ),
             'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
-            'keywords'    => 'search index live search cache rebuild',
+            'form'        => 'dv-suite-service-cache-clear',
+            'confirm'     => dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; dashboard, &#1072;&#1091;&#1076;&#1080;&#1090;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap?' ),
+            'keywords'    => 'cache clear service dashboard audit sitemap кэш очистить',
         ),
         array(
             'label'       => dv_theme_options_label( 'Slug &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1081;' ),
@@ -576,6 +586,7 @@ function dv_admin_suite_command_items( $pages, $quick_actions ) {
             'group'       => dv_theme_options_label( '&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;' ),
             'url'         => $action['url'],
             'external'    => ! empty( $action['external'] ),
+            'keywords'    => (string) ( $action['keywords'] ?? '' ),
         );
     }
 
@@ -586,6 +597,8 @@ function dv_admin_suite_command_items( $pages, $quick_actions ) {
             'group'       => dv_theme_options_label( '&#1050;&#1086;&#1084;&#1072;&#1085;&#1076;&#1099;' ),
             'url'         => $command['url'],
             'external'    => ! empty( $command['external'] ),
+            'form'        => (string) ( $command['form'] ?? '' ),
+            'confirm'     => (string) ( $command['confirm'] ?? '' ),
             'keywords'    => (string) ( $command['keywords'] ?? '' ),
         );
     }
@@ -648,23 +661,51 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
                 <input type="search" id="dv-suite-command-search" class="dv-suite-command-search" role="combobox" aria-expanded="true" aria-controls="dv-suite-command-list" aria-autocomplete="list" autocomplete="off" placeholder="<?php echo esc_attr( dv_theme_options_label( '&#1053;&#1072;&#1081;&#1090;&#1080;: SEO, uploads, &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;, &#1087;&#1086;&#1080;&#1089;&#1082;, sitemap' ) ); ?>">
                 <div class="dv-suite-command-list" id="dv-suite-command-list" role="listbox">
                     <?php foreach ( $command_items as $index => $item ) : ?>
-                        <a
-                            id="<?php echo esc_attr( 'dv-suite-command-item-' . $index ); ?>"
-                            class="dv-suite-command-item"
-                            href="<?php echo esc_url( $item['url'] ); ?>"
-                            data-search="<?php echo esc_attr( dv_admin_suite_search_text( $item['label'] . ' ' . $item['description'] . ' ' . $item['group'] . ' ' . ( $item['keywords'] ?? '' ) ) ); ?>"
-                            role="option"
-                            <?php echo ! empty( $item['external'] ) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>
-                        >
-                            <small><?php echo esc_html( $item['group'] ); ?></small>
-                            <span><?php echo esc_html( $item['label'] ); ?></span>
-                            <em><?php echo esc_html( $item['description'] ); ?></em>
-                        </a>
+                        <?php
+                        $command_item_id = 'dv-suite-command-item-' . $index;
+                        $search_text     = dv_admin_suite_search_text( $item['label'] . ' ' . $item['description'] . ' ' . $item['group'] . ' ' . ( $item['keywords'] ?? '' ) );
+                        ?>
+                        <?php if ( ! empty( $item['form'] ) ) : ?>
+                            <button
+                                type="submit"
+                                id="<?php echo esc_attr( $command_item_id ); ?>"
+                                class="dv-suite-command-item"
+                                form="<?php echo esc_attr( $item['form'] ); ?>"
+                                data-search="<?php echo esc_attr( $search_text ); ?>"
+                                role="option"
+                                <?php echo ! empty( $item['confirm'] ) ? 'data-dv-confirm="' . esc_attr( $item['confirm'] ) . '"' : ''; ?>
+                            >
+                                <small><?php echo esc_html( $item['group'] ); ?></small>
+                                <span><?php echo esc_html( $item['label'] ); ?></span>
+                                <em><?php echo esc_html( $item['description'] ); ?></em>
+                            </button>
+                        <?php else : ?>
+                            <a
+                                id="<?php echo esc_attr( $command_item_id ); ?>"
+                                class="dv-suite-command-item"
+                                href="<?php echo esc_url( $item['url'] ); ?>"
+                                data-search="<?php echo esc_attr( $search_text ); ?>"
+                                role="option"
+                                <?php echo ! empty( $item['external'] ) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>
+                            >
+                                <small><?php echo esc_html( $item['group'] ); ?></small>
+                                <span><?php echo esc_html( $item['label'] ); ?></span>
+                                <em><?php echo esc_html( $item['description'] ); ?></em>
+                            </a>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
                 <p class="dv-suite-command-empty" hidden><?php echo esc_html( dv_theme_options_label( '&#1053;&#1080;&#1095;&#1077;&#1075;&#1086; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1086;. &#1055;&#1086;&#1087;&#1088;&#1086;&#1073;&#1091;&#1081;&#1090;&#1077; &#1076;&#1088;&#1091;&#1075;&#1086;&#1081; &#1079;&#1072;&#1087;&#1088;&#1086;&#1089;.' ) ); ?></p>
             </div>
         </div>
+        <form id="dv-suite-live-search-index-rebuild" class="dv-suite-hidden-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_live_search_index_rebuild' ); ?>
+            <input type="hidden" name="action" value="dv_live_search_index_rebuild">
+        </form>
+        <form id="dv-suite-service-cache-clear" class="dv-suite-hidden-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_theme_service_cache_clear' ); ?>
+            <input type="hidden" name="action" value="dv_theme_service_cache_clear">
+        </form>
     </header>
     <?php
 }

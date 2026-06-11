@@ -630,13 +630,18 @@
 .dv-suite-command-item {
     display: grid;
     gap: 4px;
+    width: 100%;
     padding: 13px 14px;
     border: 1px solid #d5e5f6;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.86);
     color: #152339;
+    font: inherit;
+    text-align: left;
     text-decoration: none;
+    cursor: pointer;
     transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background 0.16s ease;
+    appearance: none;
 }
 
 .dv-suite-command-item:hover,
@@ -688,6 +693,10 @@
 
 .dv-suite-command-open {
     overflow: hidden;
+}
+
+.dv-suite-hidden-form {
+    display: none;
 }
 
 .dv-suite-back-to-top {
