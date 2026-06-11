@@ -310,6 +310,19 @@ function dv_render_store_settings_page() {
       <?php dv_render_admin_suite_header( 'dv-store-settings', $labels['page_title'], $labels['section_desc'] ); ?>
       <?php dv_render_store_profile_overview( $profile ); ?>
 
+      <?php
+      if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
+          dv_render_admin_suite_local_nav(
+              array(
+                  array( 'href' => '#dv-store-brand', 'label' => html_entity_decode( '&#1041;&#1088;&#1077;&#1085;&#1076;', ENT_QUOTES, 'UTF-8' ), 'description' => html_entity_decode( '&#1051;&#1086;&#1075;&#1086;&#1090;&#1080;&#1087;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-store-contacts', 'label' => html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ), 'description' => 'SEO' ),
+                  array( 'href' => '#dv-store-marketplaces', 'label' => $labels['marketplaces'], 'description' => 'Ozon' ),
+                  array( 'href' => '#dv-store-footer', 'label' => html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;', ENT_QUOTES, 'UTF-8' ), 'description' => html_entity_decode( '&#1058;&#1077;&#1082;&#1089;&#1090;', ENT_QUOTES, 'UTF-8' ) ),
+              )
+          );
+      }
+      ?>
+
       <form class="dv-suite-card dv-store-settings-form" method="post" action="options.php" data-dv-unsaved-form>
         <?php settings_fields( 'dv_store_profile_group' ); ?>
 
@@ -470,6 +483,11 @@ function dv_render_store_settings_page() {
         </div>
 
       </form>
+      <?php
+      if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
+          dv_render_admin_suite_footer( 'dv-store-settings' );
+      }
+      ?>
     </div>
     <?php
 }

@@ -3601,15 +3601,22 @@ function dv_render_seo_tools_page() {
             <div class="notice notice-success is-dismissible"><p>HTTP-проверки robots.txt и sitemap-файлов обновлены.</p></div>
         <?php endif; ?>
 
-        <nav class="dv-seo-tools-nav" aria-label="Разделы SEO-проверки">
-            <a href="#dv-seo-health">Health score</a>
-            <a href="#dv-seo-actions">Очередь задач</a>
-            <a href="#dv-seo-overview">Техническая сводка</a>
-            <a href="#dv-seo-manual">Ручные поля</a>
-            <a href="#dv-seo-products">Товары</a>
-            <a href="#dv-seo-head">Проверить URL</a>
-            <a href="#dv-seo-preview">Предпросмотр</a>
-        </nav>
+        <?php
+        if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
+            dv_render_admin_suite_local_nav(
+                array(
+                    array( 'href' => '#dv-seo-health', 'label' => 'Health score', 'description' => 'Оценка' ),
+                    array( 'href' => '#dv-seo-actions', 'label' => 'Задачи', 'description' => 'Очередь' ),
+                    array( 'href' => '#dv-seo-overview', 'label' => 'Сводка', 'description' => 'sitemap / robots' ),
+                    array( 'href' => '#dv-seo-manual', 'label' => 'Ручные поля', 'description' => 'Title / Description' ),
+                    array( 'href' => '#dv-seo-products', 'label' => 'Товары', 'description' => 'Аудит' ),
+                    array( 'href' => '#dv-seo-head', 'label' => 'Проверить URL', 'description' => 'head' ),
+                    array( 'href' => '#dv-seo-preview', 'label' => 'Превью', 'description' => 'SEO' ),
+                ),
+                'Разделы SEO-проверки'
+            );
+        }
+        ?>
 
         <div class="dv-seo-tools-command-center">
             <?php dv_seo_tools_render_health_score( $health ); ?>
@@ -3885,6 +3892,11 @@ function dv_render_seo_tools_page() {
         </table>
             </div>
         </details>
+        <?php
+        if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
+            dv_render_admin_suite_footer( 'dv-seo-tools' );
+        }
+        ?>
     </div>
     <?php
 }

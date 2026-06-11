@@ -389,6 +389,10 @@ function dv_admin_suite_pages() {
             'label'       => dv_theme_options_label( '&#1060;&#1072;&#1081;&#1083;&#1099;' ),
             'description' => dv_theme_options_label( 'Favicon, uploads &#1080; &#1074;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077; &#1080;&#1079; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;&#1072;.' ),
         ),
+        'dv-slug-tools'     => array(
+            'label'       => 'Slug',
+            'description' => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1072; &#1080; &#1087;&#1077;&#1088;&#1077;&#1074;&#1086;&#1076; &#1089;&#1090;&#1072;&#1088;&#1099;&#1093; URL &#1074; &#1083;&#1072;&#1090;&#1080;&#1085;&#1080;&#1094;&#1091;.' ),
+        ),
     );
 }
 
@@ -558,6 +562,61 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
             </div>
         </div>
     </header>
+    <?php
+}
+
+function dv_render_admin_suite_local_nav( $items, $label = '' ) {
+    $items = array_filter(
+        (array) $items,
+        static function ( $item ) {
+            return ! empty( $item['href'] ) && ! empty( $item['label'] );
+        }
+    );
+
+    if ( empty( $items ) ) {
+        return;
+    }
+
+    if ( '' === $label ) {
+        $label = dv_theme_options_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1077;' );
+    }
+    ?>
+    <nav class="dv-suite-page-nav" aria-label="<?php echo esc_attr( $label ); ?>">
+        <?php foreach ( $items as $item ) : ?>
+            <a href="<?php echo esc_url( $item['href'] ); ?>">
+                <span><?php echo esc_html( $item['label'] ); ?></span>
+                <?php if ( ! empty( $item['description'] ) ) : ?>
+                    <small><?php echo esc_html( $item['description'] ); ?></small>
+                <?php endif; ?>
+            </a>
+        <?php endforeach; ?>
+    </nav>
+    <?php
+}
+
+function dv_render_admin_suite_footer( $current_page = '' ) {
+    $pages = dv_admin_suite_pages();
+    $current_label = isset( $pages[ $current_page ] ) ? $pages[ $current_page ]['label'] : dv_theme_options_label( '&#1040;&#1076;&#1084;&#1080;&#1085;&#1082;&#1072; &#1090;&#1077;&#1084;&#1099;' );
+    ?>
+    <footer class="dv-suite-footer">
+        <div class="dv-suite-footer-main">
+            <strong><?php echo esc_html( dv_theme_options_label( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;' ) ); ?></strong>
+            <span><?php echo esc_html( $current_label ); ?></span>
+            <span><?php echo esc_html( sprintf( 'v%s', defined( 'DV_VERSION' ) ? DV_VERSION : '1.0.0' ) ); ?></span>
+            <span><?php echo esc_html( current_time( 'd.m.Y H:i' ) ); ?></span>
+        </div>
+        <nav class="dv-suite-footer-nav" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1056;&#1072;&#1079;&#1076;&#1077;&#1083;&#1099; &#1072;&#1076;&#1084;&#1080;&#1085;&#1082;&#1080;' ) ); ?>">
+            <?php foreach ( $pages as $page => $item ) : ?>
+                <a
+                    href="<?php echo esc_url( dv_admin_suite_page_url( $page ) ); ?>"
+                    class="<?php echo $page === $current_page ? 'is-active' : ''; ?>"
+                    <?php echo $page === $current_page ? 'aria-current="page"' : ''; ?>
+                >
+                    <?php echo esc_html( $item['label'] ); ?>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+    </footer>
     <?php
 }
 
@@ -5705,6 +5764,7 @@ function dv_render_theme_options_page() {
             <?php wp_nonce_field( 'dv_theme_settings_history_clear' ); ?>
             <input type="hidden" name="action" value="dv_theme_settings_history_clear">
         </form>
+        <?php dv_render_admin_suite_footer( 'dv-theme-options' ); ?>
     </div>
     <?php
 }

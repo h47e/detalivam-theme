@@ -1346,7 +1346,8 @@ body.dv-suite-admin .dv-admin-overview,
 body.dv-suite-admin .dv-options-overview,
 body.dv-suite-admin .dv-admin-shell,
 body.dv-suite-admin .dv-seo-tools,
-body.dv-suite-admin .dv-seo-tools-nav,
+body.dv-suite-admin .dv-suite-page-nav,
+body.dv-suite-admin .dv-suite-footer,
 body.dv-suite-admin .dv-theme-options-page > form,
 body.dv-suite-admin .dv-store-settings-page > form,
 body.dv-suite-admin .dv-theme-content-page > form,
@@ -1391,10 +1392,6 @@ body.dv-suite-admin .dv-theme-content-form {
 body.dv-suite-admin .dv-options-overview {
     margin-top: 14px;
     margin-bottom: 14px;
-}
-
-body.dv-suite-admin .dv-seo-tools-nav {
-    top: 32px;
 }
 
 body.dv-suite-admin .dv-suite-tabs {
@@ -1667,7 +1664,7 @@ body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card {
     padding: 24px 28px;
 }
 
-body.dv-suite-admin .dv-uploads-page-nav {
+body.dv-suite-admin .dv-suite-page-nav {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -1681,8 +1678,9 @@ body.dv-suite-admin .dv-uploads-page-nav {
     box-shadow: 0 12px 30px rgba(20, 54, 91, 0.06);
 }
 
-body.dv-suite-admin .dv-uploads-page-nav a {
-    display: inline-flex;
+body.dv-suite-admin .dv-suite-page-nav a {
+    display: inline-grid;
+    gap: 2px;
     min-height: 36px;
     align-items: center;
     padding: 8px 12px;
@@ -1694,8 +1692,19 @@ body.dv-suite-admin .dv-uploads-page-nav a {
     text-decoration: none;
 }
 
-body.dv-suite-admin .dv-uploads-page-nav a:hover,
-body.dv-suite-admin .dv-uploads-page-nav a:focus {
+body.dv-suite-admin .dv-suite-page-nav a span {
+    line-height: 1.1;
+}
+
+body.dv-suite-admin .dv-suite-page-nav a small {
+    color: var(--dv-admin-muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+body.dv-suite-admin .dv-suite-page-nav a:hover,
+body.dv-suite-admin .dv-suite-page-nav a:focus {
     border-color: var(--dv-admin-blue);
     color: var(--dv-admin-blue);
 }
@@ -2193,8 +2202,68 @@ body.dv-suite-admin .dv-store-settings-toolbar nav {
 
 body.dv-suite-admin .dv-theme-nav a,
 body.dv-suite-admin .dv-store-settings-toolbar a,
-body.dv-suite-admin .dv-seo-tools-nav a {
+body.dv-suite-admin .dv-suite-page-nav a,
+body.dv-suite-admin .dv-admin-nav a {
     box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.82);
+}
+
+body.dv-suite-admin .dv-suite-footer {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+    gap: 14px;
+    align-items: center;
+    margin-top: 28px;
+    padding: 16px 18px;
+    border: 1px solid var(--dv-admin-border);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 100% 0, rgba(0, 115, 230, 0.07), transparent 22rem),
+        #fff;
+    color: var(--dv-admin-muted);
+    box-shadow: 0 14px 34px rgba(20, 54, 91, 0.06);
+}
+
+body.dv-suite-admin .dv-suite-footer-main,
+body.dv-suite-admin .dv-suite-footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+}
+
+body.dv-suite-admin .dv-suite-footer-main strong {
+    color: var(--dv-admin-text);
+}
+
+body.dv-suite-admin .dv-suite-footer-main span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+body.dv-suite-admin .dv-suite-footer-nav {
+    justify-content: flex-end;
+}
+
+body.dv-suite-admin .dv-suite-footer-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border: 1px solid #d9e8f7;
+    border-radius: 999px;
+    background: #f7fbff;
+    color: #1e3a5f;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+body.dv-suite-admin .dv-suite-footer-nav a:hover,
+body.dv-suite-admin .dv-suite-footer-nav a:focus,
+body.dv-suite-admin .dv-suite-footer-nav a.is-active {
+    border-color: var(--dv-admin-blue);
+    color: var(--dv-admin-blue);
 }
 
 body.dv-suite-admin .dv-suite-page > .notice {
@@ -2271,5 +2340,13 @@ body.dv-suite-admin .dv-suite-action-row .button {
     body.dv-suite-admin .dv-theme-content-toolbar,
     body.dv-suite-admin .dv-store-settings-toolbar {
         position: static;
+    }
+
+    body.dv-suite-admin .dv-suite-footer {
+        grid-template-columns: 1fr;
+    }
+
+    body.dv-suite-admin .dv-suite-footer-nav {
+        justify-content: flex-start;
     }
 }

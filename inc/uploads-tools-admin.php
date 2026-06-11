@@ -67,6 +67,14 @@ function dv_uploads_tools_background_audit_hook() {
     return 'dv_uploads_tools_run_background_audit';
 }
 
+function dv_uploads_tools_backup_dirs_cache_key() {
+    return 'dv_uploads_tools_backup_dirs_v1';
+}
+
+function dv_uploads_tools_clear_backup_dirs_cache() {
+    delete_transient( dv_uploads_tools_backup_dirs_cache_key() );
+}
+
 function dv_uploads_tools_get_last_audit() {
     $audit = get_option( dv_uploads_tools_last_audit_option_name(), array() );
 
@@ -466,18 +474,30 @@ function dv_uploads_tools_find_restore_candidates( $limit = 80 ) {
     return array_slice( $candidates, 0, max( 1, absint( $limit ) ) );
 }
 
-function dv_uploads_tools_backup_dirs() {
+function dv_uploads_tools_backup_dirs( $force_refresh = false ) {
+    if ( ! $force_refresh ) {
+        $cached = get_transient( dv_uploads_tools_backup_dirs_cache_key() );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+    }
+
     $uploads = wp_get_upload_dir();
     $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
     $dirs = array();
 
     if ( ! is_dir( $base_dir ) ) {
+        set_transient( dv_uploads_tools_backup_dirs_cache_key(), $dirs, 5 * MINUTE_IN_SECONDS );
+
         return $dirs;
     }
 
     $backup_dirs = glob( trailingslashit( $base_dir ) . 'detalivam-uploads-trash-*', GLOB_ONLYDIR );
 
     if ( ! is_array( $backup_dirs ) ) {
+        set_transient( dv_uploads_tools_backup_dirs_cache_key(), $dirs, 5 * MINUTE_IN_SECONDS );
+
         return $dirs;
     }
 
@@ -521,6 +541,8 @@ function dv_uploads_tools_backup_dirs() {
             return (int) $b['modified'] <=> (int) $a['modified'];
         }
     );
+
+    set_transient( dv_uploads_tools_backup_dirs_cache_key(), $dirs, 5 * MINUTE_IN_SECONDS );
 
     return $dirs;
 }
@@ -723,6 +745,7 @@ function dv_uploads_tools_move_unused_to_backup() {
     if ( '1' === $ack ) {
         $result = dv_uploads_tools_process_delete_report( true, $older_than_days, $report_type );
         $status = is_wp_error( $result ) ? $result->get_error_code() : 'move-ok';
+        dv_uploads_tools_clear_backup_dirs_cache();
     }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', $status, admin_url( 'admin.php?page=dv-uploads-tools' ) ) );
@@ -742,6 +765,7 @@ function dv_uploads_tools_restore_backup() {
     $status = is_wp_error( $summary ) ? 'backup-invalid' : 'backup-restored';
 
     if ( ! is_wp_error( $summary ) ) {
+        dv_uploads_tools_clear_backup_dirs_cache();
         update_option(
             dv_uploads_tools_last_backup_action_option_name(),
             array(
@@ -802,6 +826,7 @@ function dv_uploads_tools_cleanup_backups() {
             false
         );
 
+        dv_uploads_tools_clear_backup_dirs_cache();
         $status = 'backup-cleanup-ok';
     }
 
@@ -902,7 +927,7 @@ function dv_uploads_tools_render_page() {
     }
 
     $state = dv_uploads_tools_current_site_icon_state();
-    $candidates = dv_uploads_tools_find_restore_candidates();
+    $candidates = ! $state['file_exists'] ? dv_uploads_tools_find_restore_candidates() : array();
     $last_audit = dv_uploads_tools_get_last_audit();
     $last_delete = dv_uploads_tools_get_last_delete();
     $audit_history = dv_uploads_tools_get_audit_history();
@@ -931,16 +956,23 @@ function dv_uploads_tools_render_page() {
         dv_uploads_tools_render_notice();
         ?>
 
-        <nav class="dv-uploads-page-nav" aria-label="<?php echo esc_attr( dv_uploads_tools_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1092;&#1072;&#1081;&#1083;&#1072;&#1084;' ) ); ?>">
-            <a href="#dv-uploads-audit"><?php echo esc_html( dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;' ) ); ?></a>
-            <a href="#dv-uploads-cleanup"><?php echo esc_html( dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1082;&#1072;' ) ); ?></a>
-            <a href="#dv-uploads-backups">Backup</a>
-            <a href="#dv-uploads-history"><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103;' ) ); ?></a>
-            <a href="#dv-uploads-favicon">Favicon</a>
-            <?php if ( ! $state['file_exists'] ) : ?>
-                <a href="#dv-uploads-restore"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ); ?></a>
-            <?php endif; ?>
-        </nav>
+        <?php
+        $uploads_nav = array(
+            array( 'href' => '#dv-uploads-audit', 'label' => dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;' ), 'description' => 'CSV' ),
+            array( 'href' => '#dv-uploads-cleanup', 'label' => dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1082;&#1072;' ), 'description' => 'Unused / Orphan' ),
+            array( 'href' => '#dv-uploads-backups', 'label' => 'Backup', 'description' => dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ),
+            array( 'href' => '#dv-uploads-history', 'label' => dv_uploads_tools_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103;' ), 'description' => dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;&#1099;' ) ),
+            array( 'href' => '#dv-uploads-favicon', 'label' => 'Favicon', 'description' => 'site_icon' ),
+        );
+
+        if ( ! $state['file_exists'] ) {
+            $uploads_nav[] = array( 'href' => '#dv-uploads-restore', 'label' => dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ), 'description' => 'favicon' );
+        }
+
+        if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
+            dv_render_admin_suite_local_nav( $uploads_nav, dv_uploads_tools_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1092;&#1072;&#1081;&#1083;&#1072;&#1084;' ) );
+        }
+        ?>
 
         <div class="dv-admin-card dv-uploads-card" id="dv-uploads-audit">
             <div class="dv-uploads-card-head">
@@ -1277,6 +1309,11 @@ function dv_uploads_tools_render_page() {
                 <?php endif; ?>
             </div>
         <?php endif; ?>
+        <?php
+        if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
+            dv_render_admin_suite_footer( 'dv-uploads-tools' );
+        }
+        ?>
     </div>
     <?php
 }

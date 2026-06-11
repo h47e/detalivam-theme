@@ -102,6 +102,18 @@ function dv_convert_product_category_slug( $term_id, $tt_id = 0, $taxonomy = '' 
 add_action( 'created_term', 'dv_convert_product_category_slug', 10, 3 );
 add_action( 'edited_term', 'dv_convert_product_category_slug', 10, 3 );
 
+function dv_slug_tools_report_cache_key() {
+    return 'dv_slug_tools_report_v1';
+}
+
+function dv_slug_tools_clear_report_cache( ...$unused ) {
+    delete_transient( dv_slug_tools_report_cache_key() );
+}
+add_action( 'save_post_product', 'dv_slug_tools_clear_report_cache' );
+add_action( 'created_product_cat', 'dv_slug_tools_clear_report_cache' );
+add_action( 'edited_product_cat', 'dv_slug_tools_clear_report_cache' );
+add_action( 'delete_product_cat', 'dv_slug_tools_clear_report_cache' );
+
 function dv_existing_product_slug_candidates() {
     $ids = get_posts(
         array(
@@ -245,6 +257,31 @@ function dv_convert_existing_slugs_report() {
     );
 }
 
+function dv_slug_tools_get_cached_report() {
+    $cached = get_transient( dv_slug_tools_report_cache_key() );
+
+    if ( is_array( $cached ) ) {
+        return $cached;
+    }
+
+    $products   = dv_existing_product_slug_candidates();
+    $categories = dv_existing_category_slug_candidates();
+    $report     = array(
+        'products'   => $products,
+        'categories' => $categories,
+        'counts'     => array(
+            'products'   => count( $products ),
+            'categories' => count( $categories ),
+            'total'      => count( $products ) + count( $categories ),
+        ),
+        'preview'    => dv_slug_tools_preview_items( $products, $categories ),
+    );
+
+    set_transient( dv_slug_tools_report_cache_key(), $report, 10 * MINUTE_IN_SECONDS );
+
+    return $report;
+}
+
 function dv_slug_tools_preview_items( $products, $categories, $limit = 8 ) {
     $items = array();
     $limit = max( 1, absint( $limit ) );
@@ -348,14 +385,9 @@ function dv_render_slug_tools_page() {
         wp_die( esc_html__( 'Sorry, you are not allowed to manage slug tools.', 'detalivam' ) );
     }
 
-    $products   = dv_existing_product_slug_candidates();
-    $categories = dv_existing_category_slug_candidates();
-    $report     = array(
-        'products'   => count( $products ),
-        'categories' => count( $categories ),
-        'total'      => count( $products ) + count( $categories ),
-    );
-    $preview    = dv_slug_tools_preview_items( $products, $categories );
+    $slug_report = dv_slug_tools_get_cached_report();
+    $report      = isset( $slug_report['counts'] ) && is_array( $slug_report['counts'] ) ? $slug_report['counts'] : array( 'products' => 0, 'categories' => 0, 'total' => 0 );
+    $preview     = isset( $slug_report['preview'] ) && is_array( $slug_report['preview'] ) ? $slug_report['preview'] : array();
     $last_run   = get_transient( 'dv_slug_tools_last_run' );
     $action_url = admin_url( 'admin-post.php' );
     ?>
@@ -369,6 +401,16 @@ function dv_render_slug_tools_page() {
             );
         } else {
             echo '<h1>Slug товаров и категорий</h1>';
+        }
+        ?>
+
+        <?php
+        if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
+            dv_render_admin_suite_local_nav(
+                array(
+                    array( 'href' => '#dv-slug-check', 'label' => 'Проверка slug', 'description' => 'Товары / категории' ),
+                )
+            );
         }
         ?>
 
@@ -387,7 +429,7 @@ function dv_render_slug_tools_page() {
             </div>
         <?php endif; ?>
 
-        <section class="dv-suite-card dv-slug-tools-card">
+        <section class="dv-suite-card dv-slug-tools-card" id="dv-slug-check">
             <h2>Проверка существующих slug</h2>
             <p>Новые товары и категории уже конвертируются автоматически. Этот инструмент нужен для старых позиций, где URL остался на кириллице или в виде `%d0...`.</p>
 
@@ -438,6 +480,11 @@ function dv_render_slug_tools_page() {
                 </button>
             </form>
         </section>
+        <?php
+        if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
+            dv_render_admin_suite_footer( 'dv-slug-tools' );
+        }
+        ?>
     </div>
     <?php
 }
@@ -451,6 +498,7 @@ function dv_handle_convert_existing_slugs() {
 
     $products   = dv_convert_existing_product_slugs();
     $categories = dv_convert_existing_category_slugs();
+    dv_slug_tools_clear_report_cache();
 
     set_transient(
         'dv_slug_tools_last_run',

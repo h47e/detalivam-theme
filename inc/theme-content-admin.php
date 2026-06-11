@@ -759,6 +759,21 @@ function dv_render_theme_content_settings_page() {
 
       <?php dv_render_theme_content_overview( $settings ); ?>
 
+      <?php
+      if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
+          dv_render_admin_suite_local_nav(
+              array(
+                  array( 'href' => '#dv-theme-header', 'label' => $labels['header_section'], 'description' => html_entity_decode( '&#1042;&#1077;&#1088;&#1093; &#1089;&#1072;&#1081;&#1090;&#1072;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-theme-footer', 'label' => $labels['footer_section'], 'description' => html_entity_decode( '&#1053;&#1080;&#1079; &#1089;&#1072;&#1081;&#1090;&#1072;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-theme-home', 'label' => $labels['home_section'], 'description' => html_entity_decode( '&#1041;&#1083;&#1086;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-theme-cta', 'label' => $labels['cta_section'], 'description' => html_entity_decode( '&#1050;&#1085;&#1086;&#1087;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-theme-service', 'label' => $labels['service_section'], 'description' => html_entity_decode( '&#1058;&#1077;&#1082;&#1089;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ) ),
+                  array( 'href' => '#dv-theme-custom-service-pages', 'label' => html_entity_decode( '&#1057;&#1074;&#1086;&#1080; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1099;', ENT_QUOTES, 'UTF-8' ), 'description' => 'URL' ),
+              )
+          );
+      }
+      ?>
+
       <form class="dv-theme-content-form" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-content' ) ); ?>" data-dv-unsaved-form>
         <input type="hidden" name="dv_theme_content_action" value="save">
         <?php wp_nonce_field( 'dv_save_theme_content', 'dv_theme_content_nonce' ); ?>
@@ -1051,6 +1066,11 @@ function dv_render_theme_content_settings_page() {
         </details>
 
       </form>
+      <?php
+      if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
+          dv_render_admin_suite_footer( 'dv-theme-content' );
+      }
+      ?>
     </div>
     <?php
 }
