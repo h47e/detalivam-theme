@@ -1346,6 +1346,8 @@ body.dv-suite-admin .dv-admin-overview,
 body.dv-suite-admin .dv-options-overview,
 body.dv-suite-admin .dv-admin-shell,
 body.dv-suite-admin .dv-seo-tools,
+body.dv-suite-admin .dv-seo-tools-command-center,
+body.dv-suite-admin .dv-seo-tools-section,
 body.dv-suite-admin .dv-suite-page-nav,
 body.dv-suite-admin .dv-suite-footer,
 body.dv-suite-admin .dv-theme-options-page > form,
@@ -1384,6 +1386,8 @@ body.dv-suite-admin .dv-suite-header {
 body.dv-suite-admin .dv-options-overview,
 body.dv-suite-admin .dv-admin-shell,
 body.dv-suite-admin .dv-seo-tools,
+body.dv-suite-admin .dv-seo-tools-command-center,
+body.dv-suite-admin .dv-seo-tools-section,
 body.dv-suite-admin .dv-store-settings-form,
 body.dv-suite-admin .dv-theme-content-form {
     width: 100%;
@@ -1396,14 +1400,38 @@ body.dv-suite-admin .dv-options-overview {
 
 body.dv-suite-admin .dv-suite-tabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
     align-content: stretch;
     justify-content: stretch;
 }
 
 body.dv-suite-admin .dv-suite-tab {
-    min-height: 96px;
+    min-height: 64px;
+    padding: 10px 12px;
     flex: initial;
+}
+
+body.dv-suite-admin .dv-suite-tab span {
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+body.dv-suite-admin .dv-suite-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+body.dv-suite-admin .dv-suite-quick-actions a,
+body.dv-suite-admin .dv-suite-quick-actions button {
+    min-height: 42px;
+    padding: 9px 12px;
+}
+
+body.dv-suite-admin .dv-suite-page-nav {
+    padding: 10px;
+    gap: 8px;
 }
 
 body.dv-suite-admin .dv-suite-card,
@@ -1526,7 +1554,7 @@ body.dv-suite-admin [id^="dv-seo-"] {
     }
 
     body.dv-suite-admin .dv-suite-tabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
     }
 }
 
@@ -1667,11 +1695,11 @@ body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card {
 body.dv-suite-admin .dv-suite-page-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     max-width: var(--dv-admin-shell-width);
     margin: 16px auto 0;
-    padding: 12px;
+    padding: 10px;
     border: 1px solid var(--dv-admin-border);
     border-radius: 16px;
     background: #fff;
