@@ -1846,10 +1846,10 @@ body.dv-suite-admin .dv-uploads-state-table {
 
 body.dv-suite-admin .dv-uploads-preview {
     margin-top: 18px;
-    padding: 16px;
     border: 1px solid #d9e8f7;
     border-radius: 14px;
     background: #fff;
+    overflow: hidden;
 }
 
 body.dv-suite-admin .dv-uploads-preview-head {
@@ -1857,7 +1857,36 @@ body.dv-suite-admin .dv-uploads-preview-head {
     gap: 12px;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    list-style: none;
+}
+
+body.dv-suite-admin .dv-uploads-preview-head::-webkit-details-marker {
+    display: none;
+}
+
+body.dv-suite-admin .dv-uploads-preview-head::after {
+    content: "+";
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d9e8f7;
+    border-radius: 999px;
+    background: #f4f8fd;
+    color: var(--dv-admin-blue);
+    font-weight: 900;
+}
+
+body.dv-suite-admin .dv-uploads-preview[open] .dv-uploads-preview-head {
+    border-bottom: 1px solid #d9e8f7;
+}
+
+body.dv-suite-admin .dv-uploads-preview[open] .dv-uploads-preview-head::after {
+    content: "−";
 }
 
 body.dv-suite-admin .dv-uploads-preview-head strong {
@@ -1873,6 +1902,8 @@ body.dv-suite-admin .dv-uploads-preview-head span {
 
 body.dv-suite-admin .dv-uploads-preview-table {
     table-layout: fixed;
+    border: 0;
+    border-radius: 0;
 }
 
 body.dv-suite-admin .dv-uploads-preview-table th:first-child,

@@ -218,7 +218,7 @@ function dv_uploads_tools_process_delete_report( $confirm, $older_than_days, $re
     return $state;
 }
 
-function dv_uploads_tools_preview_report_rows( $last_audit, $report_type = 'unused', $limit = 30 ) {
+function dv_uploads_tools_preview_report_rows( $last_audit, $report_type = 'unused', $limit = 12 ) {
     $report_config = dv_uploads_tools_report_config( $report_type );
     $report_path = isset( $last_audit[ $report_config['path_key'] ] ) ? wp_normalize_path( (string) $last_audit[ $report_config['path_key'] ] ) : '';
     $rows = dv_uploads_tools_read_csv_report( $report_path );
@@ -243,16 +243,16 @@ function dv_uploads_tools_preview_report_rows( $last_audit, $report_type = 'unus
     );
 }
 
-function dv_uploads_tools_render_preview_table( $preview, $title ) {
+function dv_uploads_tools_render_preview_table( $preview, $title, $is_open = false ) {
     if ( empty( $preview['rows'] ) ) {
         return;
     }
     ?>
-    <div class="dv-uploads-preview">
-        <div class="dv-uploads-preview-head">
+    <details class="dv-uploads-preview"<?php echo $is_open ? ' open' : ''; ?>>
+        <summary class="dv-uploads-preview-head">
             <strong><?php echo esc_html( $title ); ?></strong>
             <span><?php echo esc_html( sprintf( dv_uploads_tools_label( '&#1055;&#1086;&#1082;&#1072;&#1079;&#1072;&#1085;&#1086; %1$d &#1080;&#1079; %2$d' ), count( $preview['rows'] ), absint( $preview['total'] ) ) ); ?></span>
-        </div>
+        </summary>
         <table class="widefat striped dv-uploads-preview-table">
             <thead>
                 <tr>
@@ -281,7 +281,7 @@ function dv_uploads_tools_render_preview_table( $preview, $title ) {
                 <?php endforeach; ?>
             </tbody>
         </table>
-    </div>
+    </details>
     <?php
 }
 
@@ -619,8 +619,8 @@ function dv_uploads_tools_render_page() {
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </p>
-                <?php dv_uploads_tools_render_preview_table( $unused_preview, dv_uploads_tools_label( 'Unused: &#1085;&#1077;&#1090; &#1089;&#1089;&#1099;&#1083;&#1086;&#1082; &#1085;&#1072; &#1092;&#1072;&#1081;&#1083;' ) ); ?>
-                <?php dv_uploads_tools_render_preview_table( $orphan_preview, dv_uploads_tools_label( 'Orphan: &#1092;&#1072;&#1081;&#1083; &#1085;&#1077; &#1074; &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1077;' ) ); ?>
+                <?php dv_uploads_tools_render_preview_table( $unused_preview, dv_uploads_tools_label( 'Unused: &#1085;&#1077;&#1090; &#1089;&#1089;&#1099;&#1083;&#1086;&#1082; &#1085;&#1072; &#1092;&#1072;&#1081;&#1083;' ), true ); ?>
+                <?php dv_uploads_tools_render_preview_table( $orphan_preview, dv_uploads_tools_label( 'Orphan: &#1092;&#1072;&#1081;&#1083; &#1085;&#1077; &#1074; &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1077;' ), false ); ?>
             <?php endif; ?>
         </div>
 
