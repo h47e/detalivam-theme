@@ -28,11 +28,39 @@ function dv_uploads_audit_file_row_data( $absolute_path ) {
     );
 }
 
+function dv_uploads_audit_excluded_dir_prefixes() {
+    return array(
+        'detalivam-uploads-trash-',
+        'detalivam-uploads-audit-',
+    );
+}
+
+function dv_uploads_audit_is_excluded_relative_path( $relative_path ) {
+    $relative_path = dv_uploads_audit_normalize_relative_path( $relative_path );
+    $first_segment = strtok( $relative_path, '/' );
+
+    if ( false === $first_segment || '' === $first_segment ) {
+        return false;
+    }
+
+    foreach ( dv_uploads_audit_excluded_dir_prefixes() as $prefix ) {
+        if ( 0 === strpos( $first_segment, $prefix ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function dv_uploads_audit_scan_files( $base_dir, $extensions ) {
     $files = array();
+    $skipped_dirs = array();
 
     if ( ! is_dir( $base_dir ) ) {
-        return $files;
+        return array(
+            'files'        => $files,
+            'skipped_dirs' => $skipped_dirs,
+        );
     }
 
     $iterator = new RecursiveIteratorIterator(
@@ -47,6 +75,11 @@ function dv_uploads_audit_scan_files( $base_dir, $extensions ) {
         $absolute = $file->getPathname();
         $relative = dv_uploads_audit_normalize_relative_path( substr( $absolute, strlen( $base_dir ) ) );
 
+        if ( dv_uploads_audit_is_excluded_relative_path( $relative ) ) {
+            $skipped_dirs[ strtok( $relative, '/' ) ] = true;
+            continue;
+        }
+
         if ( ! dv_uploads_audit_is_candidate_file( $relative, $extensions ) ) {
             continue;
         }
@@ -59,7 +92,10 @@ function dv_uploads_audit_scan_files( $base_dir, $extensions ) {
 
     ksort( $files );
 
-    return $files;
+    return array(
+        'files'        => $files,
+        'skipped_dirs' => array_keys( $skipped_dirs ),
+    );
 }
 
 function dv_uploads_audit_attachment_size_paths( $attached_file, $metadata ) {
@@ -431,7 +467,8 @@ function dv_uploads_audit_collect_option_references( &$used_files, $attachment_f
 function dv_uploads_audit_build_report( $extensions ) {
     $uploads = wp_get_upload_dir();
     $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
-    $files = dv_uploads_audit_scan_files( $base_dir, $extensions );
+    $scan = dv_uploads_audit_scan_files( $base_dir, $extensions );
+    $files = $scan['files'];
     $attachments = dv_uploads_audit_get_attachments();
     $attachment_files = array();
     $file_attachments = array();
@@ -520,6 +557,7 @@ function dv_uploads_audit_build_report( $extensions ) {
             'unused_files'  => count( $unused_rows ),
             'orphan_files'  => count( $orphan_rows ),
             'missing_files' => count( $missing_files ),
+            'skipped_dirs'  => count( $scan['skipped_dirs'] ),
         ),
     );
 }
@@ -620,6 +658,7 @@ function dv_uploads_audit_cli_command( $args, $assoc_args ) {
     WP_CLI::log( 'Unused candidates: ' . $report['summary']['unused_files'] );
     WP_CLI::log( 'Orphan files: ' . $report['summary']['orphan_files'] );
     WP_CLI::log( 'Missing files: ' . $report['summary']['missing_files'] );
+    WP_CLI::log( 'Skipped service dirs: ' . $report['summary']['skipped_dirs'] );
 }
 
 function dv_uploads_audit_read_csv_report( $path ) {

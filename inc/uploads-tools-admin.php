@@ -534,6 +534,7 @@ function dv_uploads_tools_render_page() {
                     <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1102;&#1090;&#1089;&#1103;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['used_files'] ?? 0 ) ); ?></strong></div>
                     <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['unused_files'] ?? 0 ) ); ?></strong></div>
                     <div><span><?php echo esc_html( dv_uploads_tools_label( 'Orphan' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['orphan_files'] ?? 0 ) ); ?></strong></div>
+                    <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1088;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1086; &#1087;&#1072;&#1087;&#1086;&#1082;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['skipped_dirs'] ?? 0 ) ); ?></strong></div>
                 </div>
                 <p class="dv-uploads-actions">
                     <?php foreach ( array( 'used_path' => 'used-files.csv', 'unused_path' => 'unused-files.csv', 'orphan_path' => 'orphan-files.csv', 'missing_path' => 'missing-files.csv' ) as $key => $label ) : ?>
