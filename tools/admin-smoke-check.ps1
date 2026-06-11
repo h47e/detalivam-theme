@@ -9,6 +9,7 @@ Write-Host "Theme: $ThemePath"
 
 $phpFiles = @(
     'functions.php',
+    'inc/search.php',
     'inc/theme-options-admin.php',
     'inc/seo-admin.php',
     'inc/store-admin.php',
@@ -16,6 +17,18 @@ $phpFiles = @(
     'inc/uploads-tools-admin.php',
     'inc/slugs.php'
 )
+
+function Test-TextInTheme {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Needle
+    )
+
+    $matches = Get-ChildItem -Path (Join-Path $ThemePath 'inc') -Recurse -File -Include '*.php' |
+        Select-String -SimpleMatch -Pattern $Needle -Quiet
+
+    return [bool]$matches
+}
 
 $php = Get-Command php -ErrorAction SilentlyContinue
 
@@ -52,8 +65,7 @@ try {
     $missing = @()
 
     foreach ($page in $requiredPages) {
-        $found = rg -q $page inc
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Test-TextInTheme -Needle $page)) {
             $missing += $page
         }
     }
@@ -61,9 +73,50 @@ try {
     if ($missing.Count -gt 0) {
         throw "Admin pages not found: $($missing -join ', ')"
     }
+
+    $requiredActions = @(
+        'admin_post_dv_dashboard_status_refresh',
+        'admin_post_dv_theme_backup_export',
+        'admin_post_dv_theme_backup_import',
+        'admin_post_dv_theme_diagnostics_export',
+        'admin_post_dv_theme_product_audit_refresh',
+        'admin_post_dv_theme_service_cache_clear',
+        'admin_post_dv_live_search_index_rebuild',
+        'admin_post_dv_uploads_run_audit',
+        'admin_post_dv_uploads_move_unused',
+        'admin_post_dv_convert_existing_slugs'
+    )
+
+    $missingActions = @()
+
+    foreach ($action in $requiredActions) {
+        if (-not (Test-TextInTheme -Needle $action)) {
+            $missingActions += $action
+        }
+    }
+
+    if ($missingActions.Count -gt 0) {
+        throw "Admin actions not found: $($missingActions -join ', ')"
+    }
+
+    $requiredCommandForms = @(
+        'dv-suite-live-search-index-rebuild',
+        'dv-suite-service-cache-clear'
+    )
+
+    $missingForms = @()
+
+    foreach ($form in $requiredCommandForms) {
+        if (-not (Test-TextInTheme -Needle $form)) {
+            $missingForms += $form
+        }
+    }
+
+    if ($missingForms.Count -gt 0) {
+        throw "Command palette forms not found: $($missingForms -join ', ')"
+    }
 } finally {
     Pop-Location
 }
 
 Write-Host "OK: smoke checks passed."
-

@@ -507,6 +507,7 @@ function dv_schedule_live_search_index_rebuild() {
 
 function dv_rebuild_live_search_index() {
     delete_transient( dv_search_index_cache_key() );
+    update_option( 'dv_live_product_search_index_version', time(), false );
     dv_get_live_search_index();
 }
 

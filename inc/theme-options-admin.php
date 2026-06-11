@@ -2304,9 +2304,24 @@ function dv_theme_auto_backup_state() {
     );
 }
 
+function dv_theme_live_search_index_state() {
+    $version   = (int) get_option( 'dv_live_product_search_index_version', 1 );
+    $timestamp = $version > 1000000000 ? $version : 0;
+    $now       = current_time( 'timestamp' );
+
+    return array(
+        'has_timestamp' => $timestamp > 0,
+        'timestamp'     => $timestamp,
+        'display'       => $timestamp > 0 ? date_i18n( 'd.m.Y H:i', $timestamp ) : '',
+        'age'           => $timestamp > 0 && function_exists( 'human_time_diff' ) ? human_time_diff( $timestamp, $now ) : '',
+        'is_stale'      => $timestamp > 0 && ( $now - $timestamp ) > WEEK_IN_SECONDS,
+    );
+}
+
 function dv_theme_maintenance_report() {
     $history     = function_exists( 'dv_theme_settings_history_get' ) ? dv_theme_settings_history_get() : array();
     $auto_backup = function_exists( 'dv_theme_auto_backup_state' ) ? dv_theme_auto_backup_state() : array();
+    $search_index = dv_theme_live_search_index_state();
     $groups      = function_exists( 'dv_theme_options_reset_groups' ) ? dv_theme_options_reset_groups() : array();
     $main_css    = trailingslashit( get_stylesheet_directory() ) . 'assets/css/main.css';
     $css_content = is_readable( $main_css ) ? file_get_contents( $main_css ) : '';
@@ -2345,6 +2360,19 @@ function dv_theme_maintenance_report() {
                 dv_theme_options_label( '&#1044;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1086; &#1073;&#1083;&#1086;&#1082;&#1086;&#1074; &#1089;&#1073;&#1088;&#1086;&#1089;&#1072;: %d' ),
                 count( is_array( $groups ) ? $groups : array() )
             ),
+        ),
+        array(
+            'key'    => 'live_search_index',
+            'label'  => dv_theme_options_label( '&#1048;&#1085;&#1076;&#1077;&#1082;&#1089; live-search' ),
+            'status' => ! empty( $search_index['has_timestamp'] ) && empty( $search_index['is_stale'] ),
+            'hint'   => ! empty( $search_index['has_timestamp'] )
+                ? sprintf(
+                    /* translators: 1: date, 2: age. */
+                    dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085; %1$s, %2$s &#1085;&#1072;&#1079;&#1072;&#1076;' ),
+                    (string) $search_index['display'],
+                    (string) $search_index['age']
+                )
+                : dv_theme_options_label( '&#1053;&#1091;&#1078;&#1085;&#1072; &#1087;&#1077;&#1088;&#1077;&#1089;&#1073;&#1086;&#1088;&#1082;&#1072; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089;&#1072;' ),
         ),
         array(
             'key'    => 'mobile_safety',
