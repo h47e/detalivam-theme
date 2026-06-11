@@ -566,6 +566,47 @@ function dv_admin_suite_service_commands() {
     );
 }
 
+function dv_admin_suite_dashboard_task_commands() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return array();
+    }
+
+    $summary = function_exists( 'dv_dashboard_status_cache_key' ) ? get_transient( dv_dashboard_status_cache_key() ) : array();
+    $tasks   = is_array( $summary ) && function_exists( 'dv_dashboard_status_tasks' ) ? dv_dashboard_status_tasks( $summary ) : array();
+
+    if ( empty( $tasks ) ) {
+        return array();
+    }
+
+    $commands = array();
+
+    foreach ( $tasks as $task ) {
+        if ( empty( $task['label'] ) || empty( $task['url'] ) ) {
+            continue;
+        }
+
+        $source = ! empty( $task['source'] ) ? wp_strip_all_tags( (string) $task['source'] ) : dv_theme_options_label( '&#1047;&#1072;&#1076;&#1072;&#1095;&#1072;' );
+
+        $commands[] = array(
+            'label'       => sprintf(
+                /* translators: %s: dashboard task label. */
+                dv_theme_options_label( 'Dashboard: %s' ),
+                wp_strip_all_tags( (string) $task['label'] )
+            ),
+            'description' => sprintf(
+                /* translators: %s: dashboard task source. */
+                dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1081;&#1090;&#1080; &#1082; &#1087;&#1088;&#1086;&#1073;&#1083;&#1077;&#1084;&#1085;&#1086;&#1084;&#1091; &#1073;&#1083;&#1086;&#1082;&#1091;: %s' ),
+                $source
+            ),
+            'group'       => dv_theme_options_label( 'Dashboard-&#1079;&#1072;&#1076;&#1072;&#1095;&#1080;' ),
+            'url'         => (string) $task['url'],
+            'keywords'    => trim( 'dashboard task issue status ' . $source . ' ' . (string) ( $task['severity'] ?? '' ) ),
+        );
+    }
+
+    return $commands;
+}
+
 function dv_admin_suite_command_items( $pages, $quick_actions ) {
     $items = array();
 
@@ -594,7 +635,20 @@ function dv_admin_suite_command_items( $pages, $quick_actions ) {
         $items[] = array(
             'label'       => $command['label'],
             'description' => $command['description'],
-            'group'       => dv_theme_options_label( '&#1050;&#1086;&#1084;&#1072;&#1085;&#1076;&#1099;' ),
+            'group'       => (string) ( $command['group'] ?? dv_theme_options_label( '&#1050;&#1086;&#1084;&#1072;&#1085;&#1076;&#1099;' ) ),
+            'url'         => $command['url'],
+            'external'    => ! empty( $command['external'] ),
+            'form'        => (string) ( $command['form'] ?? '' ),
+            'confirm'     => (string) ( $command['confirm'] ?? '' ),
+            'keywords'    => (string) ( $command['keywords'] ?? '' ),
+        );
+    }
+
+    foreach ( dv_admin_suite_dashboard_task_commands() as $command ) {
+        $items[] = array(
+            'label'       => $command['label'],
+            'description' => $command['description'],
+            'group'       => (string) ( $command['group'] ?? dv_theme_options_label( 'Dashboard-&#1079;&#1072;&#1076;&#1072;&#1095;&#1080;' ) ),
             'url'         => $command['url'],
             'external'    => ! empty( $command['external'] ),
             'form'        => (string) ( $command['form'] ?? '' ),
