@@ -1785,6 +1785,76 @@ body.dv-suite-admin .dv-uploads-state-table {
     border-radius: 14px;
 }
 
+body.dv-suite-admin .dv-uploads-preview {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #d9e8f7;
+    border-radius: 14px;
+    background: #fff;
+}
+
+body.dv-suite-admin .dv-uploads-preview-head {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+body.dv-suite-admin .dv-uploads-preview-head strong {
+    color: var(--dv-admin-text);
+    font-size: 15px;
+}
+
+body.dv-suite-admin .dv-uploads-preview-head span {
+    color: var(--dv-admin-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+body.dv-suite-admin .dv-uploads-preview-table {
+    table-layout: fixed;
+}
+
+body.dv-suite-admin .dv-uploads-preview-table th:first-child,
+body.dv-suite-admin .dv-uploads-preview-table td:first-child {
+    width: 58%;
+}
+
+body.dv-suite-admin .dv-uploads-preview-table th:nth-child(2),
+body.dv-suite-admin .dv-uploads-preview-table td:nth-child(2) {
+    width: 110px;
+}
+
+body.dv-suite-admin .dv-uploads-preview-table th:nth-child(3),
+body.dv-suite-admin .dv-uploads-preview-table td:nth-child(3) {
+    width: 210px;
+}
+
+body.dv-suite-admin .dv-uploads-preview-table th:nth-child(4),
+body.dv-suite-admin .dv-uploads-preview-table td:nth-child(4) {
+    width: 140px;
+}
+
+body.dv-suite-admin .dv-uploads-badge {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 4px 9px;
+    border: 1px solid #cfe0f2;
+    border-radius: 999px;
+    background: #f4f8fd;
+    color: #1e3a5f;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+body.dv-suite-admin .dv-uploads-badge.is-warning {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #9a3412;
+}
+
 body.dv-suite-admin .dv-uploads-state-table th {
     width: 180px;
     color: var(--dv-admin-muted);
@@ -1838,6 +1908,14 @@ body.dv-suite-admin .dv-uploads-tools-page img {
     body.dv-suite-admin .dv-uploads-inline-form .button {
         width: 100%;
         text-align: center;
+    }
+
+    body.dv-suite-admin .dv-uploads-preview {
+        overflow-x: auto;
+    }
+
+    body.dv-suite-admin .dv-uploads-preview-table {
+        min-width: 760px;
     }
 }
 

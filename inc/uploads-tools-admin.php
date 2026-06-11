@@ -196,6 +196,30 @@ function dv_uploads_tools_process_delete_report( $confirm, $older_than_days ) {
     return $state;
 }
 
+function dv_uploads_tools_preview_unused_rows( $last_audit, $limit = 30 ) {
+    $report_path = isset( $last_audit['unused_path'] ) ? wp_normalize_path( (string) $last_audit['unused_path'] ) : '';
+    $rows = dv_uploads_tools_read_csv_report( $report_path );
+
+    if ( empty( $rows ) ) {
+        return array(
+            'total' => 0,
+            'rows'  => array(),
+        );
+    }
+
+    usort(
+        $rows,
+        static function ( $a, $b ) {
+            return absint( $b['size_bytes'] ?? 0 ) <=> absint( $a['size_bytes'] ?? 0 );
+        }
+    );
+
+    return array(
+        'total' => count( $rows ),
+        'rows'  => array_slice( $rows, 0, max( 1, absint( $limit ) ) ),
+    );
+}
+
 function dv_uploads_tools_is_service_candidate( $original_relative, $current_relative ) {
     $original_relative = dv_uploads_tools_normalize_relative_path( $original_relative );
     $current_relative = dv_uploads_tools_normalize_relative_path( $current_relative );
@@ -467,6 +491,7 @@ function dv_uploads_tools_render_page() {
     $last_delete = dv_uploads_tools_get_last_delete();
     $audit_summary = isset( $last_audit['summary'] ) && is_array( $last_audit['summary'] ) ? $last_audit['summary'] : array();
     $delete_summary = isset( $last_delete['summary'] ) && is_array( $last_delete['summary'] ) ? $last_delete['summary'] : array();
+    $unused_preview = ! empty( $last_audit ) ? dv_uploads_tools_preview_unused_rows( $last_audit ) : array( 'total' => 0, 'rows' => array() );
     ?>
     <div class="wrap dv-suite-page dv-uploads-tools-page">
         <?php
@@ -518,6 +543,40 @@ function dv_uploads_tools_render_page() {
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </p>
+                <?php if ( ! empty( $unused_preview['rows'] ) ) : ?>
+                    <div class="dv-uploads-preview">
+                        <div class="dv-uploads-preview-head">
+                            <strong><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1085;&#1072; &#1091;&#1076;&#1072;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ); ?></strong>
+                            <span><?php echo esc_html( sprintf( dv_uploads_tools_label( '&#1055;&#1086;&#1082;&#1072;&#1079;&#1072;&#1085;&#1086; %1$d &#1080;&#1079; %2$d' ), count( $unused_preview['rows'] ), absint( $unused_preview['total'] ) ) ); ?></span>
+                        </div>
+                        <table class="widefat striped dv-uploads-preview-table">
+                            <thead>
+                                <tr>
+                                    <th><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083;' ) ); ?></th>
+                                    <th><?php echo esc_html( dv_uploads_tools_label( '&#1056;&#1072;&#1079;&#1084;&#1077;&#1088;' ) ); ?></th>
+                                    <th><?php echo esc_html( dv_uploads_tools_label( '&#1044;&#1072;&#1090;&#1072;' ) ); ?></th>
+                                    <th><?php echo esc_html( dv_uploads_tools_label( '&#1057;&#1090;&#1072;&#1090;&#1091;&#1089;' ) ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $unused_preview['rows'] as $row ) : ?>
+                                    <tr>
+                                        <td><code><?php echo esc_html( (string) ( $row['path'] ?? '' ) ); ?></code></td>
+                                        <td><?php echo esc_html( size_format( absint( $row['size_bytes'] ?? 0 ) ) ); ?></td>
+                                        <td><?php echo esc_html( (string) ( $row['modified'] ?? '' ) ); ?></td>
+                                        <td>
+                                            <?php if ( 'no' === (string) ( $row['in_media_library'] ?? '' ) ) : ?>
+                                                <span class="dv-uploads-badge is-warning"><?php echo esc_html( dv_uploads_tools_label( '&#1085;&#1077; &#1074; &#1084;&#1077;&#1076;&#1080;&#1072;' ) ); ?></span>
+                                            <?php else : ?>
+                                                <span class="dv-uploads-badge"><?php echo esc_html( dv_uploads_tools_label( '&#1085;&#1077;&#1090; &#1089;&#1089;&#1099;&#1083;&#1086;&#1082;' ) ); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
