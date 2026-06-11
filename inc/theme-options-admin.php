@@ -536,6 +536,12 @@ function dv_admin_suite_service_commands() {
             'keywords'    => 'backup json restore history settings',
         ),
         array(
+            'label'       => dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081;' ),
+            'description' => dv_theme_options_label( '&#1050;&#1090;&#1086; &#1080; &#1082;&#1086;&#1075;&#1076;&#1072; &#1079;&#1072;&#1087;&#1091;&#1089;&#1082;&#1072;&#1083; &#1072;&#1091;&#1076;&#1080;&#1090;&#1099;, backup &#1080; &#1086;&#1095;&#1080;&#1089;&#1090;&#1082;&#1080;' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-action-log' ),
+            'keywords'    => 'action log journal audit cleanup backup service history',
+        ),
+        array(
             'label'       => dv_theme_options_label( '&#1048;&#1085;&#1076;&#1077;&#1082;&#1089; &#1087;&#1086;&#1080;&#1089;&#1082;&#1072;' ),
             'description' => dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1080;&#1085;&#1076;&#1077;&#1082;&#1089; live-search &#1080; &#1082;&#1101;&#1096;&#1080; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1086;&#1074;' ),
             'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
@@ -599,7 +605,7 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
             <?php if ( '' !== trim( (string) $description ) ) : ?>
                 <p><?php echo esc_html( $description ); ?></p>
             <?php endif; ?>
-            <button type="button" class="dv-suite-command-button" id="dv-suite-command-open">
+            <button type="button" class="dv-suite-command-button" id="dv-suite-command-open" aria-keyshortcuts="Control+K" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1088;&#1099;&#1090;&#1100; &#1087;&#1072;&#1083;&#1080;&#1090;&#1088;&#1091; &#1073;&#1099;&#1089;&#1090;&#1088;&#1086;&#1075;&#1086; &#1087;&#1077;&#1088;&#1077;&#1093;&#1086;&#1076;&#1072;' ) ); ?>">
                 <span><?php echo esc_html( dv_theme_options_label( '&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1081; &#1087;&#1077;&#1088;&#1077;&#1093;&#1086;&#1076;' ) ); ?></span>
                 <kbd>Ctrl K</kbd>
             </button>
@@ -639,7 +645,7 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
                     <button type="button" class="button" data-dv-command-close><?php echo esc_html( dv_theme_options_label( '&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;' ) ); ?></button>
                 </div>
                 <label class="screen-reader-text" for="dv-suite-command-search"><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1072;&#1076;&#1084;&#1080;&#1085;&#1082;&#1077; &#1090;&#1077;&#1084;&#1099;' ) ); ?></label>
-                <input type="search" id="dv-suite-command-search" class="dv-suite-command-search" role="combobox" aria-expanded="true" aria-controls="dv-suite-command-list" autocomplete="off" placeholder="<?php echo esc_attr( dv_theme_options_label( '&#1053;&#1072;&#1081;&#1090;&#1080;: SEO, uploads, &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;, &#1087;&#1086;&#1080;&#1089;&#1082;, sitemap' ) ); ?>">
+                <input type="search" id="dv-suite-command-search" class="dv-suite-command-search" role="combobox" aria-expanded="true" aria-controls="dv-suite-command-list" aria-autocomplete="list" autocomplete="off" placeholder="<?php echo esc_attr( dv_theme_options_label( '&#1053;&#1072;&#1081;&#1090;&#1080;: SEO, uploads, &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;, &#1087;&#1086;&#1080;&#1089;&#1082;, sitemap' ) ); ?>">
                 <div class="dv-suite-command-list" id="dv-suite-command-list" role="listbox">
                     <?php foreach ( $command_items as $index => $item ) : ?>
                         <a
@@ -1436,6 +1442,83 @@ function dv_handle_theme_settings_history_clear() {
     exit;
 }
 add_action( 'admin_post_dv_theme_settings_history_clear', 'dv_handle_theme_settings_history_clear' );
+
+function dv_admin_action_log_csv_row( $handle, $row ) {
+    fputcsv( $handle, array_map( 'dv_theme_settings_history_csv_cell', $row ), ';' );
+}
+
+function dv_handle_admin_action_log_export() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'Sorry, you are not allowed to export action log.', 'detalivam' ) );
+    }
+
+    check_admin_referer( 'dv_admin_action_log_export' );
+
+    nocache_headers();
+    header( 'Content-Type: text/csv; charset=UTF-8' );
+    header( 'Content-Disposition: attachment; filename="detalivam-action-log-' . gmdate( 'Y-m-d-H-i' ) . '.csv"' );
+
+    $handle = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+    echo "\xEF\xBB\xBF"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+    dv_admin_action_log_csv_row(
+        $handle,
+        array(
+            dv_theme_options_label( '&#1044;&#1072;&#1090;&#1072;' ),
+            dv_theme_options_label( '&#1044;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1077;' ),
+            dv_theme_options_label( '&#1050;&#1083;&#1102;&#1095;' ),
+            dv_theme_options_label( '&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1100;' ),
+            dv_theme_options_label( '&#1057;&#1074;&#1086;&#1076;&#1082;&#1072;' ),
+        )
+    );
+
+    foreach ( dv_admin_action_log_get() as $entry ) {
+        $timestamp = ! empty( $entry['created_at_gmt'] ) ? strtotime( (string) $entry['created_at_gmt'] . ' UTC' ) : false;
+        $date      = $timestamp ? wp_date( 'd.m.Y H:i', $timestamp ) : (string) ( $entry['created_at'] ?? '' );
+        $summary   = ! empty( $entry['summary'] ) && is_array( $entry['summary'] ) ? wp_json_encode( $entry['summary'], JSON_UNESCAPED_UNICODE ) : '';
+
+        dv_admin_action_log_csv_row(
+            $handle,
+            array(
+                $date,
+                (string) ( $entry['label'] ?? '' ),
+                (string) ( $entry['action'] ?? '' ),
+                (string) ( $entry['user_name'] ?? '' ),
+                (string) $summary,
+            )
+        );
+    }
+
+    fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+    exit;
+}
+add_action( 'admin_post_dv_admin_action_log_export', 'dv_handle_admin_action_log_export' );
+
+function dv_handle_admin_action_log_clear() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'Sorry, you are not allowed to clear action log.', 'detalivam' ) );
+    }
+
+    check_admin_referer( 'dv_admin_action_log_clear' );
+
+    delete_option( dv_admin_action_log_option_name() );
+    dv_admin_action_log_record(
+        'action_log_clear',
+        dv_theme_options_label( '&#1054;&#1095;&#1080;&#1097;&#1077;&#1085; &#1078;&#1091;&#1088;&#1085;&#1072;&#1083; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081;' )
+    );
+
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page'       => 'dv-theme-options',
+                'action-log' => 'cleared',
+            ),
+            admin_url( 'admin.php' )
+        ) . '#dv-options-action-log'
+    );
+    exit;
+}
+add_action( 'admin_post_dv_admin_action_log_clear', 'dv_handle_admin_action_log_clear' );
 
 function dv_theme_backup_last_import_option_name() {
     return 'dv_theme_backup_before_last_import';
@@ -4247,6 +4330,80 @@ function dv_theme_reset_notice_text( $status ) {
     );
 }
 
+function dv_render_admin_action_log_card() {
+    $action_log = dv_admin_action_log_get();
+    ?>
+    <div class="dv-admin-settings-history dv-admin-action-log" id="dv-options-action-log">
+        <div class="dv-admin-settings-history-head">
+            <div>
+                <h3><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081;' ) ); ?></h3>
+                <p><?php echo esc_html( dv_theme_options_label( '&#1040;&#1091;&#1076;&#1080;&#1090;&#1099;, &#1086;&#1095;&#1080;&#1089;&#1090;&#1082;&#1080;, backup, &#1084;&#1072;&#1089;&#1089;&#1086;&#1074;&#1099;&#1077; &#1087;&#1088;&#1072;&#1074;&#1082;&#1080; &#1080; &#1086;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103; &#1082;&#1101;&#1096;&#1077;&#1081;.' ) ); ?></p>
+            </div>
+            <div class="dv-admin-settings-history-actions dv-suite-action-row">
+                <span><?php echo esc_html( count( $action_log ) ); ?></span>
+                <?php if ( ! empty( $action_log ) ) : ?>
+                    <button type="submit" class="button button-secondary" form="dv-admin-action-log-export">
+                        <?php echo esc_html( dv_theme_options_label( '&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; CSV' ) ); ?>
+                    </button>
+                    <button
+                        type="submit"
+                        class="button"
+                        form="dv-admin-action-log-clear"
+                        data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1078;&#1091;&#1088;&#1085;&#1072;&#1083; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081;?' ) ); ?>"
+                    >
+                        <?php echo esc_html( dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100;' ) ); ?>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if ( empty( $action_log ) ) : ?>
+            <p class="dv-admin-settings-history-empty"><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1082;&#1072; &#1085;&#1077;&#1090; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1089;&#1086;&#1073;&#1099;&#1090;&#1080;&#1081;.' ) ); ?></p>
+        <?php else : ?>
+            <div class="dv-admin-settings-history-list">
+                <?php foreach ( $action_log as $entry ) : ?>
+                    <?php
+                    $timestamp = ! empty( $entry['created_at_gmt'] ) ? strtotime( (string) $entry['created_at_gmt'] . ' UTC' ) : false;
+                    $date      = $timestamp ? wp_date( 'd.m.Y H:i', $timestamp ) : (string) ( $entry['created_at'] ?? '' );
+                    $summary   = ! empty( $entry['summary'] ) && is_array( $entry['summary'] ) ? $entry['summary'] : array();
+                    ?>
+                    <article class="dv-admin-settings-history-item">
+                        <div>
+                            <strong><?php echo esc_html( (string) ( $entry['label'] ?? '' ) ); ?></strong>
+                            <span>
+                                <?php
+                                echo esc_html(
+                                    trim(
+                                        implode(
+                                            ' - ',
+                                            array_filter(
+                                                array(
+                                                    $date,
+                                                    (string) ( $entry['user_name'] ?? '' ),
+                                                )
+                                            )
+                                        )
+                                    )
+                                );
+                                ?>
+                            </span>
+                        </div>
+                        <p><code><?php echo esc_html( (string) ( $entry['action'] ?? '' ) ); ?></code></p>
+                        <?php if ( ! empty( $summary ) ) : ?>
+                            <ul>
+                                <?php foreach ( $summary as $key => $value ) : ?>
+                                    <li><code><?php echo esc_html( (string) $key . ': ' . (string) $value ); ?></code></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
 function dv_render_theme_backup_card() {
     $option_names = dv_theme_backup_option_names();
     $last_backup  = get_option( dv_theme_backup_last_import_option_name(), array() );
@@ -4430,6 +4587,8 @@ function dv_render_theme_backup_card() {
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php dv_render_admin_action_log_card(); ?>
 
         <p class="description">
             <?php echo esc_html( dv_theme_options_label( '&#1042; &#1089;&#1085;&#1080;&#1084;&#1086;&#1082; &#1074;&#1093;&#1086;&#1076;&#1103;&#1090; &#1086;&#1087;&#1094;&#1080;&#1080;:' ) ); ?>
@@ -4940,6 +5099,11 @@ function dv_render_theme_options_page() {
                 <p><?php echo esc_html( dv_theme_options_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103; &#1080;&#1079;&#1084;&#1077;&#1085;&#1077;&#1085;&#1080;&#1081; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;&#1072;.' ) ); ?></p>
             </div>
         <?php endif; ?>
+        <?php if ( isset( $_GET['action-log'] ) && 'cleared' === sanitize_key( wp_unslash( $_GET['action-log'] ) ) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;.' ) ); ?></p>
+            </div>
+        <?php endif; ?>
 
         <?php dv_render_theme_options_overview( $options ); ?>
 
@@ -4976,6 +5140,7 @@ function dv_render_theme_options_page() {
                     <a href="#dv-options-service"><?php echo esc_html( dv_theme_options_label( '&#1057;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1077;' ) ); ?></a>
                     <a href="#dv-options-diagnostics"><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></a>
                     <a href="#dv-options-backup"><?php echo esc_html( dv_theme_options_label( '&#1056;&#1077;&#1079;&#1077;&#1088;&#1074;' ) ); ?></a>
+                    <a href="#dv-options-action-log"><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083;' ) ); ?></a>
                 </div>
                 <div class="dv-admin-save-cluster">
                     <span class="dv-admin-unsaved-indicator" role="status" aria-live="polite" hidden>
@@ -5917,6 +6082,16 @@ function dv_render_theme_options_page() {
         <form id="dv-theme-settings-history-clear" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
             <?php wp_nonce_field( 'dv_theme_settings_history_clear' ); ?>
             <input type="hidden" name="action" value="dv_theme_settings_history_clear">
+        </form>
+
+        <form id="dv-admin-action-log-export" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_admin_action_log_export' ); ?>
+            <input type="hidden" name="action" value="dv_admin_action_log_export">
+        </form>
+
+        <form id="dv-admin-action-log-clear" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_admin_action_log_clear' ); ?>
+            <input type="hidden" name="action" value="dv_admin_action_log_clear">
         </form>
         <?php dv_render_admin_suite_footer( 'dv-theme-options' ); ?>
     </div>
