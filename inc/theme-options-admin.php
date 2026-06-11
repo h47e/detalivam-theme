@@ -1109,6 +1109,9 @@ function dv_dashboard_status_tasks( $summary ) {
                 absint( $issue['count'] )
             ),
             'url'   => ! empty( $issue['sample_url'] ) ? $issue['sample_url'] : admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'priority' => absint( $issue['count'] ?? 0 ) >= 10 ? 90 : 70,
+            'severity' => absint( $issue['count'] ?? 0 ) >= 10 ? 'critical' : 'warning',
+            'source'   => dv_theme_options_label( '&#1058;&#1086;&#1074;&#1072;&#1088;&#1099;' ),
         );
     }
 
@@ -1120,6 +1123,9 @@ function dv_dashboard_status_tasks( $summary ) {
         $tasks[] = array(
             'label' => 'SEO: ' . wp_strip_all_tags( (string) $action['label'] ),
             'url'   => ! empty( $action['link'] ) ? $action['link'] : admin_url( 'admin.php?page=dv-seo-tools#dv-seo-actions' ),
+            'priority' => isset( $action['count'] ) && absint( $action['count'] ) > 0 ? 95 : 75,
+            'severity' => isset( $action['level'] ) && 'critical' === (string) $action['level'] ? 'critical' : 'warning',
+            'source'   => 'SEO',
         );
     }
 
@@ -1132,6 +1138,9 @@ function dv_dashboard_status_tasks( $summary ) {
                 absint( $profile['issue_count'] )
             ),
             'url'   => admin_url( 'admin.php?page=dv-store-settings' ),
+            'priority' => 65,
+            'severity' => 'warning',
+            'source'   => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100;' ),
         );
     }
 
@@ -1144,6 +1153,9 @@ function dv_dashboard_status_tasks( $summary ) {
                 count( $marketplaces['issues'] ?? array() )
             ),
             'url'   => admin_url( 'admin.php?page=dv-store-settings#dv-store-marketplaces' ),
+            'priority' => 80,
+            'severity' => 'warning',
+            'source'   => 'Ozon',
         );
     }
 
@@ -1152,6 +1164,9 @@ function dv_dashboard_status_tasks( $summary ) {
         $tasks[] = array(
             'label' => dv_theme_options_label( 'Uploads: &#1079;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100; &#1072;&#1091;&#1076;&#1080;&#1090;' ),
             'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-audit' ),
+            'priority' => 60,
+            'severity' => 'neutral',
+            'source'   => 'Uploads',
         );
     } elseif ( ! empty( $uploads['candidate_count'] ) ) {
         $tasks[] = array(
@@ -1161,13 +1176,33 @@ function dv_dashboard_status_tasks( $summary ) {
                 absint( $uploads['candidate_count'] )
             ),
             'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-cleanup' ),
+            'priority' => absint( $uploads['candidate_count'] ) >= 100 ? 85 : 70,
+            'severity' => absint( $uploads['candidate_count'] ) >= 100 ? 'critical' : 'warning',
+            'source'   => 'Uploads',
         );
     } elseif ( ! empty( $uploads['issue_count'] ) ) {
         $tasks[] = array(
             'label' => dv_theme_options_label( 'Uploads: &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; &#1087;&#1088;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1085;&#1099;&#1077; &#1087;&#1072;&#1087;&#1082;&#1080;' ),
             'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-audit' ),
+            'priority' => 55,
+            'severity' => 'warning',
+            'source'   => 'Uploads',
         );
     }
+
+    usort(
+        $tasks,
+        static function ( $a, $b ) {
+            $priority_a = absint( $a['priority'] ?? 0 );
+            $priority_b = absint( $b['priority'] ?? 0 );
+
+            if ( $priority_a === $priority_b ) {
+                return strnatcasecmp( (string) ( $a['label'] ?? '' ), (string) ( $b['label'] ?? '' ) );
+            }
+
+            return $priority_b <=> $priority_a;
+        }
+    );
 
     return array_slice( $tasks, 0, 6 );
 }
@@ -1297,7 +1332,16 @@ function dv_render_dashboard_status_widget() {
             <?php else : ?>
                 <ul>
                     <?php foreach ( $tasks as $task ) : ?>
-                        <li><a href="<?php echo esc_url( $task['url'] ); ?>"><?php echo esc_html( $task['label'] ); ?></a></li>
+                        <?php
+                        $severity = sanitize_html_class( (string) ( $task['severity'] ?? 'warning' ) );
+                        $source   = ! empty( $task['source'] ) ? (string) $task['source'] : dv_theme_options_label( '&#1047;&#1072;&#1076;&#1072;&#1095;&#1072;' );
+                        ?>
+                        <li class="is-<?php echo esc_attr( $severity ); ?>">
+                            <a href="<?php echo esc_url( $task['url'] ); ?>">
+                                <span><?php echo esc_html( $task['label'] ); ?></span>
+                                <small><?php echo esc_html( $source ); ?></small>
+                            </a>
+                        </li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
