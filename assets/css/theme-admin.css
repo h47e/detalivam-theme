@@ -1302,6 +1302,13 @@ body.dv-suite-admin {
     --dv-admin-text: #0b1727;
     --dv-admin-muted: #5d7188;
     --dv-admin-blue: #0073e6;
+    --dv-admin-ok: #16a34a;
+    --dv-admin-warning: #f0a400;
+    --dv-admin-danger: #dc2626;
+    --dv-admin-info-bg: #e8f3ff;
+    --dv-admin-ok-bg: #eefbf3;
+    --dv-admin-warning-bg: #fff8e6;
+    --dv-admin-danger-bg: #fff1f2;
     --dv-admin-shell-width: 1480px;
     background: var(--dv-admin-bg);
 }

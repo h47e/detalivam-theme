@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     command.addEventListener('click', function (event) {
-      if (event.target.classList && event.target.classList.contains('dv-suite-command-item')) {
+      if (event.target && event.target.closest && event.target.closest('.dv-suite-command-item')) {
         closeCommand();
       }
     });

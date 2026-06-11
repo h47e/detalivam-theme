@@ -658,6 +658,13 @@ function dv_uploads_tools_run_audit() {
 
     $redirect = admin_url( 'admin.php?page=dv-uploads-tools' );
     $result = dv_uploads_tools_create_audit_report( 'admin' );
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_audit_run',
+            dv_uploads_tools_label( '&#1047;&#1072;&#1087;&#1091;&#1097;&#1077;&#1085; &#1072;&#1091;&#1076;&#1080;&#1090; uploads' ),
+            array( 'status' => is_wp_error( $result ) ? $result->get_error_code() : 'ok' )
+        );
+    }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', is_wp_error( $result ) ? 'audit-missing' : 'audit-ok', $redirect ) );
     exit;
@@ -682,6 +689,12 @@ function dv_uploads_tools_schedule_background_audit() {
 
     if ( ! wp_next_scheduled( dv_uploads_tools_background_audit_hook() ) ) {
         wp_schedule_single_event( time() + 5, dv_uploads_tools_background_audit_hook() );
+    }
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_audit_schedule',
+            dv_uploads_tools_label( '&#1047;&#1072;&#1087;&#1083;&#1072;&#1085;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085; &#1092;&#1086;&#1085;&#1086;&#1074;&#1099;&#1081; &#1072;&#1091;&#1076;&#1080;&#1090; uploads' )
+        );
     }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', 'audit-scheduled', admin_url( 'admin.php?page=dv-uploads-tools' ) ) );
@@ -724,6 +737,17 @@ function dv_uploads_tools_make_delete_plan() {
     $report_type = isset( $_POST['report_type'] ) ? sanitize_key( wp_unslash( $_POST['report_type'] ) ) : 'unused';
     $result = dv_uploads_tools_process_delete_report( false, $older_than_days, $report_type );
     $status = is_wp_error( $result ) ? $result->get_error_code() : 'plan-ok';
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_delete_plan',
+            dv_uploads_tools_label( '&#1057;&#1086;&#1079;&#1076;&#1072;&#1085; &#1087;&#1083;&#1072;&#1085; &#1086;&#1095;&#1080;&#1089;&#1090;&#1082;&#1080; uploads' ),
+            array(
+                'type' => $report_type,
+                'days' => $older_than_days,
+                'status' => $status,
+            )
+        );
+    }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', $status, admin_url( 'admin.php?page=dv-uploads-tools' ) ) );
     exit;
@@ -746,6 +770,17 @@ function dv_uploads_tools_move_unused_to_backup() {
         $result = dv_uploads_tools_process_delete_report( true, $older_than_days, $report_type );
         $status = is_wp_error( $result ) ? $result->get_error_code() : 'move-ok';
         dv_uploads_tools_clear_backup_dirs_cache();
+    }
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_move_backup',
+            dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089; uploads &#1074; backup' ),
+            array(
+                'type' => $report_type,
+                'days' => $older_than_days,
+                'status' => $status,
+            )
+        );
     }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', $status, admin_url( 'admin.php?page=dv-uploads-tools' ) ) );
@@ -775,6 +810,13 @@ function dv_uploads_tools_restore_backup() {
                 'summary'    => $summary,
             ),
             false
+        );
+    }
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_backup_restore',
+            dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085; backup uploads' ),
+            array( 'status' => $status )
         );
     }
 
@@ -829,6 +871,17 @@ function dv_uploads_tools_cleanup_backups() {
         dv_uploads_tools_clear_backup_dirs_cache();
         $status = 'backup-cleanup-ok';
     }
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_backup_cleanup',
+            dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1082;&#1072; backup uploads' ),
+            array(
+                'days' => $older_than_days,
+                'status' => $status,
+                'deleted' => $summary['deleted'],
+            )
+        );
+    }
 
     wp_safe_redirect( add_query_arg( 'dv_uploads_status', $status, admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-backups' ) ) );
     exit;
@@ -875,6 +928,13 @@ function dv_uploads_tools_restore_candidate() {
     }
 
     clearstatcache( true, $destination );
+    if ( function_exists( 'dv_admin_action_log_record' ) ) {
+        dv_admin_action_log_record(
+            'uploads_service_image_restore',
+            dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1081; &#1092;&#1072;&#1081;&#1083;' ),
+            array( 'file' => $relative )
+        );
+    }
     wp_safe_redirect( add_query_arg( 'dv_restore', 'ok', $redirect ) );
     exit;
 }
