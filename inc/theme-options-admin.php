@@ -825,6 +825,125 @@ function dv_dashboard_uploads_summary() {
     );
 }
 
+function dv_dashboard_read_first_line( $path ) {
+    if ( ! is_string( $path ) || '' === $path || ! is_readable( $path ) || ! is_file( $path ) ) {
+        return '';
+    }
+
+    $contents = file_get_contents( $path );
+
+    if ( false === $contents ) {
+        return '';
+    }
+
+    $lines = preg_split( '/\r\n|\r|\n/', (string) $contents );
+
+    return trim( (string) ( $lines[0] ?? '' ) );
+}
+
+function dv_dashboard_git_dir_path( $theme_dir ) {
+    $git_path = trailingslashit( $theme_dir ) . '.git';
+
+    if ( is_dir( $git_path ) ) {
+        return $git_path;
+    }
+
+    if ( is_file( $git_path ) && is_readable( $git_path ) ) {
+        $pointer = dv_dashboard_read_first_line( $git_path );
+
+        if ( preg_match( '/^gitdir:\s*(.+)$/i', $pointer, $matches ) ) {
+            $git_dir = trim( (string) $matches[1] );
+
+            if ( ! preg_match( '/^[A-Za-z]:[\\\\\/]|^\//', $git_dir ) ) {
+                $git_dir = trailingslashit( $theme_dir ) . $git_dir;
+            }
+
+            if ( is_dir( $git_dir ) ) {
+                return $git_dir;
+            }
+        }
+    }
+
+    return '';
+}
+
+function dv_dashboard_git_ref_commit( $git_dir, $ref ) {
+    $ref = trim( (string) $ref );
+
+    if ( '' === $git_dir || ! preg_match( '/^refs\/[A-Za-z0-9._\/-]+$/', $ref ) ) {
+        return '';
+    }
+
+    $commit = dv_dashboard_read_first_line( trailingslashit( $git_dir ) . $ref );
+
+    if ( preg_match( '/^[a-f0-9]{40}$/i', $commit ) ) {
+        return $commit;
+    }
+
+    $packed_refs = trailingslashit( $git_dir ) . 'packed-refs';
+
+    if ( ! is_readable( $packed_refs ) || ! is_file( $packed_refs ) ) {
+        return '';
+    }
+
+    $contents = file_get_contents( $packed_refs );
+
+    if ( false === $contents ) {
+        return '';
+    }
+
+    foreach ( preg_split( '/\r\n|\r|\n/', (string) $contents ) as $line ) {
+        $line = trim( (string) $line );
+
+        if ( '' === $line || '#' === $line[0] || '^' === $line[0] ) {
+            continue;
+        }
+
+        $parts = preg_split( '/\s+/', $line );
+
+        if ( 2 === count( $parts ) && $parts[1] === $ref && preg_match( '/^[a-f0-9]{40}$/i', $parts[0] ) ) {
+            return $parts[0];
+        }
+    }
+
+    return '';
+}
+
+function dv_dashboard_release_status() {
+    $theme       = wp_get_theme();
+    $theme_dir   = get_stylesheet_directory();
+    $git_dir     = dv_dashboard_git_dir_path( $theme_dir );
+    $head        = '' !== $git_dir ? dv_dashboard_read_first_line( trailingslashit( $git_dir ) . 'HEAD' ) : '';
+    $branch      = '';
+    $commit      = '';
+    $commit_ref  = '';
+    $smoke_path  = trailingslashit( $theme_dir ) . 'tools/admin-smoke-check.ps1';
+    $roadmap_path = trailingslashit( $theme_dir ) . 'ADMIN_ROADMAP.md';
+
+    if ( preg_match( '/^ref:\s*(refs\/[A-Za-z0-9._\/-]+)$/', $head, $matches ) ) {
+        $commit_ref = $matches[1];
+        $branch     = basename( $commit_ref );
+        $commit     = dv_dashboard_git_ref_commit( $git_dir, $commit_ref );
+    } elseif ( preg_match( '/^[a-f0-9]{40}$/i', $head ) ) {
+        $commit = $head;
+    }
+
+    $smoke_mtime = is_file( $smoke_path ) ? filemtime( $smoke_path ) : false;
+
+    return array(
+        'theme_name'      => (string) $theme->get( 'Name' ),
+        'version'         => defined( 'DV_VERSION' ) ? DV_VERSION : (string) $theme->get( 'Version' ),
+        'has_git'         => '' !== $git_dir,
+        'branch'          => $branch,
+        'commit'          => $commit,
+        'commit_short'    => '' !== $commit ? substr( $commit, 0, 7 ) : '',
+        'commit_ref'      => $commit_ref,
+        'has_smoke_check' => is_file( $smoke_path ),
+        'smoke_check_mtime' => $smoke_mtime ? date_i18n( 'd.m.Y H:i', $smoke_mtime ) : '',
+        'has_roadmap'     => is_file( $roadmap_path ),
+    );
+}
+
 function dv_dashboard_status_clear_cache_on_option_change( $option_name ) {
     $watched_options = array(
         'dv_theme_options',
@@ -889,6 +1008,7 @@ function dv_dashboard_status_summary() {
     $maintenance  = function_exists( 'dv_theme_maintenance_report' ) ? dv_theme_maintenance_report() : array();
     $backup       = function_exists( 'dv_theme_backup_state' ) ? dv_theme_backup_state() : array();
     $uploads      = dv_dashboard_uploads_summary();
+    $release      = dv_dashboard_release_status();
     $history      = function_exists( 'dv_theme_settings_history_get' ) ? array_slice( dv_theme_settings_history_get(), 0, 4 ) : array();
     $action_log   = function_exists( 'dv_admin_action_log_get' ) ? array_slice( dv_admin_action_log_get(), 0, 4 ) : array();
     $seo_health   = null;
@@ -917,6 +1037,7 @@ function dv_dashboard_status_summary() {
         'maintenance'  => $maintenance,
         'backup'       => $backup,
         'uploads'      => $uploads,
+        'release'      => $release,
         'settings_history' => $history,
         'action_log'   => $action_log,
         'seo_health'   => $seo_health,
@@ -1032,6 +1153,7 @@ function dv_render_dashboard_status_widget() {
     $maintenance  = $summary['maintenance'];
     $backup       = $summary['backup'];
     $uploads      = isset( $summary['uploads'] ) && is_array( $summary['uploads'] ) ? $summary['uploads'] : array();
+    $release      = isset( $summary['release'] ) && is_array( $summary['release'] ) ? $summary['release'] : array();
     $seo_health   = $summary['seo_health'];
     $tasks        = dv_dashboard_status_tasks( $summary );
     $history      = isset( $summary['settings_history'] ) && is_array( $summary['settings_history'] ) ? $summary['settings_history'] : array();
@@ -1117,6 +1239,13 @@ function dv_render_dashboard_status_widget() {
                 ),
                 ! empty( $maintenance['status'] ) ? 'ok' : 'warning'
             );
+
+            dv_render_dashboard_metric(
+                dv_theme_options_label( '&#1058;&#1077;&#1084;&#1072;' ),
+                sprintf( 'v%s', (string) ( $release['version'] ?? '-' ) ),
+                trim( (string) ( $release['branch'] ?? '' ) . ( ! empty( $release['commit_short'] ) ? ' / ' . (string) $release['commit_short'] : '' ) ),
+                ! empty( $release['has_smoke_check'] ) ? 'ok' : 'warning'
+            );
             ?>
         </div>
 
@@ -1131,6 +1260,45 @@ function dv_render_dashboard_status_widget() {
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
+        </div>
+
+        <div class="dv-dashboard-release">
+            <div class="dv-dashboard-history-head">
+                <strong><?php echo esc_html( dv_theme_options_label( '&#1056;&#1077;&#1083;&#1080;&#1079; &#1080; &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1080;' ) ); ?></strong>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+                    <?php echo esc_html( dv_theme_options_label( '&#1054;&#1090;&#1095;&#1077;&#1090;' ) ); ?>
+                </a>
+            </div>
+            <div class="dv-dashboard-release-grid">
+                <span>
+                    <strong>Git</strong>
+                    <small>
+                        <?php
+                        echo esc_html(
+                            ! empty( $release['has_git'] )
+                                ? trim( (string) ( $release['branch'] ?? '' ) . ( ! empty( $release['commit_short'] ) ? ' / ' . (string) $release['commit_short'] : '' ) )
+                                : dv_theme_options_label( '&#1085;&#1077;&#1090; .git &#1074; &#1090;&#1077;&#1084;&#1077;' )
+                        );
+                        ?>
+                    </small>
+                </span>
+                <span>
+                    <strong>Smoke-check</strong>
+                    <small>
+                        <?php
+                        echo esc_html(
+                            ! empty( $release['has_smoke_check'] )
+                                ? dv_theme_options_label( '&#1092;&#1072;&#1081;&#1083; &#1077;&#1089;&#1090;&#1100;' ) . ( ! empty( $release['smoke_check_mtime'] ) ? ' - ' . (string) $release['smoke_check_mtime'] : '' )
+                                : dv_theme_options_label( '&#1085;&#1091;&#1078;&#1077;&#1085; tools/admin-smoke-check.ps1' )
+                        );
+                        ?>
+                    </small>
+                </span>
+                <span>
+                    <strong>Roadmap</strong>
+                    <small><?php echo esc_html( ! empty( $release['has_roadmap'] ) ? 'ADMIN_ROADMAP.md' : dv_theme_options_label( '&#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;' ) ); ?></small>
+                </span>
+            </div>
         </div>
 
         <div class="dv-dashboard-history">

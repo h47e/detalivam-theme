@@ -230,6 +230,43 @@
     color: #0f172a;
 }
 
+.dv-dashboard-release {
+    display: grid;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #d8e8f8;
+    border-radius: 12px;
+    background:
+        radial-gradient(circle at 100% 0, rgba(0, 115, 230, 0.08), transparent 44%),
+        #fff;
+}
+
+.dv-dashboard-release-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.dv-dashboard-release-grid span {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #e2edf8;
+    border-radius: 10px;
+    background: #f8fbff;
+}
+
+.dv-dashboard-release-grid strong {
+    color: #0f172a;
+}
+
+.dv-dashboard-release-grid small {
+    min-width: 0;
+    color: #58708c;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 782px) {
     .dv-dashboard-widget-head {
         display: grid;
@@ -244,6 +281,10 @@
     }
 
     .dv-dashboard-history li {
+        grid-template-columns: 1fr;
+    }
+
+    .dv-dashboard-release-grid {
         grid-template-columns: 1fr;
     }
 }
