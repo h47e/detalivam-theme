@@ -72,7 +72,7 @@ function dv_is_admin_module_request() {
 }
 
 if ( dv_is_admin_module_request() ) {
-    foreach ( array( 'inc/theme-options-admin.php', 'inc/seo-sitemap.php', 'inc/seo-admin.php', 'inc/store-admin.php', 'inc/theme-content-admin.php', 'inc/slugs.php' ) as $dv_theme_admin_module ) {
+    foreach ( array( 'inc/theme-options-admin.php', 'inc/seo-sitemap.php', 'inc/seo-admin.php', 'inc/store-admin.php', 'inc/theme-content-admin.php', 'inc/slugs.php', 'inc/uploads-audit-cli.php' ) as $dv_theme_admin_module ) {
         dv_require_theme_module( $dv_theme_admin_module );
     }
 }
