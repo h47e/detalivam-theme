@@ -552,6 +552,261 @@ function dv_uploads_audit_cli_command( $args, $assoc_args ) {
     WP_CLI::log( 'Missing files: ' . $report['summary']['missing_files'] );
 }
 
+function dv_uploads_audit_read_csv_report( $path ) {
+    if ( ! is_readable( $path ) ) {
+        WP_CLI::error( 'Report file is not readable: ' . $path );
+    }
+
+    $handle = fopen( $path, 'r' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+    if ( ! $handle ) {
+        WP_CLI::error( 'Could not open report file: ' . $path );
+    }
+
+    $headers = fgetcsv( $handle, 0, ';' );
+    if ( ! is_array( $headers ) || empty( $headers ) ) {
+        fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+        WP_CLI::error( 'Report file has no header row: ' . $path );
+    }
+
+    $headers[0] = preg_replace( '/^\xEF\xBB\xBF/', '', (string) $headers[0] );
+    $headers = array_map( 'trim', $headers );
+    $rows = array();
+
+    while ( false !== ( $line = fgetcsv( $handle, 0, ';' ) ) ) {
+        if ( ! is_array( $line ) || empty( $line ) ) {
+            continue;
+        }
+
+        $row = array();
+        foreach ( $headers as $index => $header ) {
+            $row[ $header ] = isset( $line[ $index ] ) ? (string) $line[ $index ] : '';
+        }
+
+        if ( '' !== trim( (string) ( $row['path'] ?? '' ) ) ) {
+            $rows[] = $row;
+        }
+    }
+
+    fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+
+    return $rows;
+}
+
+function dv_uploads_audit_path_starts_with( $path, $base ) {
+    $path = untrailingslashit( wp_normalize_path( $path ) );
+    $base = untrailingslashit( wp_normalize_path( $base ) );
+
+    return $path === $base || 0 === strpos( $path, trailingslashit( $base ) );
+}
+
+function dv_uploads_audit_resolve_upload_file_path( $relative_path, $uploads_base_dir ) {
+    $relative_path = dv_uploads_audit_normalize_relative_path( $relative_path );
+
+    if ( '' === $relative_path || false !== strpos( $relative_path, '../' ) || '..' === $relative_path ) {
+        return '';
+    }
+
+    $target = wp_normalize_path( trailingslashit( $uploads_base_dir ) . $relative_path );
+    $parent = realpath( dirname( $target ) );
+
+    if ( false === $parent ) {
+        return '';
+    }
+
+    $resolved = wp_normalize_path( trailingslashit( $parent ) . basename( $target ) );
+
+    if ( ! dv_uploads_audit_path_starts_with( $resolved, $uploads_base_dir ) ) {
+        return '';
+    }
+
+    return $resolved;
+}
+
+function dv_uploads_audit_unique_backup_path( $backup_path ) {
+    if ( ! file_exists( $backup_path ) ) {
+        return $backup_path;
+    }
+
+    $dir = dirname( $backup_path );
+    $name = pathinfo( $backup_path, PATHINFO_FILENAME );
+    $extension = pathinfo( $backup_path, PATHINFO_EXTENSION );
+    $suffix = 1;
+
+    do {
+        $candidate = trailingslashit( $dir ) . $name . '-' . $suffix . ( '' !== $extension ? '.' . $extension : '' );
+        ++$suffix;
+    } while ( file_exists( $candidate ) );
+
+    return $candidate;
+}
+
+function dv_uploads_audit_delete_report_row( $row, $uploads_base_dir, $backup_base_dir, $confirm, $use_backup, $older_than_days ) {
+    $relative_path = dv_uploads_audit_normalize_relative_path( $row['path'] ?? '' );
+    $result = array(
+        'path'        => $relative_path,
+        'action'      => 'skip',
+        'reason'      => '',
+        'source'      => $uploads_base_dir,
+        'backup_path' => '',
+        'size_bytes'  => '',
+        'modified'    => '',
+    );
+
+    if ( '' === $relative_path ) {
+        $result['reason'] = 'empty path';
+        return $result;
+    }
+
+    if ( isset( $row['used'] ) && 'yes' === strtolower( trim( (string) $row['used'] ) ) ) {
+        $result['reason'] = 'report row is marked as used';
+        return $result;
+    }
+
+    $target = dv_uploads_audit_resolve_upload_file_path( $relative_path, $uploads_base_dir );
+    if ( '' === $target ) {
+        $result['reason'] = 'path is outside uploads or invalid';
+        return $result;
+    }
+
+    $result['source'] = $target;
+
+    if ( ! is_file( $target ) ) {
+        $result['reason'] = 'file does not exist';
+        return $result;
+    }
+
+    $mtime = (int) filemtime( $target );
+    $age_days = $mtime > 0 ? floor( ( time() - $mtime ) / DAY_IN_SECONDS ) : 0;
+    $result['size_bytes'] = (int) filesize( $target );
+    $result['modified'] = gmdate( 'c', $mtime );
+
+    if ( $older_than_days > 0 && $age_days < $older_than_days ) {
+        $result['reason'] = 'file is newer than --older-than=' . $older_than_days . ' days';
+        return $result;
+    }
+
+    if ( ! $confirm ) {
+        $result['action'] = $use_backup ? 'would-move-to-backup' : 'would-delete';
+        $result['reason'] = 'dry-run';
+        $result['backup_path'] = $use_backup ? wp_normalize_path( trailingslashit( $backup_base_dir ) . $relative_path ) : '';
+        return $result;
+    }
+
+    if ( $use_backup ) {
+        $backup_path = dv_uploads_audit_unique_backup_path(
+            wp_normalize_path( trailingslashit( $backup_base_dir ) . $relative_path )
+        );
+
+        wp_mkdir_p( dirname( $backup_path ) );
+
+        if ( ! rename( $target, $backup_path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
+            $result['reason'] = 'failed to move file to backup';
+            $result['backup_path'] = $backup_path;
+            return $result;
+        }
+
+        $result['action'] = 'moved-to-backup';
+        $result['reason'] = 'confirmed';
+        $result['backup_path'] = $backup_path;
+
+        return $result;
+    }
+
+    if ( ! unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+        $result['reason'] = 'failed to delete file';
+        return $result;
+    }
+
+    $result['action'] = 'deleted';
+    $result['reason'] = 'confirmed with --no-backup';
+
+    return $result;
+}
+
+function dv_uploads_audit_delete_cli_command( $args, $assoc_args ) {
+    if ( empty( $assoc_args['report'] ) ) {
+        WP_CLI::error( 'Please pass --report=/path/to/unused-files.csv or orphan-files.csv' );
+    }
+
+    $report_path = wp_normalize_path( (string) $assoc_args['report'] );
+    $uploads = wp_get_upload_dir();
+    $uploads_base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
+    $confirm = isset( $assoc_args['confirm'] );
+    $use_backup = ! isset( $assoc_args['no-backup'] );
+    $older_than_days = isset( $assoc_args['older-than'] ) ? max( 0, absint( $assoc_args['older-than'] ) ) : 30;
+    $default_backup_dir = trailingslashit( $uploads_base_dir ) . 'detalivam-uploads-trash-' . gmdate( 'Ymd-His' );
+    $backup_base_dir = isset( $assoc_args['backup-dir'] )
+        ? untrailingslashit( wp_normalize_path( (string) $assoc_args['backup-dir'] ) )
+        : untrailingslashit( wp_normalize_path( $default_backup_dir ) );
+    $output_dir = isset( $assoc_args['out'] )
+        ? untrailingslashit( wp_normalize_path( (string) $assoc_args['out'] ) )
+        : untrailingslashit( wp_normalize_path( dirname( $report_path ) ) );
+
+    if ( '' === $uploads_base_dir || ! is_dir( $uploads_base_dir ) ) {
+        WP_CLI::error( 'Uploads directory was not found.' );
+    }
+
+    if ( $use_backup && ! dv_uploads_audit_path_starts_with( $backup_base_dir, $uploads_base_dir ) ) {
+        WP_CLI::error( 'Backup directory must be inside uploads: ' . $backup_base_dir );
+    }
+
+    $rows = dv_uploads_audit_read_csv_report( $report_path );
+    $results = array();
+    $summary = array(
+        'processed' => 0,
+        'skipped'   => 0,
+        'planned'   => 0,
+        'moved'     => 0,
+        'deleted'   => 0,
+    );
+
+    WP_CLI::log( 'Report: ' . $report_path );
+    WP_CLI::log( 'Mode: ' . ( $confirm ? 'confirm' : 'dry-run' ) );
+    WP_CLI::log( 'Older than days: ' . $older_than_days );
+    WP_CLI::log( 'Backup: ' . ( $use_backup ? $backup_base_dir : 'disabled' ) );
+
+    foreach ( $rows as $row ) {
+        $result = dv_uploads_audit_delete_report_row(
+            $row,
+            $uploads_base_dir,
+            $backup_base_dir,
+            $confirm,
+            $use_backup,
+            $older_than_days
+        );
+
+        $results[] = $result;
+        ++$summary['processed'];
+
+        if ( 'skip' === $result['action'] ) {
+            ++$summary['skipped'];
+        } elseif ( 0 === strpos( $result['action'], 'would-' ) ) {
+            ++$summary['planned'];
+        } elseif ( 'moved-to-backup' === $result['action'] ) {
+            ++$summary['moved'];
+        } elseif ( 'deleted' === $result['action'] ) {
+            ++$summary['deleted'];
+        }
+    }
+
+    wp_mkdir_p( $output_dir );
+    $result_filename = ( $confirm ? 'deleted-files-' : 'delete-plan-' ) . gmdate( 'Ymd-His' ) . '.csv';
+    $result_path = trailingslashit( $output_dir ) . $result_filename;
+
+    dv_uploads_audit_write_csv(
+        $result_path,
+        array( 'path', 'action', 'reason', 'source', 'backup_path', 'size_bytes', 'modified' ),
+        $results
+    );
+
+    WP_CLI::success( ( $confirm ? 'Delete run complete: ' : 'Dry-run plan created: ' ) . $result_path );
+    WP_CLI::log( 'Processed rows: ' . $summary['processed'] );
+    WP_CLI::log( 'Planned: ' . $summary['planned'] );
+    WP_CLI::log( 'Moved to backup: ' . $summary['moved'] );
+    WP_CLI::log( 'Deleted: ' . $summary['deleted'] );
+    WP_CLI::log( 'Skipped: ' . $summary['skipped'] );
+}
+
 WP_CLI::add_command(
     'dv uploads-audit',
     'dv_uploads_audit_cli_command',
@@ -569,6 +824,52 @@ WP_CLI::add_command(
                 'name'        => 'extensions',
                 'optional'    => true,
                 'description' => 'Comma-separated file extensions to scan.',
+            ),
+        ),
+    )
+);
+
+WP_CLI::add_command(
+    'dv uploads-audit-delete',
+    'dv_uploads_audit_delete_cli_command',
+    array(
+        'shortdesc' => 'Dry-run or move/delete files listed in an uploads audit CSV report.',
+        'synopsis'  => array(
+            array(
+                'type'        => 'assoc',
+                'name'        => 'report',
+                'optional'    => false,
+                'description' => 'Path to unused-files.csv or orphan-files.csv.',
+            ),
+            array(
+                'type'        => 'flag',
+                'name'        => 'confirm',
+                'optional'    => true,
+                'description' => 'Actually move/delete files. Without this flag only a dry-run plan is written.',
+            ),
+            array(
+                'type'        => 'assoc',
+                'name'        => 'older-than',
+                'optional'    => true,
+                'description' => 'Only process files older than this many days. Default: 30. Use 0 to disable.',
+            ),
+            array(
+                'type'        => 'assoc',
+                'name'        => 'backup-dir',
+                'optional'    => true,
+                'description' => 'Backup directory inside uploads. Used unless --no-backup is passed.',
+            ),
+            array(
+                'type'        => 'flag',
+                'name'        => 'no-backup',
+                'optional'    => true,
+                'description' => 'Permanently delete files when used together with --confirm.',
+            ),
+            array(
+                'type'        => 'assoc',
+                'name'        => 'out',
+                'optional'    => true,
+                'description' => 'Directory for delete-plan/deleted-files CSV.',
             ),
         ),
     )
