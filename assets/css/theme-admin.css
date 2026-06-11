@@ -1667,6 +1667,39 @@ body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card {
     padding: 24px 28px;
 }
 
+body.dv-suite-admin .dv-uploads-page-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    max-width: var(--dv-admin-shell-width);
+    margin: 16px auto 0;
+    padding: 12px;
+    border: 1px solid var(--dv-admin-border);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(20, 54, 91, 0.06);
+}
+
+body.dv-suite-admin .dv-uploads-page-nav a {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #d9e8f7;
+    border-radius: 999px;
+    background: #f4f8fd;
+    color: #1e3a5f;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+body.dv-suite-admin .dv-uploads-page-nav a:hover,
+body.dv-suite-admin .dv-uploads-page-nav a:focus {
+    border-color: var(--dv-admin-blue);
+    color: var(--dv-admin-blue);
+}
+
 body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card::before {
     top: 24px;
     bottom: 24px;
@@ -1765,6 +1798,32 @@ body.dv-suite-admin .dv-uploads-inline-form {
     background: #fff;
 }
 
+body.dv-suite-admin .dv-uploads-cleanup-panel {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid #d9e8f7;
+    border-radius: 16px;
+    background: #fff;
+}
+
+body.dv-suite-admin .dv-uploads-cleanup-panel h3 {
+    margin: 0;
+    color: var(--dv-admin-text);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+body.dv-suite-admin .dv-uploads-cleanup-panel p {
+    margin-bottom: 0;
+}
+
+body.dv-suite-admin .dv-uploads-cleanup-panel .dv-uploads-inline-form {
+    margin-bottom: 0;
+    background: #f8fbff;
+}
+
 body.dv-suite-admin .dv-uploads-inline-form label {
     display: inline-flex;
     gap: 8px;
@@ -1853,6 +1912,12 @@ body.dv-suite-admin .dv-uploads-badge.is-warning {
     border-color: #fed7aa;
     background: #fff7ed;
     color: #9a3412;
+}
+
+body.dv-suite-admin .dv-uploads-badge.is-safe {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
 }
 
 body.dv-suite-admin .dv-uploads-state-table th {
