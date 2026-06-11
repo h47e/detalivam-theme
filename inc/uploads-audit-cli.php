@@ -254,7 +254,7 @@ function dv_uploads_audit_is_service_asset_path( $relative_path, $protected_file
 
     $basename = strtolower( basename( $relative_path ) );
 
-    foreach ( array( 'favicon', 'site-icon', 'apple-touch-icon', 'android-chrome', 'mstile' ) as $needle ) {
+    foreach ( array( 'favicon', 'site-icon', 'apple-touch-icon', 'android-chrome', 'mstile', 'logo', 'banner', 'ozon' ) as $needle ) {
         if ( false !== strpos( $basename, $needle ) ) {
             return true;
         }
@@ -534,15 +534,21 @@ function dv_uploads_audit_build_report( $extensions ) {
     $used_rows = array();
     $unused_rows = array();
     $orphan_rows = array();
+    $used_size_bytes = 0;
+    $unused_size_bytes = 0;
+    $orphan_size_bytes = 0;
+    $orphan_safe_files = 0;
+    $orphan_safe_size_bytes = 0;
 
     foreach ( $files as $relative_path => $file ) {
         $attachment_ids = array_values( array_unique( array_map( 'absint', $file_attachments[ $relative_path ] ?? array() ) ) );
         $reasons = array_keys( $used_files[ $relative_path ] ?? array() );
         $is_used = ! empty( $reasons );
         $is_orphan = empty( $attachment_ids );
+        $size_bytes = absint( $file['size_bytes'] ?? 0 );
         $row = array(
             'path'             => $relative_path,
-            'size_bytes'       => $file['size_bytes'],
+            'size_bytes'       => $size_bytes,
             'modified'         => $file['modified'],
             'attachment_ids'   => implode( ',', $attachment_ids ),
             'in_media_library' => $is_orphan ? 'no' : 'yes',
@@ -552,12 +558,20 @@ function dv_uploads_audit_build_report( $extensions ) {
 
         if ( $is_used ) {
             $used_rows[] = $row;
+            $used_size_bytes += $size_bytes;
         } else {
             $unused_rows[] = $row;
+            $unused_size_bytes += $size_bytes;
         }
 
         if ( $is_orphan ) {
             $orphan_rows[] = $row;
+            $orphan_size_bytes += $size_bytes;
+
+            if ( ! $is_used ) {
+                ++$orphan_safe_files;
+                $orphan_safe_size_bytes += $size_bytes;
+            }
         }
     }
 
@@ -576,6 +590,11 @@ function dv_uploads_audit_build_report( $extensions ) {
             'orphan_files'  => count( $orphan_rows ),
             'missing_files' => count( $missing_files ),
             'skipped_dirs'  => count( $scan['skipped_dirs'] ),
+            'used_size_bytes' => $used_size_bytes,
+            'unused_size_bytes' => $unused_size_bytes,
+            'orphan_size_bytes' => $orphan_size_bytes,
+            'orphan_safe_files' => $orphan_safe_files,
+            'orphan_safe_size_bytes' => $orphan_safe_size_bytes,
         ),
     );
 }
@@ -675,6 +694,7 @@ function dv_uploads_audit_cli_command( $args, $assoc_args ) {
     WP_CLI::log( 'Used files: ' . $report['summary']['used_files'] );
     WP_CLI::log( 'Unused candidates: ' . $report['summary']['unused_files'] );
     WP_CLI::log( 'Orphan files: ' . $report['summary']['orphan_files'] );
+    WP_CLI::log( 'Safe orphan files: ' . $report['summary']['orphan_safe_files'] );
     WP_CLI::log( 'Missing files: ' . $report['summary']['missing_files'] );
     WP_CLI::log( 'Skipped service dirs: ' . $report['summary']['skipped_dirs'] );
 }

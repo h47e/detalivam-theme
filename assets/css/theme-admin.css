@@ -1753,7 +1753,7 @@ body.dv-suite-admin .dv-uploads-muted code {
 
 body.dv-suite-admin .dv-uploads-metrics {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
     margin: 14px 0 18px;
 }
@@ -1782,12 +1782,46 @@ body.dv-suite-admin .dv-uploads-metrics strong {
     line-height: 1;
 }
 
+body.dv-suite-admin .dv-uploads-metrics small {
+    color: var(--dv-admin-muted);
+    font-weight: 800;
+}
+
+body.dv-suite-admin .dv-uploads-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid #d9e8f7;
+    border-radius: 12px;
+    background: #fff;
+}
+
 body.dv-suite-admin .dv-uploads-actions,
-body.dv-suite-admin .dv-uploads-inline-form {
+body.dv-suite-admin .dv-uploads-inline-form,
+body.dv-suite-admin .dv-uploads-filter {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
+}
+
+body.dv-suite-admin .dv-uploads-filter {
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid #d9e8f7;
+    border-radius: 14px;
+    background: #fff;
+}
+
+body.dv-suite-admin .dv-uploads-filter label {
+    color: var(--dv-admin-text);
+    font-weight: 800;
+}
+
+body.dv-suite-admin .dv-uploads-filter input[type="search"] {
+    width: min(420px, 100%);
 }
 
 body.dv-suite-admin .dv-uploads-inline-form {
@@ -1886,7 +1920,7 @@ body.dv-suite-admin .dv-uploads-preview[open] .dv-uploads-preview-head {
 }
 
 body.dv-suite-admin .dv-uploads-preview[open] .dv-uploads-preview-head::after {
-    content: "−";
+    content: "-";
 }
 
 body.dv-suite-admin .dv-uploads-preview-head strong {
@@ -1969,14 +2003,12 @@ body.dv-suite-admin .dv-uploads-tools-page table.widefat td {
     vertical-align: middle;
 }
 
-body.dv-suite-admin .dv-uploads-tools-page img {
-    display: block;
+body.dv-suite-admin .dv-uploads-backup-table form {
+    margin: 0;
 }
 
-@media (max-width: 1120px) {
-    body.dv-suite-admin .dv-uploads-metrics {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+body.dv-suite-admin .dv-uploads-tools-page img {
+    display: block;
 }
 
 @media (max-width: 960px) {
