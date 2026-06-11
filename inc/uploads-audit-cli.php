@@ -144,6 +144,73 @@ function dv_uploads_audit_add_attachment_usage( &$used_files, $attachment_files,
     }
 }
 
+function dv_uploads_audit_service_attachment_option_names() {
+    return array( 'custom_logo', 'site_icon' );
+}
+
+function dv_uploads_audit_get_service_attachment_ids() {
+    $ids = array();
+
+    foreach ( dv_uploads_audit_service_attachment_option_names() as $option_name ) {
+        $ids[] = absint( get_option( $option_name ) );
+    }
+
+    $ids[] = absint( get_theme_mod( 'custom_logo' ) );
+
+    return array_values( array_unique( array_filter( $ids ) ) );
+}
+
+function dv_uploads_audit_get_attachment_files_for_ids( $attachment_ids, $extensions = array() ) {
+    $attachment_ids = wp_parse_id_list( $attachment_ids );
+
+    if ( empty( $attachment_ids ) ) {
+        return array();
+    }
+
+    $files = array();
+    $wanted = array_fill_keys( $attachment_ids, true );
+
+    foreach ( dv_uploads_audit_get_attachments() as $attachment ) {
+        $attachment_id = absint( $attachment->ID );
+
+        if ( empty( $wanted[ $attachment_id ] ) ) {
+            continue;
+        }
+
+        foreach ( dv_uploads_audit_attachment_size_paths( $attachment->attached_file, $attachment->attachment_metadata ) as $relative_path ) {
+            if ( ! empty( $extensions ) && ! dv_uploads_audit_is_candidate_file( $relative_path, $extensions ) ) {
+                continue;
+            }
+
+            $files[ $relative_path ] = true;
+        }
+    }
+
+    return $files;
+}
+
+function dv_uploads_audit_is_service_asset_path( $relative_path, $protected_files = array() ) {
+    $relative_path = dv_uploads_audit_normalize_relative_path( $relative_path );
+
+    if ( '' === $relative_path ) {
+        return false;
+    }
+
+    if ( isset( $protected_files[ $relative_path ] ) ) {
+        return true;
+    }
+
+    $basename = strtolower( basename( $relative_path ) );
+
+    foreach ( array( 'favicon', 'site-icon', 'apple-touch-icon', 'android-chrome', 'mstile' ) as $needle ) {
+        if ( false !== strpos( $basename, $needle ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function dv_uploads_audit_relative_from_upload_url( $url, $uploads ) {
     $url = html_entity_decode( trim( (string) $url ), ENT_QUOTES, 'UTF-8' );
 
@@ -325,6 +392,7 @@ function dv_uploads_audit_collect_option_references( &$used_files, $attachment_f
 
     $known_options = array(
         'custom_logo',
+        'site_icon',
         'theme_mods_' . get_option( 'stylesheet' ),
         'dv_store_profile',
         'dv_theme_content',
@@ -348,7 +416,7 @@ function dv_uploads_audit_collect_option_references( &$used_files, $attachment_f
         $reason = 'option ' . $option_name;
         $value = maybe_unserialize( $row->option_value );
 
-        if ( 'custom_logo' === $option_name ) {
+        if ( in_array( $option_name, dv_uploads_audit_service_attachment_option_names(), true ) ) {
             dv_uploads_audit_add_attachment_usage( $used_files, $attachment_files, (int) $row->option_value, $reason );
         }
 
@@ -405,6 +473,10 @@ function dv_uploads_audit_build_report( $extensions ) {
     dv_uploads_audit_collect_postmeta_references( $used_files, $attachment_files, $uploads );
     dv_uploads_audit_collect_termmeta_references( $used_files, $attachment_files, $uploads );
     dv_uploads_audit_collect_option_references( $used_files, $attachment_files, $uploads );
+
+    foreach ( dv_uploads_audit_get_service_attachment_ids() as $attachment_id ) {
+        dv_uploads_audit_add_attachment_usage( $used_files, $attachment_files, $attachment_id, 'protected service image' );
+    }
 
     $used_rows = array();
     $unused_rows = array();
@@ -640,7 +712,7 @@ function dv_uploads_audit_unique_backup_path( $backup_path ) {
     return $candidate;
 }
 
-function dv_uploads_audit_delete_report_row( $row, $uploads_base_dir, $backup_base_dir, $confirm, $use_backup, $older_than_days ) {
+function dv_uploads_audit_delete_report_row( $row, $uploads_base_dir, $backup_base_dir, $confirm, $use_backup, $older_than_days, $protected_files ) {
     $relative_path = dv_uploads_audit_normalize_relative_path( $row['path'] ?? '' );
     $result = array(
         'path'        => $relative_path,
@@ -659,6 +731,11 @@ function dv_uploads_audit_delete_report_row( $row, $uploads_base_dir, $backup_ba
 
     if ( isset( $row['used'] ) && 'yes' === strtolower( trim( (string) $row['used'] ) ) ) {
         $result['reason'] = 'report row is marked as used';
+        return $result;
+    }
+
+    if ( dv_uploads_audit_is_service_asset_path( $relative_path, $protected_files ) ) {
+        $result['reason'] = 'protected service image';
         return $result;
     }
 
@@ -751,6 +828,7 @@ function dv_uploads_audit_delete_cli_command( $args, $assoc_args ) {
     }
 
     $rows = dv_uploads_audit_read_csv_report( $report_path );
+    $protected_files = dv_uploads_audit_get_attachment_files_for_ids( dv_uploads_audit_get_service_attachment_ids() );
     $results = array();
     $summary = array(
         'processed' => 0,
@@ -772,7 +850,8 @@ function dv_uploads_audit_delete_cli_command( $args, $assoc_args ) {
             $backup_base_dir,
             $confirm,
             $use_backup,
-            $older_than_days
+            $older_than_days,
+            $protected_files
         );
 
         $results[] = $result;
