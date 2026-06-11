@@ -468,7 +468,7 @@ function dv_uploads_tools_render_page() {
     $audit_summary = isset( $last_audit['summary'] ) && is_array( $last_audit['summary'] ) ? $last_audit['summary'] : array();
     $delete_summary = isset( $last_delete['summary'] ) && is_array( $last_delete['summary'] ) ? $last_delete['summary'] : array();
     ?>
-    <div class="wrap dv-suite-wrap">
+    <div class="wrap dv-suite-page dv-uploads-tools-page">
         <?php
         if ( function_exists( 'dv_render_admin_suite_header' ) ) {
             dv_render_admin_suite_header(
@@ -483,40 +483,34 @@ function dv_uploads_tools_render_page() {
         dv_uploads_tools_render_notice();
         ?>
 
-        <div class="dv-admin-card">
+        <div class="dv-admin-card dv-uploads-card">
+            <div class="dv-uploads-card-head">
+                <div>
             <h2><?php echo esc_html( dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090; uploads' ) ); ?></h2>
             <p><?php echo esc_html( dv_uploads_tools_label( '&#1057;&#1082;&#1072;&#1085;&#1080;&#1088;&#1091;&#1077;&#1090; &#1082;&#1072;&#1088;&#1090;&#1080;&#1085;&#1082;&#1080; &#1074; uploads, &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1091;, &#1090;&#1086;&#1074;&#1072;&#1088;&#1099;, &#1082;&#1086;&#1085;&#1090;&#1077;&#1085;&#1090;, &#1086;&#1087;&#1094;&#1080;&#1080; &#1080; &#1089;&#1086;&#1079;&#1076;&#1072;&#1077;&#1090; CSV-&#1086;&#1090;&#1095;&#1077;&#1090;&#1099;.' ) ); ?></p>
+                </div>
 
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <?php wp_nonce_field( 'dv_uploads_run_audit' ); ?>
                 <input type="hidden" name="action" value="dv_uploads_run_audit">
                 <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1047;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100; &#1072;&#1091;&#1076;&#1080;&#1090;' ) ); ?></button>
             </form>
+            </div>
 
             <?php if ( ! empty( $last_audit ) ) : ?>
                 <hr>
-                <p>
+                <p class="dv-uploads-muted">
                     <strong><?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1080;&#1081; &#1072;&#1091;&#1076;&#1080;&#1090;:' ) ); ?></strong>
                     <?php echo esc_html( (string) ( $last_audit['generated_at'] ?? '' ) ); ?>
                     <br><code><?php echo esc_html( (string) ( $last_audit['out_dir'] ?? '' ) ); ?></code>
                 </p>
-                <table class="widefat striped">
-                    <tbody>
-                        <tr>
-                            <th scope="row"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1089;&#1077;&#1075;&#1086; &#1092;&#1072;&#1081;&#1083;&#1086;&#1074;' ) ); ?></th>
-                            <td><?php echo esc_html( (string) ( $audit_summary['scanned_files'] ?? 0 ) ); ?></td>
-                            <th scope="row"><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1102;&#1090;&#1089;&#1103;' ) ); ?></th>
-                            <td><?php echo esc_html( (string) ( $audit_summary['used_files'] ?? 0 ) ); ?></td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1085;&#1072; &#1091;&#1076;&#1072;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ); ?></th>
-                            <td><?php echo esc_html( (string) ( $audit_summary['unused_files'] ?? 0 ) ); ?></td>
-                            <th scope="row"><?php echo esc_html( dv_uploads_tools_label( '&#1053;&#1077; &#1074; &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1077;' ) ); ?></th>
-                            <td><?php echo esc_html( (string) ( $audit_summary['orphan_files'] ?? 0 ) ); ?></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p>
+                <div class="dv-uploads-metrics">
+                    <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1089;&#1077;&#1075;&#1086; &#1092;&#1072;&#1081;&#1083;&#1086;&#1074;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['scanned_files'] ?? 0 ) ); ?></strong></div>
+                    <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1102;&#1090;&#1089;&#1103;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['used_files'] ?? 0 ) ); ?></strong></div>
+                    <div><span><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099;' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['unused_files'] ?? 0 ) ); ?></strong></div>
+                    <div><span><?php echo esc_html( dv_uploads_tools_label( 'Orphan' ) ); ?></span><strong><?php echo esc_html( (string) ( $audit_summary['orphan_files'] ?? 0 ) ); ?></strong></div>
+                </div>
+                <p class="dv-uploads-actions">
                     <?php foreach ( array( 'used_path' => 'used-files.csv', 'unused_path' => 'unused-files.csv', 'orphan_path' => 'orphan-files.csv', 'missing_path' => 'missing-files.csv' ) as $key => $label ) : ?>
                         <?php $url = dv_uploads_tools_file_url( $last_audit[ $key ] ?? '' ); ?>
                         <?php if ( $url ) : ?>
@@ -527,11 +521,11 @@ function dv_uploads_tools_render_page() {
             <?php endif; ?>
         </div>
 
-        <div class="dv-admin-card">
+        <div class="dv-admin-card dv-uploads-card">
             <h2><?php echo esc_html( dv_uploads_tools_label( '&#1059;&#1076;&#1072;&#1083;&#1077;&#1085;&#1080;&#1077; &#1085;&#1077;&#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1077;&#1084;&#1099;&#1093;' ) ); ?></h2>
             <p><?php echo esc_html( dv_uploads_tools_label( '&#1040;&#1076;&#1084;&#1080;&#1085;&#1082;&#1072; &#1088;&#1072;&#1073;&#1086;&#1090;&#1072;&#1077;&#1090; &#1090;&#1086;&#1083;&#1100;&#1082;&#1086; &#1089; unused-files.csv &#1080; &#1085;&#1077; &#1091;&#1076;&#1072;&#1083;&#1103;&#1077;&#1090; &#1085;&#1072;&#1074;&#1089;&#1077;&#1075;&#1076;&#1072;: &#1092;&#1072;&#1081;&#1083;&#1099; &#1087;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089;&#1103;&#1090;&#1089;&#1103; &#1074; backup-&#1087;&#1072;&#1087;&#1082;&#1091; &#1074; uploads.' ) ); ?></p>
 
-            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <form class="dv-uploads-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <?php wp_nonce_field( 'dv_uploads_delete_plan' ); ?>
                 <input type="hidden" name="action" value="dv_uploads_delete_plan">
                 <label>
@@ -541,7 +535,7 @@ function dv_uploads_tools_render_page() {
                 <button type="submit" class="button"><?php echo esc_html( dv_uploads_tools_label( '&#1057;&#1086;&#1079;&#1076;&#1072;&#1090;&#1100; &#1087;&#1083;&#1072;&#1085;' ) ); ?></button>
             </form>
 
-            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form class="dv-uploads-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <?php wp_nonce_field( 'dv_uploads_move_unused' ); ?>
                 <input type="hidden" name="action" value="dv_uploads_move_unused">
                 <label>
@@ -577,9 +571,9 @@ function dv_uploads_tools_render_page() {
             <?php endif; ?>
         </div>
 
-        <div class="dv-admin-card">
+        <div class="dv-admin-card dv-uploads-card">
             <h2><?php echo esc_html( dv_uploads_tools_label( 'Favicon / site icon' ) ); ?></h2>
-            <table class="widefat striped">
+            <table class="widefat striped dv-uploads-state-table">
                 <tbody>
                     <tr>
                         <th scope="row"><?php echo esc_html( dv_uploads_tools_label( 'Attachment ID' ) ); ?></th>
@@ -613,7 +607,7 @@ function dv_uploads_tools_render_page() {
             </table>
         </div>
 
-        <div class="dv-admin-card">
+        <div class="dv-admin-card dv-uploads-card">
             <h2><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1076;&#1083;&#1103; &#1074;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103;' ) ); ?></h2>
             <p><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1097;&#1077;&#1084; &#1074; wp-content/uploads/detalivam-uploads-trash-* &#1092;&#1072;&#1081;&#1083;&#1099;, &#1087;&#1086;&#1093;&#1086;&#1078;&#1080;&#1077; &#1085;&#1072; favicon &#1080;&#1083;&#1080; &#1090;&#1077;&#1082;&#1091;&#1097;&#1080;&#1081; site_icon.' ) ); ?></p>
 

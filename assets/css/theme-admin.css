@@ -1659,6 +1659,188 @@ body.dv-suite-admin .dv-store-settings-section .form-table tr {
     transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
+body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--dv-admin-shell-width);
+    margin: 16px auto 0;
+    padding: 24px 28px;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card::before {
+    top: 24px;
+    bottom: 24px;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card h2 {
+    margin: 0 0 12px;
+    font-size: 22px;
+    line-height: 1.25;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card p {
+    max-width: 920px;
+    margin: 0 0 16px;
+    color: var(--dv-admin-muted);
+    line-height: 1.55;
+}
+
+body.dv-suite-admin .dv-uploads-card-head {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+body.dv-suite-admin .dv-uploads-card-head form {
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page hr {
+    margin: 20px 0;
+    border: 0;
+    border-top: 1px solid var(--dv-admin-border);
+}
+
+body.dv-suite-admin .dv-uploads-tools-page code {
+    display: inline-block;
+    max-width: 100%;
+    padding: 4px 7px;
+    border-radius: 7px;
+    background: #f4f8fd;
+    color: #1e3a5f;
+    white-space: normal;
+    word-break: break-word;
+}
+
+body.dv-suite-admin .dv-uploads-muted code {
+    margin-top: 6px;
+}
+
+body.dv-suite-admin .dv-uploads-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 18px;
+}
+
+body.dv-suite-admin .dv-uploads-metrics > div {
+    display: grid;
+    gap: 7px;
+    min-height: 82px;
+    padding: 14px 16px;
+    border: 1px solid #d9e8f7;
+    border-radius: 14px;
+    background: #fff;
+}
+
+body.dv-suite-admin .dv-uploads-metrics span {
+    color: var(--dv-admin-muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+body.dv-suite-admin .dv-uploads-metrics strong {
+    color: var(--dv-admin-text);
+    font-size: 28px;
+    line-height: 1;
+}
+
+body.dv-suite-admin .dv-uploads-actions,
+body.dv-suite-admin .dv-uploads-inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+body.dv-suite-admin .dv-uploads-inline-form {
+    margin: 0 0 12px;
+    padding: 14px;
+    border: 1px solid #d9e8f7;
+    border-radius: 14px;
+    background: #fff;
+}
+
+body.dv-suite-admin .dv-uploads-inline-form label {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0;
+    color: var(--dv-admin-text);
+    font-weight: 700;
+}
+
+body.dv-suite-admin .dv-uploads-inline-form input.small-text {
+    width: 76px;
+    min-height: 38px;
+}
+
+body.dv-suite-admin .dv-uploads-state-table {
+    overflow: hidden;
+    border-color: #d9e8f7;
+    border-radius: 14px;
+}
+
+body.dv-suite-admin .dv-uploads-state-table th {
+    width: 180px;
+    color: var(--dv-admin-muted);
+    font-weight: 800;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page table.widefat {
+    border-color: #d9e8f7;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page table.widefat th,
+body.dv-suite-admin .dv-uploads-tools-page table.widefat td {
+    padding: 13px 14px;
+    vertical-align: middle;
+}
+
+body.dv-suite-admin .dv-uploads-tools-page img {
+    display: block;
+}
+
+@media (max-width: 960px) {
+    body.dv-suite-admin .dv-uploads-card-head {
+        display: grid;
+    }
+
+    body.dv-suite-admin .dv-uploads-card-head form {
+        margin-top: 0;
+    }
+
+    body.dv-suite-admin .dv-uploads-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 782px) {
+    body.dv-suite-admin .dv-uploads-tools-page .dv-admin-card {
+        padding: 20px 18px;
+    }
+
+    body.dv-suite-admin .dv-uploads-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    body.dv-suite-admin .dv-uploads-inline-form {
+        display: grid;
+        align-items: stretch;
+    }
+
+    body.dv-suite-admin .dv-uploads-inline-form .button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
 body.dv-suite-admin .dv-theme-section .form-table tr:hover,
 body.dv-suite-admin .dv-theme-section .form-table tr:focus-within,
 body.dv-suite-admin .dv-theme-subsection .form-table tr:hover,
