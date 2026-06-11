@@ -580,7 +580,9 @@ function dv_uploads_tools_render_page() {
             <a href="#dv-uploads-audit"><?php echo esc_html( dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;' ) ); ?></a>
             <a href="#dv-uploads-cleanup"><?php echo esc_html( dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1082;&#1072;' ) ); ?></a>
             <a href="#dv-uploads-favicon">Favicon</a>
-            <a href="#dv-uploads-restore"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ); ?></a>
+            <?php if ( ! $state['file_exists'] ) : ?>
+                <a href="#dv-uploads-restore"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ); ?></a>
+            <?php endif; ?>
         </nav>
 
         <div class="dv-admin-card dv-uploads-card" id="dv-uploads-audit">
@@ -747,53 +749,55 @@ function dv_uploads_tools_render_page() {
             </table>
         </div>
 
-        <div class="dv-admin-card dv-uploads-card" id="dv-uploads-restore">
-            <h2><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1076;&#1083;&#1103; &#1074;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103;' ) ); ?></h2>
-            <p><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1097;&#1077;&#1084; &#1074; wp-content/uploads/detalivam-uploads-trash-* &#1092;&#1072;&#1081;&#1083;&#1099;, &#1087;&#1086;&#1093;&#1086;&#1078;&#1080;&#1077; &#1085;&#1072; favicon &#1080;&#1083;&#1080; &#1090;&#1077;&#1082;&#1091;&#1097;&#1080;&#1081; site_icon.' ) ); ?></p>
+        <?php if ( ! $state['file_exists'] ) : ?>
+            <div class="dv-admin-card dv-uploads-card" id="dv-uploads-restore">
+                <h2><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; favicon' ) ); ?></h2>
+                <p><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083; site_icon &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085; &#1085;&#1072; &#1084;&#1077;&#1089;&#1090;&#1077;. &#1048;&#1097;&#1077;&#1084; &#1087;&#1086;&#1076;&#1093;&#1086;&#1076;&#1103;&#1097;&#1080;&#1081; &#1092;&#1072;&#1081;&#1083; &#1074; wp-content/uploads/detalivam-uploads-trash-*.' ) ); ?></p>
 
-            <?php if ( empty( $candidates ) ) : ?>
-                <p><strong><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1099;.' ) ); ?></strong></p>
-            <?php else : ?>
-                <table class="widefat striped">
-                    <thead>
-                        <tr>
-                            <th><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083;' ) ); ?></th>
-                            <th><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1091;&#1076;&#1072; &#1074;&#1077;&#1088;&#1085;&#1077;&#1090;&#1089;&#1103;' ) ); ?></th>
-                            <th><?php echo esc_html( dv_uploads_tools_label( '&#1056;&#1072;&#1079;&#1084;&#1077;&#1088;' ) ); ?></th>
-                            <th><?php echo esc_html( dv_uploads_tools_label( '&#1044;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1077;' ) ); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ( $candidates as $candidate ) : ?>
+                <?php if ( empty( $candidates ) ) : ?>
+                    <p><strong><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1099;.' ) ); ?></strong></p>
+                <?php else : ?>
+                    <table class="widefat striped">
+                        <thead>
                             <tr>
-                                <td>
-                                    <?php if ( $candidate['is_exact'] ) : ?>
-                                        <strong style="color:#0073e6;"><?php echo esc_html( dv_uploads_tools_label( '&#1058;&#1086;&#1095;&#1085;&#1086;&#1077; &#1089;&#1086;&#1074;&#1087;&#1072;&#1076;&#1077;&#1085;&#1080;&#1077;' ) ); ?></strong><br>
-                                    <?php endif; ?>
-                                    <code><?php echo esc_html( $candidate['source_path'] ); ?></code>
-                                    <br><small><?php echo esc_html( $candidate['modified'] ); ?></small>
-                                </td>
-                                <td><code><?php echo esc_html( $candidate['restore_path'] ); ?></code></td>
-                                <td><?php echo esc_html( size_format( $candidate['size'] ) ); ?></td>
-                                <td>
-                                    <?php if ( $candidate['restore_exists'] ) : ?>
-                                        <span class="button disabled"><?php echo esc_html( dv_uploads_tools_label( '&#1059;&#1078;&#1077; &#1077;&#1089;&#1090;&#1100;' ) ); ?></span>
-                                    <?php else : ?>
-                                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                                            <?php wp_nonce_field( 'dv_uploads_restore_service_image' ); ?>
-                                            <input type="hidden" name="action" value="dv_uploads_restore_service_image">
-                                            <input type="hidden" name="source_path" value="<?php echo esc_attr( $candidate['source_path'] ); ?>">
-                                            <input type="hidden" name="original_relative" value="<?php echo esc_attr( $candidate['original_relative'] ); ?>">
-                                            <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?></button>
-                                        </form>
-                                    <?php endif; ?>
-                                </td>
+                                <th><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083;' ) ); ?></th>
+                                <th><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1091;&#1076;&#1072; &#1074;&#1077;&#1088;&#1085;&#1077;&#1090;&#1089;&#1103;' ) ); ?></th>
+                                <th><?php echo esc_html( dv_uploads_tools_label( '&#1056;&#1072;&#1079;&#1084;&#1077;&#1088;' ) ); ?></th>
+                                <th><?php echo esc_html( dv_uploads_tools_label( '&#1044;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1077;' ) ); ?></th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
-        </div>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $candidates as $candidate ) : ?>
+                                <tr>
+                                    <td>
+                                        <?php if ( $candidate['is_exact'] ) : ?>
+                                            <strong style="color:#0073e6;"><?php echo esc_html( dv_uploads_tools_label( '&#1058;&#1086;&#1095;&#1085;&#1086;&#1077; &#1089;&#1086;&#1074;&#1087;&#1072;&#1076;&#1077;&#1085;&#1080;&#1077;' ) ); ?></strong><br>
+                                        <?php endif; ?>
+                                        <code><?php echo esc_html( $candidate['source_path'] ); ?></code>
+                                        <br><small><?php echo esc_html( $candidate['modified'] ); ?></small>
+                                    </td>
+                                    <td><code><?php echo esc_html( $candidate['restore_path'] ); ?></code></td>
+                                    <td><?php echo esc_html( size_format( $candidate['size'] ) ); ?></td>
+                                    <td>
+                                        <?php if ( $candidate['restore_exists'] ) : ?>
+                                            <span class="button disabled"><?php echo esc_html( dv_uploads_tools_label( '&#1059;&#1078;&#1077; &#1077;&#1089;&#1090;&#1100;' ) ); ?></span>
+                                        <?php else : ?>
+                                            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                                                <?php wp_nonce_field( 'dv_uploads_restore_service_image' ); ?>
+                                                <input type="hidden" name="action" value="dv_uploads_restore_service_image">
+                                                <input type="hidden" name="source_path" value="<?php echo esc_attr( $candidate['source_path'] ); ?>">
+                                                <input type="hidden" name="original_relative" value="<?php echo esc_attr( $candidate['original_relative'] ); ?>">
+                                                <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?></button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </div>
     <?php
 }
