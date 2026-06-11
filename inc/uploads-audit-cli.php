@@ -63,8 +63,31 @@ function dv_uploads_audit_scan_files( $base_dir, $extensions ) {
         );
     }
 
+    $directory_iterator = new RecursiveDirectoryIterator( $base_dir, FilesystemIterator::SKIP_DOTS );
+    $filtered_iterator = new RecursiveCallbackFilterIterator(
+        $directory_iterator,
+        static function ( $current ) use ( $base_dir, &$skipped_dirs ) {
+            if ( ! $current instanceof SplFileInfo ) {
+                return false;
+            }
+
+            if ( ! $current->isDir() ) {
+                return true;
+            }
+
+            $relative = dv_uploads_audit_normalize_relative_path( substr( $current->getPathname(), strlen( $base_dir ) ) );
+
+            if ( dv_uploads_audit_is_excluded_relative_path( $relative ) ) {
+                $skipped_dirs[ strtok( $relative, '/' ) ] = true;
+                return false;
+            }
+
+            return true;
+        }
+    );
     $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator( $base_dir, FilesystemIterator::SKIP_DOTS )
+        $filtered_iterator,
+        RecursiveIteratorIterator::LEAVES_ONLY
     );
 
     foreach ( $iterator as $file ) {
@@ -74,11 +97,6 @@ function dv_uploads_audit_scan_files( $base_dir, $extensions ) {
 
         $absolute = $file->getPathname();
         $relative = dv_uploads_audit_normalize_relative_path( substr( $absolute, strlen( $base_dir ) ) );
-
-        if ( dv_uploads_audit_is_excluded_relative_path( $relative ) ) {
-            $skipped_dirs[ strtok( $relative, '/' ) ] = true;
-            continue;
-        }
 
         if ( ! dv_uploads_audit_is_candidate_file( $relative, $extensions ) ) {
             continue;
