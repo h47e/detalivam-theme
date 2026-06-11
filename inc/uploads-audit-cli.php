@@ -4,9 +4,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-if ( ! ( defined( 'WP_CLI' ) && WP_CLI ) || ! class_exists( 'WP_CLI' ) ) {
-    return;
-}
+$dv_uploads_audit_is_cli = defined( 'WP_CLI' ) && WP_CLI && class_exists( 'WP_CLI' );
 
 function dv_uploads_audit_normalize_relative_path( $path ) {
     $path = str_replace( '\\', '/', (string) $path );
@@ -886,70 +884,72 @@ function dv_uploads_audit_delete_cli_command( $args, $assoc_args ) {
     WP_CLI::log( 'Skipped: ' . $summary['skipped'] );
 }
 
-WP_CLI::add_command(
-    'dv uploads-audit',
-    'dv_uploads_audit_cli_command',
-    array(
-        'shortdesc' => 'Audit wp-content/uploads image usage and write CSV reports.',
-        'synopsis'  => array(
-            array(
-                'type'        => 'assoc',
-                'name'        => 'out',
-                'optional'    => true,
-                'description' => 'Output directory for report files.',
+if ( $dv_uploads_audit_is_cli ) {
+    WP_CLI::add_command(
+        'dv uploads-audit',
+        'dv_uploads_audit_cli_command',
+        array(
+            'shortdesc' => 'Audit wp-content/uploads image usage and write CSV reports.',
+            'synopsis'  => array(
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'out',
+                    'optional'    => true,
+                    'description' => 'Output directory for report files.',
+                ),
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'extensions',
+                    'optional'    => true,
+                    'description' => 'Comma-separated file extensions to scan.',
+                ),
             ),
-            array(
-                'type'        => 'assoc',
-                'name'        => 'extensions',
-                'optional'    => true,
-                'description' => 'Comma-separated file extensions to scan.',
-            ),
-        ),
-    )
-);
+        )
+    );
 
-WP_CLI::add_command(
-    'dv uploads-audit-delete',
-    'dv_uploads_audit_delete_cli_command',
-    array(
-        'shortdesc' => 'Dry-run or move/delete files listed in an uploads audit CSV report.',
-        'synopsis'  => array(
-            array(
-                'type'        => 'assoc',
-                'name'        => 'report',
-                'optional'    => false,
-                'description' => 'Path to unused-files.csv or orphan-files.csv.',
+    WP_CLI::add_command(
+        'dv uploads-audit-delete',
+        'dv_uploads_audit_delete_cli_command',
+        array(
+            'shortdesc' => 'Dry-run or move/delete files listed in an uploads audit CSV report.',
+            'synopsis'  => array(
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'report',
+                    'optional'    => false,
+                    'description' => 'Path to unused-files.csv or orphan-files.csv.',
+                ),
+                array(
+                    'type'        => 'flag',
+                    'name'        => 'confirm',
+                    'optional'    => true,
+                    'description' => 'Actually move/delete files. Without this flag only a dry-run plan is written.',
+                ),
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'older-than',
+                    'optional'    => true,
+                    'description' => 'Only process files older than this many days. Default: 30. Use 0 to disable.',
+                ),
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'backup-dir',
+                    'optional'    => true,
+                    'description' => 'Backup directory inside uploads. Used unless --no-backup is passed.',
+                ),
+                array(
+                    'type'        => 'flag',
+                    'name'        => 'no-backup',
+                    'optional'    => true,
+                    'description' => 'Permanently delete files when used together with --confirm.',
+                ),
+                array(
+                    'type'        => 'assoc',
+                    'name'        => 'out',
+                    'optional'    => true,
+                    'description' => 'Directory for delete-plan/deleted-files CSV.',
+                ),
             ),
-            array(
-                'type'        => 'flag',
-                'name'        => 'confirm',
-                'optional'    => true,
-                'description' => 'Actually move/delete files. Without this flag only a dry-run plan is written.',
-            ),
-            array(
-                'type'        => 'assoc',
-                'name'        => 'older-than',
-                'optional'    => true,
-                'description' => 'Only process files older than this many days. Default: 30. Use 0 to disable.',
-            ),
-            array(
-                'type'        => 'assoc',
-                'name'        => 'backup-dir',
-                'optional'    => true,
-                'description' => 'Backup directory inside uploads. Used unless --no-backup is passed.',
-            ),
-            array(
-                'type'        => 'flag',
-                'name'        => 'no-backup',
-                'optional'    => true,
-                'description' => 'Permanently delete files when used together with --confirm.',
-            ),
-            array(
-                'type'        => 'assoc',
-                'name'        => 'out',
-                'optional'    => true,
-                'description' => 'Directory for delete-plan/deleted-files CSV.',
-            ),
-        ),
-    )
-);
+        )
+    );
+}
