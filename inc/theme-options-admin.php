@@ -2348,6 +2348,31 @@ function dv_theme_auto_backup_state() {
     );
 }
 
+function dv_theme_rollback_targets() {
+    $last_delete = function_exists( 'dv_uploads_tools_get_last_delete' )
+        ? dv_uploads_tools_get_last_delete()
+        : get_option( 'dv_uploads_tools_last_delete', array() );
+    $last_uploads_action = function_exists( 'dv_uploads_tools_get_last_backup_action' )
+        ? dv_uploads_tools_get_last_backup_action()
+        : get_option( 'dv_uploads_tools_last_backup_action', array() );
+    $last_delete = is_array( $last_delete ) ? $last_delete : array();
+    $last_uploads_action = is_array( $last_uploads_action ) ? $last_uploads_action : array();
+    $summary = isset( $last_delete['summary'] ) && is_array( $last_delete['summary'] ) ? $last_delete['summary'] : array();
+    $backup_dir = ! empty( $last_delete['confirm'] ) && ! empty( $last_delete['backup_dir'] )
+        ? wp_normalize_path( (string) $last_delete['backup_dir'] )
+        : '';
+
+    return array(
+        'settings_backup'     => dv_theme_backup_state(),
+        'auto_backup'         => dv_theme_auto_backup_state(),
+        'uploads_last_delete' => $last_delete,
+        'uploads_last_action' => $last_uploads_action,
+        'uploads_summary'     => $summary,
+        'uploads_backup_dir'  => $backup_dir,
+        'uploads_backup_ok'   => '' !== $backup_dir && is_dir( $backup_dir ),
+    );
+}
+
 function dv_theme_timestamp_state( $timestamp, $stale_after = WEEK_IN_SECONDS ) {
     if ( is_numeric( $timestamp ) ) {
         $timestamp = (int) $timestamp;
@@ -4852,6 +4877,11 @@ function dv_render_theme_backup_card() {
     $history      = array_slice( dv_theme_settings_history_get(), 0, 6 );
     $reset_groups = dv_theme_options_reset_groups();
     $auto_backup  = dv_theme_auto_backup_state();
+    $rollback     = dv_theme_rollback_targets();
+    $uploads_summary = isset( $rollback['uploads_summary'] ) && is_array( $rollback['uploads_summary'] ) ? $rollback['uploads_summary'] : array();
+    $uploads_moved = absint( $uploads_summary['moved'] ?? 0 );
+    $uploads_skipped = absint( $uploads_summary['skipped'] ?? 0 );
+    $uploads_backup_dir = (string) ( $rollback['uploads_backup_dir'] ?? '' );
 
     if ( $has_restore && ! empty( $last_backup['exported_at'] ) ) {
         $timestamp    = strtotime( (string) $last_backup['exported_at'] );
@@ -4937,6 +4967,137 @@ function dv_render_theme_backup_card() {
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1072;&#1090;&#1080;&#1090;&#1100; &#1072;&#1074;&#1090;&#1086;&#1073;&#1101;&#1082;&#1072;&#1087;' ) ); ?>
                 </button>
             </article>
+        </div>
+
+        <div class="dv-admin-rollback-center" id="dv-options-rollback">
+            <div class="dv-admin-rollback-center-head">
+                <div>
+                    <h3><?php echo esc_html( dv_theme_options_label( 'Единый откат' ) ); ?></h3>
+                    <p><?php echo esc_html( dv_theme_options_label( 'Быстрые точки восстановления для настроек темы и последнего backup uploads.' ) ); ?></p>
+                </div>
+                <a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-backups' ) ); ?>">
+                    <?php echo esc_html( dv_theme_options_label( 'Открыть uploads backup' ) ); ?>
+                </a>
+            </div>
+
+            <div class="dv-admin-rollback-grid">
+                <article class="<?php echo ! empty( $rollback['settings_backup']['has_restore'] ) ? 'is-ok' : 'is-neutral'; ?>">
+                    <span><?php echo esc_html( dv_theme_options_label( 'Настройки до импорта' ) ); ?></span>
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            ! empty( $rollback['settings_backup']['has_restore'] )
+                                ? ( $rollback['settings_backup']['created_at_display'] ?: dv_theme_options_label( 'Снимок доступен' ) )
+                                : dv_theme_options_label( 'Снимка пока нет' )
+                        );
+                        ?>
+                    </strong>
+                    <small>
+                        <?php
+                        echo esc_html(
+                            ! empty( $rollback['settings_backup']['has_restore'] )
+                                ? sprintf(
+                                    /* translators: %d: option count. */
+                                    dv_theme_options_label( 'Опций в снимке: %d' ),
+                                    absint( $rollback['settings_backup']['option_count'] ?? 0 )
+                                )
+                                : dv_theme_options_label( 'Появится автоматически перед импортом JSON.' )
+                        );
+                        ?>
+                    </small>
+                    <button
+                        type="submit"
+                        class="button"
+                        form="dv-theme-backup-restore"
+                        data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( 'Вернуть настройки к снимку до последнего импорта?' ) ); ?>"
+                        <?php disabled( empty( $rollback['settings_backup']['has_restore'] ) ); ?>
+                    >
+                        <?php echo esc_html( dv_theme_options_label( 'Вернуть настройки' ) ); ?>
+                    </button>
+                </article>
+
+                <article class="<?php echo ! empty( $rollback['auto_backup']['has_restore'] ) ? 'is-ok' : 'is-neutral'; ?>">
+                    <span><?php echo esc_html( dv_theme_options_label( 'Автобэкап настроек' ) ); ?></span>
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            ! empty( $rollback['auto_backup']['has_restore'] )
+                                ? ( $rollback['auto_backup']['created_at_display'] ?: dv_theme_options_label( 'Снимок доступен' ) )
+                                : dv_theme_options_label( 'Ожидает сохранения' )
+                        );
+                        ?>
+                    </strong>
+                    <small>
+                        <?php
+                        echo esc_html(
+                            ! empty( $rollback['auto_backup']['has_restore'] )
+                                ? sprintf(
+                                    /* translators: 1: source, 2: option count. */
+                                    dv_theme_options_label( 'Источник: %1$s. Опций: %2$d' ),
+                                    (string) ( $rollback['auto_backup']['source'] ?: dv_theme_options_label( 'сохранение' ) ),
+                                    absint( $rollback['auto_backup']['option_count'] ?? 0 )
+                                )
+                                : dv_theme_options_label( 'Создается перед сохранением или импортом.' )
+                        );
+                        ?>
+                    </small>
+                    <button
+                        type="submit"
+                        class="button"
+                        form="dv-theme-auto-backup-restore"
+                        data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( 'Откатить настройки к последнему автобэкапу?' ) ); ?>"
+                        <?php disabled( empty( $rollback['auto_backup']['has_restore'] ) ); ?>
+                    >
+                        <?php echo esc_html( dv_theme_options_label( 'Откатить автобэкап' ) ); ?>
+                    </button>
+                </article>
+
+                <article class="<?php echo ! empty( $rollback['uploads_backup_ok'] ) ? 'is-ok' : ( $uploads_backup_dir ? 'is-warning' : 'is-neutral' ); ?>">
+                    <span><?php echo esc_html( dv_theme_options_label( 'Последний uploads backup' ) ); ?></span>
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            $uploads_backup_dir
+                                ? basename( $uploads_backup_dir )
+                                : dv_theme_options_label( 'Backup не найден' )
+                        );
+                        ?>
+                    </strong>
+                    <small>
+                        <?php
+                        echo esc_html(
+                            $uploads_backup_dir
+                                ? sprintf(
+                                    /* translators: 1: moved files, 2: skipped files. */
+                                    dv_theme_options_label( 'Перенесено: %1$d. Пропущено: %2$d.' ),
+                                    $uploads_moved,
+                                    $uploads_skipped
+                                )
+                                : dv_theme_options_label( 'Сначала создайте backup через очистку uploads.' )
+                        );
+                        ?>
+                    </small>
+                    <?php if ( $uploads_backup_dir ) : ?>
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                            <?php wp_nonce_field( 'dv_uploads_restore_backup' ); ?>
+                            <input type="hidden" name="action" value="dv_uploads_restore_backup">
+                            <input type="hidden" name="backup_dir" value="<?php echo esc_attr( $uploads_backup_dir ); ?>">
+                            <button
+                                type="submit"
+                                class="button"
+                                data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( 'Восстановить файлы из последнего uploads backup?' ) ); ?>"
+                                <?php disabled( empty( $rollback['uploads_backup_ok'] ) ); ?>
+                            >
+                                <?php echo esc_html( dv_theme_options_label( 'Восстановить uploads' ) ); ?>
+                            </button>
+                        </form>
+                    <?php else : ?>
+                        <a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-cleanup' ) ); ?>">
+                            <?php echo esc_html( dv_theme_options_label( 'Открыть очистку' ) ); ?>
+                        </a>
+                    <?php endif; ?>
+                </article>
+            </div>
         </div>
 
         <div class="dv-admin-settings-reset">

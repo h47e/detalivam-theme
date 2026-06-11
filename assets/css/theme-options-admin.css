@@ -1450,6 +1450,99 @@
     max-width: 320px;
 }
 
+.dv-theme-options-page .dv-admin-rollback-center {
+    display: grid;
+    gap: 14px;
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid #cfe0f2;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 100% 0, rgba(0, 115, 230, 0.10), transparent 42%),
+        #fff;
+}
+
+.dv-theme-options-page .dv-admin-rollback-center-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #dbe9f8;
+}
+
+.dv-theme-options-page .dv-admin-rollback-center-head h3 {
+    margin: 0 0 6px;
+    color: #0b1727;
+    font-size: 16px;
+}
+
+.dv-theme-options-page .dv-admin-rollback-center-head p {
+    margin: 0;
+    color: #58708c;
+    line-height: 1.45;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid article {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #d8e8f8;
+    border-radius: 12px;
+    background: #f8fbff;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid article.is-ok {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid article.is-warning {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid article.is-neutral {
+    background: #f8fbff;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid span {
+    color: #5b708b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #0b1727;
+    font-size: 18px;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid small {
+    color: #58708c;
+    line-height: 1.45;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid form {
+    margin: 0;
+}
+
+.dv-theme-options-page .dv-admin-rollback-grid .button {
+    width: fit-content;
+    max-width: 100%;
+}
+
 .dv-theme-options-page .dv-admin-settings-history {
     display: grid;
     gap: 14px;
@@ -2452,6 +2545,18 @@
 
     .dv-theme-options-page .dv-admin-backup-grid {
         grid-template-columns: 1fr;
+    }
+
+    .dv-theme-options-page .dv-admin-rollback-center-head {
+        display: grid;
+    }
+
+    .dv-theme-options-page .dv-admin-rollback-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dv-theme-options-page .dv-admin-rollback-grid .button {
+        width: 100%;
     }
 
     .dv-theme-options-page .dv-admin-support-summary {
