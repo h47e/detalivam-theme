@@ -235,6 +235,16 @@ try {
     if ($missingKeyboardCss.Count -gt 0) {
         throw "Admin keyboard CSS parts not found: $($missingKeyboardCss -join ', ')"
     }
+
+    $visualAudit = Join-Path $ThemePath 'tools/admin-visual-audit.ps1'
+    if (-not (Test-Path $visualAudit)) {
+        throw "Admin visual audit script not found: $visualAudit"
+    }
+
+    & powershell -ExecutionPolicy Bypass -File $visualAudit -ThemePath $ThemePath | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Admin visual audit failed"
+    }
 } finally {
     Pop-Location
 }
