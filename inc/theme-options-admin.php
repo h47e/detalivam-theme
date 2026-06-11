@@ -785,12 +785,55 @@ function dv_dashboard_status_clear_cache() {
     delete_transient( dv_dashboard_status_cache_key() );
 }
 
+function dv_dashboard_uploads_summary() {
+    $audit = get_option( 'dv_uploads_tools_last_audit', array() );
+
+    if ( ! is_array( $audit ) || empty( $audit ) ) {
+        return array(
+            'has_audit'    => false,
+            'status'       => 'neutral',
+            'label'        => dv_theme_options_label( '&#1054;&#1078;&#1080;&#1076;&#1072;&#1077;&#1090;' ),
+            'hint'         => dv_theme_options_label( '&#1072;&#1091;&#1076;&#1080;&#1090; uploads &#1077;&#1097;&#1077; &#1085;&#1077; &#1079;&#1072;&#1087;&#1091;&#1089;&#1082;&#1072;&#1083;&#1089;&#1103;' ),
+            'candidate_count' => 0,
+            'issue_count'  => 0,
+            'generated_at' => '',
+            'summary'      => array(),
+        );
+    }
+
+    $summary      = isset( $audit['summary'] ) && is_array( $audit['summary'] ) ? $audit['summary'] : array();
+    $unused       = absint( $summary['unused_files'] ?? 0 );
+    $orphan_safe  = absint( $summary['orphan_safe_files'] ?? 0 );
+    $skipped_dirs = absint( $summary['skipped_dirs'] ?? 0 );
+    $candidates   = $unused + $orphan_safe;
+    $issue_count  = $candidates + $skipped_dirs;
+
+    return array(
+        'has_audit'    => true,
+        'status'       => $issue_count > 0 ? 'warning' : 'ok',
+        'label'        => $issue_count > 0 ? dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100;' ) : 'OK',
+        'hint'         => sprintf(
+            /* translators: 1: unused files, 2: safe orphan files. */
+            dv_theme_options_label( 'unused %1$d / orphan %2$d' ),
+            $unused,
+            $orphan_safe
+        ),
+        'candidate_count' => $candidates,
+        'issue_count'  => $issue_count,
+        'generated_at' => (string) ( $audit['generated_at'] ?? '' ),
+        'summary'      => $summary,
+    );
+}
+
 function dv_dashboard_status_clear_cache_on_option_change( $option_name ) {
     $watched_options = array(
         'dv_theme_options',
         'dv_theme_content',
         'dv_store_profile',
         'dv_seo_settings',
+        'dv_uploads_tools_last_audit',
+        'dv_uploads_tools_last_delete',
+        'dv_uploads_tools_last_backup_action',
     );
 
     if ( function_exists( 'dv_theme_backup_last_import_option_name' ) ) {
@@ -845,6 +888,7 @@ function dv_dashboard_status_summary() {
     $marketplaces = function_exists( 'dv_theme_marketplace_diagnostics_report' ) ? dv_theme_marketplace_diagnostics_report( $options ) : array();
     $maintenance  = function_exists( 'dv_theme_maintenance_report' ) ? dv_theme_maintenance_report() : array();
     $backup       = function_exists( 'dv_theme_backup_state' ) ? dv_theme_backup_state() : array();
+    $uploads      = dv_dashboard_uploads_summary();
     $history      = function_exists( 'dv_theme_settings_history_get' ) ? array_slice( dv_theme_settings_history_get(), 0, 4 ) : array();
     $action_log   = function_exists( 'dv_admin_action_log_get' ) ? array_slice( dv_admin_action_log_get(), 0, 4 ) : array();
     $seo_health   = null;
@@ -872,6 +916,7 @@ function dv_dashboard_status_summary() {
         'marketplaces' => $marketplaces,
         'maintenance'  => $maintenance,
         'backup'       => $backup,
+        'uploads'      => $uploads,
         'settings_history' => $history,
         'action_log'   => $action_log,
         'seo_health'   => $seo_health,
@@ -940,6 +985,28 @@ function dv_dashboard_status_tasks( $summary ) {
         );
     }
 
+    $uploads = isset( $summary['uploads'] ) && is_array( $summary['uploads'] ) ? $summary['uploads'] : array();
+    if ( empty( $uploads['has_audit'] ) ) {
+        $tasks[] = array(
+            'label' => dv_theme_options_label( 'Uploads: &#1079;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100; &#1072;&#1091;&#1076;&#1080;&#1090;' ),
+            'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-audit' ),
+        );
+    } elseif ( ! empty( $uploads['candidate_count'] ) ) {
+        $tasks[] = array(
+            'label' => sprintf(
+                /* translators: %d: files count. */
+                dv_theme_options_label( 'Uploads: &#1082;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1086;&#1074; %d' ),
+                absint( $uploads['candidate_count'] )
+            ),
+            'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-cleanup' ),
+        );
+    } elseif ( ! empty( $uploads['issue_count'] ) ) {
+        $tasks[] = array(
+            'label' => dv_theme_options_label( 'Uploads: &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; &#1087;&#1088;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1085;&#1099;&#1077; &#1087;&#1072;&#1087;&#1082;&#1080;' ),
+            'url'   => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-audit' ),
+        );
+    }
+
     return array_slice( $tasks, 0, 6 );
 }
 
@@ -964,6 +1031,7 @@ function dv_render_dashboard_status_widget() {
     $marketplaces = $summary['marketplaces'];
     $maintenance  = $summary['maintenance'];
     $backup       = $summary['backup'];
+    $uploads      = isset( $summary['uploads'] ) && is_array( $summary['uploads'] ) ? $summary['uploads'] : array();
     $seo_health   = $summary['seo_health'];
     $tasks        = dv_dashboard_status_tasks( $summary );
     $history      = isset( $summary['settings_history'] ) && is_array( $summary['settings_history'] ) ? $summary['settings_history'] : array();
@@ -1030,6 +1098,13 @@ function dv_render_dashboard_status_widget() {
                 ! empty( $backup['has_restore'] ) ? 'OK' : dv_theme_options_label( '&#1054;&#1078;&#1080;&#1076;&#1072;&#1077;&#1090;' ),
                 ! empty( $backup['created_at_display'] ) ? (string) $backup['created_at_display'] : dv_theme_options_label( '&#1089;&#1085;&#1080;&#1084;&#1086;&#1082; &#1087;&#1086;&#1089;&#1083;&#1077; &#1080;&#1084;&#1087;&#1086;&#1088;&#1090;&#1072;' ),
                 ! empty( $backup['has_restore'] ) ? 'ok' : 'neutral'
+            );
+
+            dv_render_dashboard_metric(
+                'Uploads',
+                (string) ( $uploads['label'] ?? '-' ),
+                (string) ( $uploads['hint'] ?? '' ),
+                ! empty( $uploads['status'] ) ? (string) $uploads['status'] : 'neutral'
             );
 
             dv_render_dashboard_metric(

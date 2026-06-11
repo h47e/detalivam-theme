@@ -93,6 +93,8 @@ document.addEventListener('DOMContentLoaded', function () {
       '#dv-theme-options-search',
       '#dv-store-settings-search',
       '#dv-theme-content-search',
+      '#dv-uploads-filter',
+      '[data-dv-seo-category-search]',
     ];
 
     function isTypingTarget(target) {
@@ -110,13 +112,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getVisibleSearch() {
-      var inputs = selectors
-        .map(function (selector) {
-          return document.querySelector(selector);
-        })
-        .filter(function (input) {
-          return input && !input.disabled && input.offsetParent !== null;
+      var page = document.querySelector('.dv-suite-page') || document;
+      var inputs = [];
+
+      selectors.forEach(function (selector) {
+        page.querySelectorAll(selector).forEach(function (input) {
+          if (inputs.indexOf(input) === -1) {
+            inputs.push(input);
+          }
         });
+      });
+
+      page.querySelectorAll('input[type="search"]').forEach(function (input) {
+        if (input.id !== 'dv-suite-command-search' && inputs.indexOf(input) === -1) {
+          inputs.push(input);
+        }
+      });
+
+      inputs = inputs.filter(function (input) {
+        return input && !input.disabled && input.offsetParent !== null;
+      });
 
       return inputs[0] || null;
     }
@@ -220,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
       previousFocus = document.activeElement;
       command.hidden = false;
       document.body.classList.add('dv-suite-command-open');
+      openButton.setAttribute('aria-expanded', 'true');
 
       if (search) {
         search.value = '';
@@ -233,12 +249,15 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeCommand() {
       command.hidden = true;
       document.body.classList.remove('dv-suite-command-open');
+      openButton.setAttribute('aria-expanded', 'false');
 
       if (previousFocus && typeof previousFocus.focus === 'function') {
         previousFocus.focus();
       }
     }
 
+    openButton.setAttribute('aria-expanded', 'false');
+    openButton.setAttribute('aria-controls', 'dv-suite-command');
     openButton.addEventListener('click', openCommand);
 
     closeButtons.forEach(function (button) {
