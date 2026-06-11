@@ -1128,7 +1128,13 @@ function dv_uploads_tools_render_page() {
                     <input type="checkbox" name="dv_uploads_confirm_move" value="1">
                     <?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1086;&#1076;&#1090;&#1074;&#1077;&#1088;&#1078;&#1076;&#1072;&#1102; &#1087;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089; &#1074; backup' ) ); ?>
                 </label>
-                <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; &#1074; backup' ) ); ?></button>
+                <button
+                    type="submit"
+                    class="button button-primary"
+                    data-dv-confirm="<?php echo esc_attr( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; unused-&#1092;&#1072;&#1081;&#1083;&#1099; &#1074; backup? &#1060;&#1072;&#1081;&#1083;&#1099; &#1085;&#1077; &#1091;&#1076;&#1072;&#1083;&#1103;&#1102;&#1090;&#1089;&#1103; &#1085;&#1072;&#1074;&#1089;&#1077;&#1075;&#1076;&#1072;.' ) ); ?>"
+                >
+                    <?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; &#1074; backup' ) ); ?>
+                </button>
             </form>
             </div>
 
@@ -1158,7 +1164,13 @@ function dv_uploads_tools_render_page() {
                         <input type="checkbox" name="dv_uploads_confirm_move" value="1">
                         <?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1086;&#1076;&#1090;&#1074;&#1077;&#1088;&#1078;&#1076;&#1072;&#1102; &#1087;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089; Orphan &#1074; backup' ) ); ?>
                     </label>
-                    <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; Orphan &#1074; backup' ) ); ?></button>
+                    <button
+                        type="submit"
+                        class="button button-primary"
+                        data-dv-confirm="<?php echo esc_attr( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; orphan-&#1092;&#1072;&#1081;&#1083;&#1099; &#1074; backup? &#1057;&#1090;&#1088;&#1086;&#1082;&#1080; used=yes &#1073;&#1091;&#1076;&#1091;&#1090; &#1087;&#1088;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1099;.' ) ); ?>"
+                    >
+                        <?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1090;&#1080; Orphan &#1074; backup' ) ); ?>
+                    </button>
                 </form>
             </div>
 
@@ -1212,7 +1224,13 @@ function dv_uploads_tools_render_page() {
                     <input type="checkbox" name="dv_uploads_confirm_backup_cleanup" value="1">
                     <?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1086;&#1076;&#1090;&#1074;&#1077;&#1088;&#1078;&#1076;&#1072;&#1102; &#1086;&#1095;&#1080;&#1089;&#1090;&#1082;&#1091; backup' ) ); ?>
                 </label>
-                <button type="submit" class="button"><?php echo esc_html( dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1090;&#1072;&#1088;&#1099;&#1077; backup' ) ); ?></button>
+                <button
+                    type="submit"
+                    class="button"
+                    data-dv-confirm="<?php echo esc_attr( dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1090;&#1072;&#1088;&#1099;&#1077; backup-&#1087;&#1072;&#1087;&#1082;&#1080;? &#1069;&#1090;&#1086; &#1086;&#1087;&#1077;&#1088;&#1072;&#1094;&#1080;&#1103; &#1089; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;&#1072;&#1084;&#1080; uploads.' ) ); ?>"
+                >
+                    <?php echo esc_html( dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1090;&#1072;&#1088;&#1099;&#1077; backup' ) ); ?>
+                </button>
             </form>
 
             <?php if ( empty( $backup_dirs ) ) : ?>
@@ -1240,7 +1258,13 @@ function dv_uploads_tools_render_page() {
                                         <?php wp_nonce_field( 'dv_uploads_restore_backup' ); ?>
                                         <input type="hidden" name="action" value="dv_uploads_restore_backup">
                                         <input type="hidden" name="backup_dir" value="<?php echo esc_attr( $backup['path'] ); ?>">
-                                        <button type="submit" class="button"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1074;&#1089;&#1077;' ) ); ?></button>
+                                        <button
+                                            type="submit"
+                                            class="button"
+                                            data-dv-confirm="<?php echo esc_attr( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1074;&#1089;&#1077; &#1092;&#1072;&#1081;&#1083;&#1099; &#1080;&#1079; &#1101;&#1090;&#1086;&#1081; backup-&#1087;&#1072;&#1087;&#1082;&#1080;?' ) ); ?>"
+                                        >
+                                            <?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1074;&#1089;&#1077;' ) ); ?>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
@@ -1358,7 +1382,13 @@ function dv_uploads_tools_render_page() {
                                                 <input type="hidden" name="action" value="dv_uploads_restore_service_image">
                                                 <input type="hidden" name="source_path" value="<?php echo esc_attr( $candidate['source_path'] ); ?>">
                                                 <input type="hidden" name="original_relative" value="<?php echo esc_attr( $candidate['original_relative'] ); ?>">
-                                                <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?></button>
+                                                <button
+                                                    type="submit"
+                                                    class="button button-primary"
+                                                    data-dv-confirm="<?php echo esc_attr( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1101;&#1090;&#1086;&#1090; &#1092;&#1072;&#1081;&#1083; &#1080;&#1079; backup?' ) ); ?>"
+                                                >
+                                                    <?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?>
+                                                </button>
                                             </form>
                                         <?php endif; ?>
                                     </td>

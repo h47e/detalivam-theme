@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
   setupBackToTop();
   setupLocalSearchShortcut();
   setupCommandPalette();
+  setupConfirmActions();
   setupUnsavedForms();
 
   function setupSuiteHeader() {
@@ -326,6 +327,35 @@ document.addEventListener('DOMContentLoaded', function () {
         closeCommand();
       }
     });
+  }
+
+  function setupConfirmActions() {
+    var announcer = document.createElement('div');
+
+    announcer.className = 'screen-reader-text';
+    announcer.setAttribute('role', 'status');
+    announcer.setAttribute('aria-live', 'polite');
+    document.body.appendChild(announcer);
+
+    document.addEventListener('click', function (event) {
+      var trigger = event.target && event.target.closest
+        ? event.target.closest('[data-dv-confirm]')
+        : null;
+
+      if (!trigger || trigger.disabled || trigger.getAttribute('aria-disabled') === 'true') {
+        return;
+      }
+
+      var message = trigger.getAttribute('data-dv-confirm') || '';
+
+      if (!message || window.confirm(message)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      announcer.textContent = 'Действие отменено.';
+    }, true);
   }
 
   function setupUnsavedForms() {
