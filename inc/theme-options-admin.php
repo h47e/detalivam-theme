@@ -2254,19 +2254,35 @@ function dv_theme_environment_report() {
     );
 }
 
+function dv_theme_diagnostics_context( $options ) {
+    $options = is_array( $options ) ? $options : array();
+
+    return array(
+        'overrides'      => dv_theme_woocommerce_overrides_report(),
+        'audit'          => dv_theme_product_audit_report(),
+        'marketplaces'   => dv_theme_marketplace_diagnostics_report( $options ),
+        'profile_health' => dv_theme_store_profile_health_report(),
+        'maintenance'    => dv_theme_maintenance_report(),
+        'backup'         => dv_theme_backup_state(),
+        'auto_backup'    => dv_theme_auto_backup_state(),
+        'environment'    => dv_theme_environment_report(),
+    );
+}
+
 function dv_theme_diagnostics_report_payload( $options ) {
     $theme     = wp_get_theme();
-    $checks    = dv_theme_diagnostics_checks( $options );
-    $overrides = dv_theme_woocommerce_overrides_report();
+    $context   = dv_theme_diagnostics_context( $options );
+    $checks    = dv_theme_diagnostics_checks( $options, $context );
+    $overrides = $context['overrides'];
     $snapshot  = dv_theme_diagnostics_settings_snapshot( $options );
-    $backup    = dv_theme_backup_state();
-    $auto_backup = dv_theme_auto_backup_state();
-    $audit     = dv_theme_product_audit_report();
-    $marketplaces = dv_theme_marketplace_diagnostics_report( $options );
+    $backup    = $context['backup'];
+    $auto_backup = $context['auto_backup'];
+    $audit     = $context['audit'];
+    $marketplaces = $context['marketplaces'];
     $history   = dv_theme_settings_history_get();
-    $profile_health = dv_theme_store_profile_health_report();
-    $maintenance = dv_theme_maintenance_report();
-    $environment = dv_theme_environment_report();
+    $profile_health = $context['profile_health'];
+    $maintenance = $context['maintenance'];
+    $environment = $context['environment'];
 
     $normalized_checks = array();
     foreach ( $checks as $check ) {
@@ -2305,21 +2321,22 @@ function dv_theme_diagnostics_report_payload( $options ) {
         'product_audit' => $audit,
         'marketplaces' => $marketplaces,
         'maintenance' => $maintenance,
-        'support_summary' => dv_theme_diagnostics_support_summary( $options ),
+        'support_summary' => dv_theme_diagnostics_support_summary( $options, $context, $checks ),
         'woocommerce_overrides' => $overrides,
         'checks'        => $normalized_checks,
     );
 }
 
-function dv_theme_diagnostics_support_summary( $options ) {
+function dv_theme_diagnostics_support_summary( $options, $context = array(), $checks = null ) {
     $theme        = wp_get_theme();
-    $checks       = dv_theme_diagnostics_checks( $options );
-    $audit        = dv_theme_product_audit_report();
-    $marketplaces = dv_theme_marketplace_diagnostics_report( $options );
-    $profile      = dv_theme_store_profile_health_report();
-    $maintenance  = dv_theme_maintenance_report();
-    $backup       = dv_theme_backup_state();
-    $auto_backup  = dv_theme_auto_backup_state();
+    $context      = is_array( $context ) ? $context : array();
+    $checks       = is_array( $checks ) ? $checks : dv_theme_diagnostics_checks( $options, $context );
+    $audit        = isset( $context['audit'] ) && is_array( $context['audit'] ) ? $context['audit'] : dv_theme_product_audit_report();
+    $marketplaces = isset( $context['marketplaces'] ) && is_array( $context['marketplaces'] ) ? $context['marketplaces'] : dv_theme_marketplace_diagnostics_report( $options );
+    $profile      = isset( $context['profile_health'] ) && is_array( $context['profile_health'] ) ? $context['profile_health'] : dv_theme_store_profile_health_report();
+    $maintenance  = isset( $context['maintenance'] ) && is_array( $context['maintenance'] ) ? $context['maintenance'] : dv_theme_maintenance_report();
+    $backup       = isset( $context['backup'] ) && is_array( $context['backup'] ) ? $context['backup'] : dv_theme_backup_state();
+    $auto_backup  = isset( $context['auto_backup'] ) && is_array( $context['auto_backup'] ) ? $context['auto_backup'] : dv_theme_auto_backup_state();
     $options      = is_array( $options ) ? $options : array();
     $woo_version  = class_exists( 'WooCommerce' ) && defined( 'WC_VERSION' ) ? WC_VERSION : dv_theme_options_label( '&#1085;&#1077; &#1072;&#1082;&#1090;&#1080;&#1074;&#1077;&#1085;' );
 
@@ -4690,13 +4707,14 @@ function dv_render_theme_backup_card() {
     <?php
 }
 
-function dv_theme_diagnostics_checks( $options ) {
+function dv_theme_diagnostics_checks( $options, $context = array() ) {
     $theme_dir = get_stylesheet_directory();
-    $overrides = dv_theme_woocommerce_overrides_report();
-    $audit     = dv_theme_product_audit_report();
-    $marketplaces = dv_theme_marketplace_diagnostics_report( $options );
-    $profile_health = dv_theme_store_profile_health_report();
-    $maintenance = dv_theme_maintenance_report();
+    $context   = is_array( $context ) ? $context : array();
+    $overrides = isset( $context['overrides'] ) && is_array( $context['overrides'] ) ? $context['overrides'] : dv_theme_woocommerce_overrides_report();
+    $audit     = isset( $context['audit'] ) && is_array( $context['audit'] ) ? $context['audit'] : dv_theme_product_audit_report();
+    $marketplaces = isset( $context['marketplaces'] ) && is_array( $context['marketplaces'] ) ? $context['marketplaces'] : dv_theme_marketplace_diagnostics_report( $options );
+    $profile_health = isset( $context['profile_health'] ) && is_array( $context['profile_health'] ) ? $context['profile_health'] : dv_theme_store_profile_health_report();
+    $maintenance = isset( $context['maintenance'] ) && is_array( $context['maintenance'] ) ? $context['maintenance'] : dv_theme_maintenance_report();
 
     $required_files = array(
         'header.php',
@@ -5052,14 +5070,15 @@ function dv_render_theme_environment_card( $environment ) {
 }
 
 function dv_render_theme_options_diagnostics( $options ) {
-    $checks   = dv_theme_diagnostics_checks( $options );
+    $context  = dv_theme_diagnostics_context( $options );
+    $checks   = dv_theme_diagnostics_checks( $options, $context );
     $snapshot = dv_theme_diagnostics_settings_snapshot( $options );
-    $environment = dv_theme_environment_report();
-    $audit    = dv_theme_product_audit_report();
-    $marketplaces = dv_theme_marketplace_diagnostics_report( $options );
-    $profile_health = dv_theme_store_profile_health_report();
-    $maintenance = dv_theme_maintenance_report();
-    $support_summary = dv_theme_diagnostics_support_summary( $options );
+    $environment = $context['environment'];
+    $audit    = $context['audit'];
+    $marketplaces = $context['marketplaces'];
+    $profile_health = $context['profile_health'];
+    $maintenance = $context['maintenance'];
+    $support_summary = dv_theme_diagnostics_support_summary( $options, $context, $checks );
     ?>
     <section class="dv-admin-card dv-admin-diagnostics-card" id="dv-options-diagnostics">
         <h2><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></h2>
