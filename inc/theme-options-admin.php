@@ -4510,7 +4510,12 @@ function dv_render_theme_backup_card() {
                 <strong><?php echo esc_html( dv_theme_options_label( '&#1048;&#1084;&#1087;&#1086;&#1088;&#1090;' ) ); ?></strong>
                 <span><?php echo esc_html( dv_theme_options_label( '&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1080;&#1090;&#1077; JSON-&#1092;&#1072;&#1081;&#1083;, &#1088;&#1072;&#1085;&#1077;&#1077; &#1089;&#1082;&#1072;&#1095;&#1072;&#1085;&#1085;&#1099;&#1081; &#1080;&#1079; &#1101;&#1090;&#1086;&#1075;&#1086; &#1073;&#1083;&#1086;&#1082;&#1072;. &#1058;&#1077;&#1082;&#1091;&#1097;&#1080;&#1077; &#1086;&#1087;&#1094;&#1080;&#1080; &#1073;&#1091;&#1076;&#1091;&#1090; &#1079;&#1072;&#1084;&#1077;&#1085;&#1077;&#1085;&#1099;.' ) ); ?></span>
                 <input type="file" name="dv_theme_backup_file" accept="application/json,.json" form="dv-theme-backup-import">
-                <button type="submit" class="button" form="dv-theme-backup-import">
+                <button
+                    type="submit"
+                    class="button"
+                    form="dv-theme-backup-import"
+                    data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1048;&#1084;&#1087;&#1086;&#1088;&#1090;&#1080;&#1088;&#1086;&#1074;&#1072;&#1090;&#1100; JSON-&#1088;&#1077;&#1079;&#1077;&#1088;&#1074;? &#1058;&#1077;&#1082;&#1091;&#1097;&#1080;&#1077; &#1086;&#1087;&#1094;&#1080;&#1080; &#1073;&#1091;&#1076;&#1091;&#1090; &#1079;&#1072;&#1084;&#1077;&#1085;&#1077;&#1085;&#1099;, &#1072; &#1087;&#1077;&#1088;&#1077;&#1076; &#1101;&#1090;&#1080;&#1084; &#1073;&#1091;&#1076;&#1077;&#1090; &#1089;&#1086;&#1079;&#1076;&#1072;&#1085; &#1089;&#1085;&#1080;&#1084;&#1086;&#1082; &#1076;&#1083;&#1103; &#1086;&#1090;&#1082;&#1072;&#1090;&#1072;.' ) ); ?>"
+                >
                     <?php echo esc_html( dv_theme_options_label( '&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1080;&#1090;&#1100; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;' ) ); ?>
                 </button>
             </article>
@@ -4530,7 +4535,13 @@ function dv_render_theme_backup_card() {
                     );
                     ?>
                 </span>
-                <button type="submit" class="button" form="dv-theme-backup-restore" <?php disabled( ! $has_restore ); ?>>
+                <button
+                    type="submit"
+                    class="button"
+                    form="dv-theme-backup-restore"
+                    data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1042;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100; &#1085;&#1072;&#1089;&#1090;&#1088;&#1086;&#1081;&#1082;&#1080; &#1082; &#1089;&#1085;&#1080;&#1084;&#1082;&#1091; &#1076;&#1086; &#1087;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1077;&#1075;&#1086; &#1080;&#1084;&#1087;&#1086;&#1088;&#1090;&#1072;?' ) ); ?>"
+                    <?php disabled( ! $has_restore ); ?>
+                >
                     <?php echo esc_html( dv_theme_options_label( '&#1042;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100; &#1076;&#1086; &#1080;&#1084;&#1087;&#1086;&#1088;&#1090;&#1072;' ) ); ?>
                 </button>
             </article>
@@ -4551,7 +4562,13 @@ function dv_render_theme_backup_card() {
                     );
                     ?>
                 </span>
-                <button type="submit" class="button" form="dv-theme-auto-backup-restore" <?php disabled( empty( $auto_backup['has_restore'] ) ); ?>>
+                <button
+                    type="submit"
+                    class="button"
+                    form="dv-theme-auto-backup-restore"
+                    data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1072;&#1090;&#1080;&#1090;&#1100; &#1085;&#1072;&#1089;&#1090;&#1088;&#1086;&#1081;&#1082;&#1080; &#1082; &#1087;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1077;&#1084;&#1091; &#1072;&#1074;&#1090;&#1086;&#1073;&#1101;&#1082;&#1072;&#1087;&#1091;?' ) ); ?>"
+                    <?php disabled( empty( $auto_backup['has_restore'] ) ); ?>
+                >
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1072;&#1090;&#1080;&#1090;&#1100; &#1072;&#1074;&#1090;&#1086;&#1073;&#1101;&#1082;&#1072;&#1087;' ) ); ?>
                 </button>
             </article>
@@ -4969,7 +4986,12 @@ function dv_render_theme_maintenance_card( $report ) {
                 <span class="<?php echo $issue_count > 0 ? 'is-warning' : 'is-ok'; ?>">
                     <?php echo esc_html( $issue_count > 0 ? dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100;' ) : dv_theme_options_label( '&#1054;&#1050;' ) ); ?>
                 </span>
-                <button type="submit" class="button" form="dv-theme-service-cache-clear">
+                <button
+                    type="submit"
+                    class="button"
+                    form="dv-theme-service-cache-clear"
+                    data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; dashboard, &#1072;&#1091;&#1076;&#1080;&#1090;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap?' ) ); ?>"
+                >
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1082;&#1101;&#1096;&#1080;' ) ); ?>
                 </button>
             </div>
