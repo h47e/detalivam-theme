@@ -2304,9 +2304,16 @@ function dv_theme_auto_backup_state() {
     );
 }
 
-function dv_theme_live_search_index_state() {
-    $version   = (int) get_option( 'dv_live_product_search_index_version', 1 );
-    $timestamp = $version > 1000000000 ? $version : 0;
+function dv_theme_timestamp_state( $timestamp, $stale_after = WEEK_IN_SECONDS ) {
+    if ( is_numeric( $timestamp ) ) {
+        $timestamp = (int) $timestamp;
+    } elseif ( is_string( $timestamp ) && '' !== trim( $timestamp ) ) {
+        $timestamp = strtotime( $timestamp );
+    } else {
+        $timestamp = 0;
+    }
+
+    $timestamp = $timestamp > 0 ? $timestamp : 0;
     $now       = current_time( 'timestamp' );
 
     return array(
@@ -2314,14 +2321,73 @@ function dv_theme_live_search_index_state() {
         'timestamp'     => $timestamp,
         'display'       => $timestamp > 0 ? date_i18n( 'd.m.Y H:i', $timestamp ) : '',
         'age'           => $timestamp > 0 && function_exists( 'human_time_diff' ) ? human_time_diff( $timestamp, $now ) : '',
-        'is_stale'      => $timestamp > 0 && ( $now - $timestamp ) > WEEK_IN_SECONDS,
+        'is_stale'      => $timestamp > 0 && $stale_after > 0 && ( $now - $timestamp ) > $stale_after,
     );
+}
+
+function dv_theme_live_search_index_state() {
+    $version   = (int) get_option( 'dv_live_product_search_index_version', 1 );
+    $timestamp = $version > 1000000000 ? $version : 0;
+
+    return dv_theme_timestamp_state( $timestamp, WEEK_IN_SECONDS );
+}
+
+function dv_theme_cache_age_check( $key, $label, $timestamp, $stale_after, $empty_hint ) {
+    $state = dv_theme_timestamp_state( $timestamp, $stale_after );
+
+    return array(
+        'key'    => $key,
+        'label'  => $label,
+        'status' => empty( $state['is_stale'] ),
+        'hint'   => ! empty( $state['has_timestamp'] )
+            ? sprintf(
+                /* translators: 1: date, 2: age. */
+                dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085; %1$s, %2$s &#1085;&#1072;&#1079;&#1072;&#1076;' ),
+                (string) $state['display'],
+                (string) $state['age']
+            )
+            : $empty_hint,
+    );
+}
+
+function dv_theme_saved_cache_age_checks() {
+    $checks = array();
+
+    $dashboard = get_transient( dv_dashboard_status_cache_key() );
+    $checks[]  = dv_theme_cache_age_check(
+        'dashboard_cache',
+        dv_theme_options_label( 'Dashboard cache' ),
+        is_array( $dashboard ) ? ( $dashboard['generated_at'] ?? 0 ) : 0,
+        15 * MINUTE_IN_SECONDS,
+        dv_theme_options_label( '&#1050;&#1101;&#1096; &#1087;&#1086;&#1103;&#1074;&#1080;&#1090;&#1089;&#1103; &#1087;&#1086;&#1089;&#1083;&#1077; &#1086;&#1090;&#1082;&#1088;&#1099;&#1090;&#1080;&#1103; dashboard' )
+    );
+
+    $product_audit = function_exists( 'dv_theme_product_audit_cache_key' ) ? get_transient( dv_theme_product_audit_cache_key() ) : array();
+    $checks[]      = dv_theme_cache_age_check(
+        'product_audit_cache',
+        dv_theme_options_label( '&#1040;&#1091;&#1076;&#1080;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;' ),
+        is_array( $product_audit ) ? ( $product_audit['generated_at'] ?? 0 ) : 0,
+        HOUR_IN_SECONDS,
+        dv_theme_options_label( '&#1050;&#1101;&#1096; &#1087;&#1086;&#1103;&#1074;&#1080;&#1090;&#1089;&#1103; &#1087;&#1086;&#1089;&#1083;&#1077; &#1086;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103; &#1072;&#1091;&#1076;&#1080;&#1090;&#1072;' )
+    );
+
+    $uploads_audit = get_option( 'dv_uploads_tools_last_audit', array() );
+    $checks[]      = dv_theme_cache_age_check(
+        'uploads_audit_cache',
+        dv_theme_options_label( '&#1040;&#1091;&#1076;&#1080;&#1090; uploads' ),
+        is_array( $uploads_audit ) ? ( $uploads_audit['generated_at'] ?? '' ) : '',
+        WEEK_IN_SECONDS,
+        dv_theme_options_label( '&#1040;&#1091;&#1076;&#1080;&#1090; uploads &#1077;&#1097;&#1077; &#1085;&#1077; &#1079;&#1072;&#1087;&#1091;&#1089;&#1082;&#1072;&#1083;&#1089;&#1103;' )
+    );
+
+    return $checks;
 }
 
 function dv_theme_maintenance_report() {
     $history     = function_exists( 'dv_theme_settings_history_get' ) ? dv_theme_settings_history_get() : array();
     $auto_backup = function_exists( 'dv_theme_auto_backup_state' ) ? dv_theme_auto_backup_state() : array();
     $search_index = dv_theme_live_search_index_state();
+    $cache_checks = dv_theme_saved_cache_age_checks();
     $groups      = function_exists( 'dv_theme_options_reset_groups' ) ? dv_theme_options_reset_groups() : array();
     $main_css    = trailingslashit( get_stylesheet_directory() ) . 'assets/css/main.css';
     $css_content = is_readable( $main_css ) ? file_get_contents( $main_css ) : '';
@@ -2383,6 +2449,7 @@ function dv_theme_maintenance_report() {
                 : dv_theme_options_label( '&#1053;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085; &#1084;&#1072;&#1088;&#1082;&#1077;&#1088; MOBILE SAFETY PASS &#1074; main.css.' ),
         ),
     );
+    $checks = array_merge( $checks, $cache_checks );
 
     $issues = array_values(
         array_filter(
