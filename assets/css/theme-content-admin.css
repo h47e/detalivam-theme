@@ -1,50 +1,9 @@
-.dv-theme-content-page {
-  max-width: 1240px;
-}
-
-body.dv-suite-admin .dv-theme-content-page .dv-suite-header {
-  position: relative;
-  top: auto;
-  z-index: 12;
-  grid-template-columns: minmax(0, 1fr);
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 1240px;
-  margin: 18px auto 12px;
-  padding: 16px 18px;
-}
-
-body.dv-suite-admin .dv-theme-content-page .dv-suite-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0 18px;
-  align-items: center;
-}
-
-body.dv-suite-admin .dv-theme-content-page .dv-suite-kicker,
-body.dv-suite-admin .dv-theme-content-page .dv-suite-header h1,
-body.dv-suite-admin .dv-theme-content-page .dv-suite-header p {
-  grid-column: 1;
-}
-
-body.dv-suite-admin .dv-theme-content-page .dv-suite-command-button {
-  grid-column: 2;
-  grid-row: 1 / 4;
-  align-self: center;
-  margin-top: 0;
-}
-
-body.dv-suite-admin .dv-theme-content-page .dv-suite-tabs,
-body.dv-suite-admin .dv-theme-content-page .dv-suite-quick-actions {
-  display: none !important;
-}
-
 .dv-theme-content-page .dv-theme-content-overview {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   gap: 8px;
-  max-width: 1240px;
+  max-width: var(--dv-admin-shell-width);
   margin: 8px auto 10px;
   padding: 8px;
   border: 1px solid #cfe0f2;
@@ -151,7 +110,7 @@ body.dv-suite-admin .dv-theme-content-page .dv-suite-quick-actions {
 
 body.dv-suite-admin .dv-theme-content-page > form.dv-theme-content-form {
   width: 100%;
-  max-width: 1240px;
+  max-width: var(--dv-admin-shell-width);
 }
 
 .dv-theme-content-page .dv-theme-content-toolbar {
@@ -1197,22 +1156,6 @@ body.dv-suite-admin .dv-theme-content-page > form.dv-theme-content-form {
 }
 
 @media (max-width: 782px) {
-  body.dv-suite-admin .dv-theme-content-page .dv-suite-header {
-    margin-top: 10px;
-    padding: 14px;
-  }
-
-  body.dv-suite-admin .dv-theme-content-page .dv-suite-heading {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.dv-suite-admin .dv-theme-content-page .dv-suite-command-button {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: flex-start;
-    margin-top: 12px;
-  }
-
   .dv-theme-content-page .dv-theme-content-overview {
     margin-top: 10px;
   }

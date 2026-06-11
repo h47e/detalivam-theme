@@ -1,50 +1,9 @@
-.dv-theme-options-page {
-    max-width: 1240px;
-}
-
-body.dv-suite-admin .dv-theme-options-page .dv-suite-header {
-    position: relative;
-    top: auto;
-    z-index: 12;
-    grid-template-columns: minmax(0, 1fr);
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 1240px;
-    margin: 18px auto 12px;
-    padding: 16px 18px;
-}
-
-body.dv-suite-admin .dv-theme-options-page .dv-suite-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0 18px;
-    align-items: center;
-}
-
-body.dv-suite-admin .dv-theme-options-page .dv-suite-kicker,
-body.dv-suite-admin .dv-theme-options-page .dv-suite-header h1,
-body.dv-suite-admin .dv-theme-options-page .dv-suite-header p {
-    grid-column: 1;
-}
-
-body.dv-suite-admin .dv-theme-options-page .dv-suite-command-button {
-    grid-column: 2;
-    grid-row: 1 / 4;
-    align-self: center;
-    margin-top: 0;
-}
-
-body.dv-suite-admin .dv-theme-options-page .dv-suite-tabs,
-body.dv-suite-admin .dv-theme-options-page .dv-suite-quick-actions {
-    display: none !important;
-}
-
 .dv-theme-options-page .dv-options-overview {
     display: flex;
     flex-wrap: wrap;
     align-items: stretch;
     gap: 8px;
-    max-width: 1240px;
+    max-width: var(--dv-admin-shell-width);
     margin: 8px 0;
     padding: 8px;
     border: 1px solid #cfe0f2;
@@ -118,7 +77,7 @@ body.dv-suite-admin .dv-theme-options-page .dv-suite-quick-actions {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     align-items: start;
-    max-width: 1240px;
+    max-width: var(--dv-admin-shell-width);
     margin-top: 10px;
 }
 

@@ -1,38 +1,5 @@
-body.dv-suite-admin .dv-store-settings-page .dv-suite-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    max-width: 1240px;
-    min-height: 0;
-    margin-top: 18px;
-    margin-bottom: 10px;
-    padding: 20px 22px;
-}
-
-body.dv-suite-admin .dv-store-settings-page .dv-suite-heading {
-    display: block;
-    max-width: 760px;
-}
-
-body.dv-suite-admin .dv-store-settings-page .dv-suite-kicker,
-body.dv-suite-admin .dv-store-settings-page .dv-suite-header h1,
-body.dv-suite-admin .dv-store-settings-page .dv-suite-header p {
-    max-width: 760px;
-}
-
-body.dv-suite-admin .dv-store-settings-page .dv-suite-command-button {
-    flex: 0 0 auto;
-    margin-left: auto;
-}
-
-body.dv-suite-admin .dv-store-settings-page .dv-suite-tabs,
-body.dv-suite-admin .dv-store-settings-page .dv-suite-quick-actions {
-    display: none;
-}
-
 body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
-    max-width: 1240px;
+    max-width: var(--dv-admin-shell-width);
     padding: 12px;
 }
 
@@ -40,7 +7,7 @@ body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
-    max-width: 1240px;
+    max-width: var(--dv-admin-shell-width);
     margin: 8px auto 10px;
     padding: 8px;
     border: 1px solid #cfe0f2;
@@ -417,16 +384,6 @@ body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
 }
 
 @media (max-width: 782px) {
-    body.dv-suite-admin .dv-store-settings-page .dv-suite-header {
-        align-items: flex-start;
-        flex-direction: column;
-        padding: 14px;
-    }
-
-    body.dv-suite-admin .dv-store-settings-page .dv-suite-command-button {
-        margin-left: 0;
-    }
-
     .dv-store-overview {
         grid-template-columns: 1fr;
     }
