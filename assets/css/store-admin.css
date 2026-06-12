@@ -130,6 +130,113 @@ body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
     gap: 8px;
 }
 
+.dv-store-settings-page .dv-store-live-preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+    gap: 10px;
+    max-width: var(--dv-admin-shell-width);
+    margin: 14px auto 16px;
+    padding: 12px;
+    border: 1px solid var(--dv-admin-border);
+    border-radius: var(--dv-admin-radius);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.92)),
+        #fff;
+    box-shadow: var(--dv-admin-shadow-soft);
+}
+
+.dv-store-settings-page .dv-store-live-preview-main,
+.dv-store-settings-page .dv-store-live-preview-marketplace {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d8e8f8;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.dv-store-settings-page .dv-store-live-preview-logo,
+.dv-store-settings-page .dv-store-live-preview-ozon-icon {
+    display: grid;
+    width: 62px;
+    height: 48px;
+    flex: 0 0 auto;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #c8def6;
+    border-radius: 12px;
+    background: #f7fbff;
+}
+
+.dv-store-settings-page .dv-store-live-preview-logo img,
+.dv-store-settings-page .dv-store-live-preview-ozon-icon img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.dv-store-settings-page .dv-store-live-preview-logo span,
+.dv-store-settings-page .dv-store-live-preview-ozon-icon span {
+    padding: 0 8px;
+    color: #0b5fc7;
+    font-size: 11px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.dv-store-settings-page .dv-store-live-preview-main strong,
+.dv-store-settings-page .dv-store-live-preview-marketplace strong {
+    display: block;
+    color: #0b1727;
+    font-size: 14px;
+    line-height: 1.25;
+}
+
+.dv-store-settings-page .dv-store-live-preview-main p {
+    max-width: 720px;
+    margin: 4px 0 0;
+    color: #52667f;
+    line-height: 1.45;
+}
+
+.dv-store-settings-page .dv-store-live-preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.dv-store-settings-page .dv-store-live-preview-meta span,
+.dv-store-settings-page .dv-store-live-preview-marketplace span,
+.dv-store-settings-page .dv-store-live-preview-marketplace small {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #eef5fc;
+    color: #52667f;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.dv-store-settings-page .dv-store-live-preview-marketplace {
+    justify-content: space-between;
+}
+
+.dv-store-settings-page .dv-store-live-preview-marketplace > span {
+    color: #005bff;
+}
+
+@media (max-width: 960px) {
+    .dv-store-settings-page .dv-store-live-preview {
+        grid-template-columns: 1fr;
+    }
+}
+
 .dv-store-settings-page .dv-store-settings-filters {
     display: flex;
     flex-wrap: wrap;

@@ -293,6 +293,74 @@ function dv_render_store_profile_overview( $profile ) {
     <?php
 }
 
+function dv_render_store_profile_preview( $profile, $theme_options = array() ) {
+    $name        = trim( (string) ( $profile['name'] ?? '' ) );
+    $logo_url    = trim( (string) ( $profile['logo_url'] ?? '' ) );
+    $ozon_url    = trim( (string) ( $profile['ozon_url'] ?? '' ) );
+    $ozon_icon   = trim( (string) ( $profile['ozon_icon_url'] ?? '' ) );
+    $footer_text = trim( (string) ( $profile['footer_description'] ?? '' ) );
+    $phone       = trim( (string) ( $profile['phone_display'] ?? ( $profile['phone'] ?? '' ) ) );
+    $email       = trim( (string) ( $profile['email'] ?? '' ) );
+
+    if ( '' === $name ) {
+        $name = html_entity_decode( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;', ENT_QUOTES, 'UTF-8' );
+    }
+
+    if ( '' === $footer_text ) {
+        $footer_text = html_entity_decode( '&#1050;&#1088;&#1072;&#1090;&#1082;&#1086;&#1077; &#1086;&#1087;&#1080;&#1089;&#1072;&#1085;&#1080;&#1077; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072; &#1087;&#1086;&#1103;&#1074;&#1080;&#1090;&#1089;&#1103; &#1074; &#1092;&#1091;&#1090;&#1077;&#1088;&#1077;.', ENT_QUOTES, 'UTF-8' );
+    }
+
+    $header_ozon_enabled  = ! empty( $theme_options['header_ozon_enabled'] );
+    $product_ozon_enabled = ! empty( $theme_options['product_ozon_enabled'] );
+    ?>
+    <section class="dv-store-live-preview" aria-label="<?php echo esc_attr( html_entity_decode( '&#1055;&#1088;&#1077;&#1074;&#1100;&#1102; &#1087;&#1088;&#1086;&#1092;&#1080;&#1083;&#1103; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ) ); ?>">
+      <div class="dv-store-live-preview-main">
+        <div class="dv-store-live-preview-logo<?php echo '' === $logo_url ? ' is-empty' : ''; ?>">
+          <?php if ( '' !== $logo_url ) : ?>
+            <img src="<?php echo esc_url( $logo_url ); ?>" alt="">
+          <?php else : ?>
+            <span><?php echo esc_html( $name ); ?></span>
+          <?php endif; ?>
+        </div>
+        <div>
+          <strong><?php echo esc_html( $name ); ?></strong>
+          <p><?php echo esc_html( $footer_text ); ?></p>
+          <div class="dv-store-live-preview-meta">
+            <?php if ( '' !== $phone ) : ?>
+              <span><?php echo esc_html( $phone ); ?></span>
+            <?php endif; ?>
+            <?php if ( '' !== $email ) : ?>
+              <span><?php echo esc_html( $email ); ?></span>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <div class="dv-store-live-preview-marketplace">
+        <span><?php echo esc_html( html_entity_decode( 'Ozon', ENT_QUOTES, 'UTF-8' ) ); ?></span>
+        <strong><?php echo esc_html( '' !== $ozon_url ? html_entity_decode( '&#1057;&#1089;&#1099;&#1083;&#1082;&#1072; &#1079;&#1072;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ) : html_entity_decode( '&#1053;&#1077; &#1079;&#1072;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;&#1086;', ENT_QUOTES, 'UTF-8' ) ); ?></strong>
+        <small>
+          <?php
+          echo esc_html(
+              sprintf(
+                  'Header: %1$s · Product: %2$s',
+                  $header_ozon_enabled ? 'on' : 'off',
+                  $product_ozon_enabled ? 'on' : 'off'
+              )
+          );
+          ?>
+        </small>
+        <div class="dv-store-live-preview-ozon-icon<?php echo '' === $ozon_icon ? ' is-empty' : ''; ?>">
+          <?php if ( '' !== $ozon_icon ) : ?>
+            <img src="<?php echo esc_url( $ozon_icon ); ?>" alt="">
+          <?php else : ?>
+            <span>OZ</span>
+          <?php endif; ?>
+        </div>
+      </div>
+    </section>
+    <?php
+}
+
 function dv_render_store_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
@@ -309,6 +377,7 @@ function dv_render_store_settings_page() {
     <div class="wrap dv-suite-page dv-store-settings-page">
       <?php dv_render_admin_suite_header( 'dv-store-settings', $labels['page_title'], $labels['section_desc'] ); ?>
       <?php dv_render_store_profile_overview( $profile ); ?>
+      <?php dv_render_store_profile_preview( $profile, $theme_options ); ?>
 
       <?php
       if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {

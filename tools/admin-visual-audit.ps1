@@ -96,6 +96,13 @@ foreach ($page in $pages) {
     Assert-TextInFile -RelativePath $page.File -Needle 'dv_render_admin_suite_footer' -Label "$($page.Name) footer"
 }
 
+Assert-TextInFile -RelativePath 'inc/theme-options-admin.php' -Needle 'function dv_admin_suite_section_commands' -Label 'Suite section commands'
+Assert-TextInFile -RelativePath 'inc/theme-options-admin.php' -Needle 'function dv_render_admin_suite_health_strip' -Label 'Suite health strip helper'
+Assert-TextInFile -RelativePath 'inc/theme-options-admin.php' -Needle 'dv_render_admin_suite_health_strip( $current_page )' -Label 'Suite health strip render'
+Assert-TextInFile -RelativePath 'inc/theme-options-admin.php' -Needle 'assets/css/admin-components.css' -Label 'Admin components enqueue'
+Assert-TextInFile -RelativePath 'inc/store-admin.php' -Needle 'function dv_render_store_profile_preview' -Label 'Store profile preview'
+Assert-TextInFile -RelativePath 'inc/store-admin.php' -Needle 'dv_render_store_profile_preview( $profile, $theme_options )' -Label 'Store profile preview render'
+
 $suiteCssParts = @(
     '--dv-admin-shell-width',
     '--dv-admin-surface',
@@ -127,10 +134,36 @@ foreach ($part in $suiteCssParts) {
     Assert-TextInFile -RelativePath 'assets/css/theme-admin.css' -Needle $part -Label 'Suite visual CSS'
 }
 
+$componentCssParts = @(
+    'body.dv-suite-admin .dv-suite-health-strip',
+    'body.dv-suite-admin .dv-suite-health-card',
+    'body.dv-suite-admin.dv-suite-density-compact .widefat',
+    'body.dv-suite-admin .dv-suite-toast',
+    'body.dv-suite-admin .dv-suite-danger-zone',
+    'body.dv-suite-admin .dv-suite-density-toggle:focus-visible'
+)
+
+foreach ($part in $componentCssParts) {
+    Assert-TextInFile -RelativePath 'assets/css/admin-components.css' -Needle $part -Label 'Admin component CSS'
+}
+
+$componentJsParts = @(
+    'setupDensityToggle();',
+    'setupSaveFeedback();',
+    'dvSuiteDensityMode',
+    'dv-suite-toast',
+    'settings-updated'
+)
+
+foreach ($part in $componentJsParts) {
+    Assert-TextInFile -RelativePath 'assets/js/theme-admin.js' -Needle $part -Label 'Admin component JS'
+}
+
 $pageCssParts = @(
     @{ File = 'assets/css/theme-options-admin.css'; Needle = '.dv-theme-options-page' },
     @{ File = 'assets/css/seo-admin.css'; Needle = '.dv-seo-tools' },
     @{ File = 'assets/css/store-admin.css'; Needle = '.dv-store-settings-page' },
+    @{ File = 'assets/css/store-admin.css'; Needle = '.dv-store-live-preview' },
     @{ File = 'assets/css/theme-content-admin.css'; Needle = '.dv-theme-content-page' },
     @{ File = 'assets/css/theme-admin.css'; Needle = '.dv-uploads-tools-page' },
     @{ File = 'assets/css/theme-admin.css'; Needle = '.dv-slug-tools-card' }

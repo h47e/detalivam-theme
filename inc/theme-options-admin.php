@@ -607,6 +607,67 @@ function dv_admin_suite_dashboard_task_commands() {
     return $commands;
 }
 
+function dv_admin_suite_section_commands() {
+    return array(
+        array(
+            'label'       => dv_theme_options_label( 'Favicon / site icon' ),
+            'description' => dv_theme_options_label( 'Текущий site_icon, восстановление и кандидаты из backup.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-favicon' ),
+            'keywords'    => 'favicon site icon site_icon restore preview logo файлы иконка',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Ozon-кнопки' ),
+            'description' => dv_theme_options_label( 'URL, иконка и включение marketplace-блоков.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-store-settings#dv-store-marketplaces' ),
+            'keywords'    => 'ozon marketplace маркетплейс кнопка иконка header product',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Checkout / оплата' ),
+            'description' => dv_theme_options_label( 'Корзина, оформление заказа и отложенная оплата.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-checkout' ),
+            'keywords'    => 'checkout payment deferred order оплата заказ кнопка',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Поиск и live-search' ),
+            'description' => dv_theme_options_label( 'Dropdown, страница результатов, индекс и кеш поиска.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-search' ),
+            'keywords'    => 'search live-search dropdown index поиск подсказки',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Footer сайта' ),
+            'description' => dv_theme_options_label( 'Нижние тексты, ссылки, контакты и описание магазина.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-content#dv-theme-footer' ),
+            'keywords'    => 'footer футер контакты ссылки текст низ сайта',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Главная страница' ),
+            'description' => dv_theme_options_label( 'Блоки главной, заголовки, ссылки и лимиты вывода.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-theme-content#dv-theme-home' ),
+            'keywords'    => 'home front page главная популярные похожие блоки',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'SEO preview' ),
+            'description' => dv_theme_options_label( 'Title, description, canonical, robots и проверка URL.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-seo-tools#dv-seo-preview' ),
+            'keywords'    => 'seo preview title description canonical robots head',
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Uploads cleanup' ),
+            'description' => dv_theme_options_label( 'Unused, orphan, план очистки и перенос в backup.' ),
+            'group'       => dv_theme_options_label( 'Секции' ),
+            'url'         => admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-cleanup' ),
+            'keywords'    => 'uploads cleanup unused orphan backup очистка файлы',
+        ),
+    );
+}
+
 function dv_admin_suite_command_items( $pages, $quick_actions ) {
     $items = array();
 
@@ -628,6 +689,17 @@ function dv_admin_suite_command_items( $pages, $quick_actions ) {
             'url'         => $action['url'],
             'external'    => ! empty( $action['external'] ),
             'keywords'    => (string) ( $action['keywords'] ?? '' ),
+        );
+    }
+
+    foreach ( dv_admin_suite_section_commands() as $command ) {
+        $items[] = array(
+            'label'       => $command['label'],
+            'description' => $command['description'],
+            'group'       => (string) ( $command['group'] ?? dv_theme_options_label( 'Секции' ) ),
+            'url'         => $command['url'],
+            'external'    => ! empty( $command['external'] ),
+            'keywords'    => (string) ( $command['keywords'] ?? '' ),
         );
     }
 
@@ -658,6 +730,54 @@ function dv_admin_suite_command_items( $pages, $quick_actions ) {
     }
 
     return $items;
+}
+
+function dv_render_admin_suite_health_strip( $current_page = '' ) {
+    if ( ! current_user_can( 'manage_options' ) || ! function_exists( 'dv_dashboard_status_summary' ) ) {
+        return;
+    }
+
+    $summary    = dv_dashboard_status_summary();
+    $tasks      = function_exists( 'dv_dashboard_status_tasks' ) ? dv_dashboard_status_tasks( $summary ) : array();
+    $audit      = isset( $summary['audit'] ) && is_array( $summary['audit'] ) ? $summary['audit'] : array();
+    $uploads    = isset( $summary['uploads'] ) && is_array( $summary['uploads'] ) ? $summary['uploads'] : array();
+    $seo_health = isset( $summary['seo_health'] ) && is_array( $summary['seo_health'] ) ? $summary['seo_health'] : array();
+    $release    = isset( $summary['release'] ) && is_array( $summary['release'] ) ? $summary['release'] : array();
+    $task_count = count( $tasks );
+    ?>
+    <aside class="dv-suite-health-strip" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Сводка состояния админки ДеталиВам' ) ); ?>">
+        <a class="dv-suite-health-card<?php echo $task_count ? ' is-warning' : ' is-ok'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+            <span><?php echo esc_html( dv_theme_options_label( 'Задачи' ) ); ?></span>
+            <strong><?php echo esc_html( number_format_i18n( $task_count ) ); ?></strong>
+            <small><?php echo esc_html( $task_count ? dv_theme_options_label( 'открыть очередь' ) : dv_theme_options_label( 'критичных нет' ) ); ?></small>
+        </a>
+        <a class="dv-suite-health-card<?php echo empty( $audit['issue_count'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+            <span><?php echo esc_html( dv_theme_options_label( 'Товары' ) ); ?></span>
+            <strong><?php echo esc_html( number_format_i18n( absint( $audit['total'] ?? 0 ) ) ); ?></strong>
+            <small><?php echo esc_html( sprintf( dv_theme_options_label( 'замечаний: %d' ), absint( $audit['issue_count'] ?? 0 ) ) ); ?></small>
+        </a>
+        <a class="dv-suite-health-card<?php echo ! empty( $seo_health ) && absint( $seo_health['score'] ?? 0 ) >= 80 ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-seo-tools' ) ); ?>">
+            <span>SEO</span>
+            <strong><?php echo esc_html( ! empty( $seo_health ) ? absint( $seo_health['score'] ?? 0 ) . '%' : '-' ); ?></strong>
+            <small><?php echo esc_html( ! empty( $seo_health['label'] ) ? (string) $seo_health['label'] : dv_theme_options_label( 'проверить' ) ); ?></small>
+        </a>
+        <a class="dv-suite-health-card<?php echo ! empty( $uploads['status'] ) && 'ok' === (string) $uploads['status'] ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-uploads-tools#dv-uploads-audit' ) ); ?>">
+            <span>Uploads</span>
+            <strong><?php echo esc_html( (string) ( $uploads['label'] ?? '-' ) ); ?></strong>
+            <small><?php echo esc_html( (string) ( $uploads['hint'] ?? dv_theme_options_label( 'аудит файлов' ) ) ); ?></small>
+        </a>
+        <a class="dv-suite-health-card<?php echo ! empty( $release['has_smoke_check'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+            <span><?php echo esc_html( dv_theme_options_label( 'Релиз' ) ); ?></span>
+            <strong><?php echo esc_html( sprintf( 'v%s', (string) ( $release['version'] ?? ( defined( 'DV_VERSION' ) ? DV_VERSION : '1.0.0' ) ) ) ); ?></strong>
+            <small><?php echo esc_html( ! empty( $release['commit_short'] ) ? (string) $release['commit_short'] : dv_theme_options_label( 'локальная тема' ) ); ?></small>
+        </a>
+        <button type="button" class="dv-suite-health-card dv-suite-density-toggle" data-dv-density-toggle aria-pressed="false">
+            <span><?php echo esc_html( dv_theme_options_label( 'Таблицы' ) ); ?></span>
+            <strong><?php echo esc_html( dv_theme_options_label( 'Компактно' ) ); ?></strong>
+            <small><?php echo esc_html( dv_theme_options_label( 'переключить плотность' ) ); ?></small>
+        </button>
+    </aside>
+    <?php
 }
 
 function dv_render_admin_suite_header( $current_page, $title, $description = '' ) {
@@ -701,6 +821,7 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
                 </a>
             <?php endforeach; ?>
         </div>
+        <?php dv_render_admin_suite_health_strip( $current_page ); ?>
         <div class="dv-suite-command" id="dv-suite-command" hidden>
             <div class="dv-suite-command-backdrop" data-dv-command-close></div>
             <div class="dv-suite-command-panel" role="dialog" aria-modal="true" aria-labelledby="dv-suite-command-title">
@@ -827,12 +948,20 @@ function dv_theme_admin_enqueue_common_assets() {
         return;
     }
 
-    $css_path = DV_DIR . '/assets/css/theme-admin.css';
+    $components_css_path = DV_DIR . '/assets/css/admin-components.css';
+    $css_path            = DV_DIR . '/assets/css/theme-admin.css';
+
+    wp_enqueue_style(
+        'dv-admin-components',
+        DV_URI . '/assets/css/admin-components.css',
+        array(),
+        file_exists( $components_css_path ) ? filemtime( $components_css_path ) : DV_VERSION
+    );
 
     wp_enqueue_style(
         'dv-theme-admin',
         DV_URI . '/assets/css/theme-admin.css',
-        array(),
+        array( 'dv-admin-components' ),
         file_exists( $css_path ) ? filemtime( $css_path ) : DV_VERSION
     );
 
@@ -853,6 +982,10 @@ function dv_theme_admin_enqueue_common_assets() {
             'unsavedMessage' => dv_theme_options_label( '&#1045;&#1089;&#1090;&#1100; &#1085;&#1077;&#1089;&#1086;&#1093;&#1088;&#1072;&#1085;&#1105;&#1085;&#1085;&#1099;&#1077; &#1080;&#1079;&#1084;&#1077;&#1085;&#1077;&#1085;&#1080;&#1103;' ),
             'dirtyCount'     => dv_theme_options_label( '&#1048;&#1079;&#1084;&#1077;&#1085;&#1077;&#1085;&#1086; &#1087;&#1086;&#1083;&#1077;&#1081;:' ),
             'saveLabel'      => dv_theme_options_label( '&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100;' ),
+            'savedMessage'   => dv_theme_options_label( 'Сохранено' ),
+            'savingMessage'  => dv_theme_options_label( 'Сохраняем...' ),
+            'compactLabel'   => dv_theme_options_label( 'Компактно' ),
+            'normalLabel'    => dv_theme_options_label( 'Обычно' ),
         )
     );
 }
@@ -1537,12 +1670,20 @@ function dv_dashboard_status_enqueue_assets( $hook_suffix ) {
         return;
     }
 
-    $css_path = DV_DIR . '/assets/css/theme-admin.css';
+    $components_css_path = DV_DIR . '/assets/css/admin-components.css';
+    $css_path            = DV_DIR . '/assets/css/theme-admin.css';
+
+    wp_enqueue_style(
+        'dv-admin-components-dashboard',
+        DV_URI . '/assets/css/admin-components.css',
+        array(),
+        file_exists( $components_css_path ) ? filemtime( $components_css_path ) : DV_VERSION
+    );
 
     wp_enqueue_style(
         'dv-theme-admin-dashboard',
         DV_URI . '/assets/css/theme-admin.css',
-        array(),
+        array( 'dv-admin-components-dashboard' ),
         file_exists( $css_path ) ? filemtime( $css_path ) : DV_VERSION
     );
 }

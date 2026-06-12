@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function () {
   setupLocalSearchShortcut();
   setupCommandPalette();
   setupConfirmActions();
+  setupDensityToggle();
+  setupSaveFeedback();
   setupUnsavedForms();
 
   function setupSuiteHeader() {
@@ -355,6 +357,96 @@ document.addEventListener('DOMContentLoaded', function () {
       event.preventDefault();
       event.stopPropagation();
       announcer.textContent = 'Действие отменено.';
+    }, true);
+  }
+
+  function setupDensityToggle() {
+    var button = document.querySelector('[data-dv-density-toggle]');
+
+    if (!button) {
+      return;
+    }
+
+    var labels = window.dvThemeAdmin || {};
+    var storageKey = 'dvSuiteDensityMode';
+
+    function setMode(mode) {
+      var isCompact = mode === 'compact';
+
+      document.body.classList.toggle('dv-suite-density-compact', isCompact);
+      button.setAttribute('aria-pressed', isCompact ? 'true' : 'false');
+
+      var value = button.querySelector('strong');
+
+      if (value) {
+        value.textContent = isCompact
+          ? (labels.compactLabel || 'Compact')
+          : (labels.normalLabel || 'Normal');
+      }
+    }
+
+    try {
+      setMode(window.localStorage.getItem(storageKey) || 'normal');
+    } catch (error) {
+      setMode('normal');
+    }
+
+    button.addEventListener('click', function () {
+      var nextMode = document.body.classList.contains('dv-suite-density-compact') ? 'normal' : 'compact';
+
+      setMode(nextMode);
+
+      try {
+        window.localStorage.setItem(storageKey, nextMode);
+      } catch (error) {
+        // Storage can be disabled in hardened browsers; the visual toggle still works for this page.
+      }
+    });
+  }
+
+  function setupSaveFeedback() {
+    var labels = window.dvThemeAdmin || {};
+    var params = new URLSearchParams(window.location.search || '');
+    var saved = params.get('settings-updated') === 'true'
+      || params.get('dv_notice') === 'saved'
+      || params.get('dv_store_notice') === 'saved'
+      || params.get('dv_theme_content_notice') === 'saved';
+
+    function showToast(message, type) {
+      var toast = document.createElement('div');
+
+      toast.className = 'dv-suite-toast is-' + (type || 'info');
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      window.setTimeout(function () {
+        toast.classList.add('is-visible');
+      }, 20);
+
+      window.setTimeout(function () {
+        toast.classList.remove('is-visible');
+      }, 2800);
+
+      window.setTimeout(function () {
+        toast.remove();
+      }, 3400);
+    }
+
+    if (saved) {
+      showToast(labels.savedMessage || 'Saved', 'success');
+    }
+
+    document.addEventListener('submit', function (event) {
+      var form = event.target;
+
+      if (!form || !form.matches || !form.matches('[data-dv-unsaved-form]')) {
+        return;
+      }
+
+      document.body.classList.add('dv-suite-is-saving');
+      showToast(labels.savingMessage || 'Saving...', 'info');
     }, true);
   }
 
