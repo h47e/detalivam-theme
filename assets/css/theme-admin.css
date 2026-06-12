@@ -1384,9 +1384,13 @@
 }
 
 body.dv-suite-admin {
-    --dv-admin-bg: #eef4fb;
-    --dv-admin-panel: rgba(255, 255, 255, 0.94);
-    --dv-admin-border: #c8def6;
+    --dv-admin-bg: #f3f7fb;
+    --dv-admin-panel: rgba(255, 255, 255, 0.96);
+    --dv-admin-surface: #ffffff;
+    --dv-admin-surface-soft: #f7fbff;
+    --dv-admin-surface-muted: #eef5fc;
+    --dv-admin-border: #d3e2f3;
+    --dv-admin-border-strong: #b9d3ef;
     --dv-admin-text: #0b1727;
     --dv-admin-muted: #5d7188;
     --dv-admin-blue: #0073e6;
@@ -1398,13 +1402,16 @@ body.dv-suite-admin {
     --dv-admin-warning-bg: #fff8e6;
     --dv-admin-danger-bg: #fff1f2;
     --dv-admin-shell-width: 1480px;
+    --dv-admin-radius: 14px;
+    --dv-admin-radius-sm: 10px;
+    --dv-admin-shadow-soft: 0 12px 30px rgba(20, 54, 91, 0.06);
+    --dv-admin-shadow-panel: 0 16px 38px rgba(20, 54, 91, 0.07);
     background: var(--dv-admin-bg);
 }
 
 body.dv-suite-admin #wpcontent {
     background:
-        radial-gradient(circle at 12% 0, rgba(0, 115, 230, 0.12), transparent 32rem),
-        linear-gradient(180deg, #f5f9fe 0%, #eef4fb 100%);
+        linear-gradient(180deg, #f8fbfe 0%, var(--dv-admin-bg) 100%);
 }
 
 body.dv-suite-admin #wpbody-content {
@@ -1421,7 +1428,7 @@ body.dv-suite-admin .wrap.dv-suite-page {
     width: auto;
     max-width: none;
     margin: 0;
-    padding: 22px 24px 52px;
+    padding: 18px 22px 48px;
 }
 
 body.dv-suite-admin .dv-suite-page {
@@ -1474,8 +1481,38 @@ body.dv-suite-admin .error {
 
 body.dv-suite-admin .dv-suite-header {
     position: static;
-    margin-top: 18px;
-    margin-bottom: 18px;
+    grid-template-columns: minmax(260px, 0.72fr) minmax(460px, 1.28fr);
+    gap: 12px 16px;
+    margin-top: 10px;
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    border-color: var(--dv-admin-border);
+    border-radius: var(--dv-admin-radius);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 251, 255, 0.98) 100%);
+    box-shadow: var(--dv-admin-shadow-soft);
+}
+
+body.dv-suite-admin .dv-suite-kicker {
+    margin-bottom: 5px;
+    letter-spacing: 0.06em;
+}
+
+body.dv-suite-admin .dv-suite-header h1 {
+    font-size: 24px;
+}
+
+body.dv-suite-admin .dv-suite-header p {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+body.dv-suite-admin .dv-suite-command-button {
+    margin-top: 10px;
+    padding: 7px 10px 7px 12px;
+    border-color: var(--dv-admin-border-strong);
+    box-shadow: none;
 }
 
 body.dv-suite-admin .dv-options-overview,
@@ -1495,16 +1532,23 @@ body.dv-suite-admin .dv-options-overview {
 
 body.dv-suite-admin .dv-suite-tabs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+    gap: 7px;
     align-content: stretch;
     justify-content: stretch;
 }
 
 body.dv-suite-admin .dv-suite-tab {
-    min-height: 64px;
-    padding: 10px 12px;
+    min-height: 58px;
+    padding: 9px 11px;
+    border-radius: 12px;
+    background: var(--dv-admin-surface);
     flex: initial;
+}
+
+body.dv-suite-admin .dv-suite-tab.is-active {
+    background: var(--dv-admin-info-bg);
+    box-shadow: inset 0 3px 0 var(--dv-admin-blue);
 }
 
 body.dv-suite-admin .dv-suite-tab span {
@@ -1514,14 +1558,17 @@ body.dv-suite-admin .dv-suite-tab span {
 
 body.dv-suite-admin .dv-suite-quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 7px;
 }
 
 body.dv-suite-admin .dv-suite-quick-actions a,
 body.dv-suite-admin .dv-suite-quick-actions button {
-    min-height: 42px;
-    padding: 9px 12px;
+    min-height: 40px;
+    padding: 8px 11px;
+    border-radius: 12px;
+    background: var(--dv-admin-surface);
+    box-shadow: none;
 }
 
 body.dv-suite-admin .dv-suite-page-nav {
@@ -1538,11 +1585,11 @@ body.dv-suite-admin .dv-theme-section,
 body.dv-suite-admin .dv-theme-content-toolbar,
 body.dv-suite-admin .dv-store-settings-toolbar {
     border-color: var(--dv-admin-border);
-    border-radius: 18px;
+    border-radius: var(--dv-admin-radius);
     background:
-        radial-gradient(circle at 100% 0, rgba(0, 115, 230, 0.06), transparent 24rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.92)),
         var(--dv-admin-panel);
-    box-shadow: 0 18px 44px rgba(20, 54, 91, 0.07);
+    box-shadow: var(--dv-admin-shadow-panel);
 }
 
 body.dv-suite-admin input[type="text"],
@@ -1606,8 +1653,15 @@ body.dv-suite-admin .form-table textarea {
 
 body.dv-suite-admin .button,
 body.dv-suite-admin .button.button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 13px;
     border-radius: 10px;
     font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
 }
 
 body.dv-suite-admin .button.button-primary {
@@ -1616,8 +1670,142 @@ body.dv-suite-admin .button.button-primary {
     box-shadow: 0 10px 24px rgba(0, 115, 230, 0.18);
 }
 
+body.dv-suite-admin .button.button-secondary,
+body.dv-suite-admin .button:not(.button-primary) {
+    border-color: var(--dv-admin-border-strong);
+    background: var(--dv-admin-surface);
+    color: #13538e;
+    box-shadow: none;
+}
+
+body.dv-suite-admin .button-link-delete,
+body.dv-suite-admin .button.is-danger,
+body.dv-suite-admin .button.dv-is-danger {
+    border-color: #fecaca;
+    background: var(--dv-admin-danger-bg);
+    color: #b91c1c;
+}
+
+body.dv-suite-admin .button:disabled,
+body.dv-suite-admin .button.disabled,
+body.dv-suite-admin .button[disabled] {
+    border-color: #d8e3ee !important;
+    background: #eef3f8 !important;
+    color: #7c8fa3 !important;
+    box-shadow: none !important;
+    opacity: 1;
+}
+
 body.dv-suite-admin .notice {
     border-radius: 12px;
+}
+
+body.dv-suite-admin .widefat {
+    border-color: var(--dv-admin-border);
+    border-radius: var(--dv-admin-radius-sm);
+    background: var(--dv-admin-surface);
+    overflow: hidden;
+    box-shadow: var(--dv-admin-shadow-soft);
+}
+
+body.dv-suite-admin .widefat thead th,
+body.dv-suite-admin .widefat thead td {
+    padding: 10px 14px;
+    border-bottom-color: var(--dv-admin-border);
+    background: var(--dv-admin-surface-muted);
+    color: #52667f;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+body.dv-suite-admin .widefat tbody th,
+body.dv-suite-admin .widefat tbody td {
+    padding: 10px 14px;
+    border-bottom-color: #e7eff8;
+    color: var(--dv-admin-text);
+    vertical-align: middle;
+}
+
+body.dv-suite-admin .widefat.striped > tbody > :nth-child(odd) {
+    background-color: #fbfdff;
+}
+
+body.dv-suite-admin .widefat tbody tr:hover {
+    background-color: #f2f8ff;
+}
+
+body.dv-suite-admin .widefat code,
+body.dv-suite-admin .widefat .code {
+    display: inline-flex;
+    max-width: 100%;
+    padding: 3px 6px;
+    border-radius: 7px;
+    background: #f1f6fc;
+    color: #123456;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+body.dv-suite-admin .dv-suite-status,
+body.dv-suite-admin .dv-suite-badge,
+body.dv-suite-admin .dv-admin-badge,
+body.dv-suite-admin .dv-admin-nav-count,
+body.dv-suite-admin .dv-store-nav-empty,
+body.dv-suite-admin .dv-store-section-empty,
+body.dv-suite-admin .dv-theme-nav-empty,
+body.dv-suite-admin .dv-theme-section-empty,
+body.dv-suite-admin .dv-theme-content-empty-summary,
+body.dv-suite-admin .dv-store-empty-summary,
+body.dv-suite-admin .dv-uploads-badge,
+body.dv-suite-admin .dv-seo-tools-count,
+body.dv-suite-admin .dv-seo-tools-section-meta span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 4px 9px;
+    border: 1px solid var(--dv-admin-border);
+    border-radius: 999px;
+    background: var(--dv-admin-surface-soft);
+    color: #31516f;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+body.dv-suite-admin .dv-suite-status.is-ok,
+body.dv-suite-admin .dv-suite-badge.is-ok,
+body.dv-suite-admin .dv-admin-badge.is-ok,
+body.dv-suite-admin .dv-store-nav-empty.is-ok,
+body.dv-suite-admin .dv-store-section-empty.is-ok,
+body.dv-suite-admin .dv-theme-nav-empty.is-ok,
+body.dv-suite-admin .dv-theme-section-empty.is-ok,
+body.dv-suite-admin .dv-theme-content-empty-summary.is-ok,
+body.dv-suite-admin .dv-store-empty-summary.is-ok {
+    border-color: #b8e7c9;
+    background: var(--dv-admin-ok-bg);
+    color: #087a34;
+}
+
+body.dv-suite-admin .dv-suite-status.is-warning,
+body.dv-suite-admin .dv-suite-badge.is-warning,
+body.dv-suite-admin .dv-admin-badge.is-warning,
+body.dv-suite-admin .dv-uploads-badge.is-warning {
+    border-color: #f8d890;
+    background: var(--dv-admin-warning-bg);
+    color: #8a5a00;
+}
+
+body.dv-suite-admin .dv-suite-status.is-danger,
+body.dv-suite-admin .dv-suite-badge.is-danger,
+body.dv-suite-admin .dv-admin-badge.is-danger {
+    border-color: #fecaca;
+    background: var(--dv-admin-danger-bg);
+    color: #b91c1c;
 }
 
 body.dv-suite-admin a:focus-visible,
