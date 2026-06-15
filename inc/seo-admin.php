@@ -722,12 +722,12 @@ function dv_seo_tools_get_preview_rows() {
                 continue;
             }
 
-            $title = ! empty( $custom_page['seo_title'] )
-                ? $custom_page['seo_title']
-                : $custom_page['title'] . ' | ' . $shop;
-            $desc = ! empty( $custom_page['seo_description'] )
-                ? $custom_page['seo_description']
-                : trim( (string) ( $custom_page['intro'] ?? '' ) . ' ' . ( $custom_page['body'] ?? '' ) );
+            $title = function_exists( 'dv_build_custom_service_page_seo_title' )
+                ? dv_build_custom_service_page_seo_title( $custom_page )
+                : ( ! empty( $custom_page['seo_title'] ) ? $custom_page['seo_title'] : $custom_page['title'] . ' | ' . $shop );
+            $desc  = function_exists( 'dv_build_custom_service_page_seo_description' )
+                ? dv_build_custom_service_page_seo_description( $custom_page )
+                : ( ! empty( $custom_page['seo_description'] ) ? $custom_page['seo_description'] : trim( (string) ( $custom_page['intro'] ?? '' ) . ' ' . ( $custom_page['body'] ?? '' ) ) );
 
             dv_seo_tools_add_preview_row(
                 $rows,

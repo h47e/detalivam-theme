@@ -44,10 +44,10 @@ function dv_seo_labels() {
         'search_title'            => html_entity_decode( '&#1055;&#1086;&#1080;&#1089;&#1082; &#1079;&#1072;&#1087;&#1095;&#1072;&#1089;&#1090;&#1077;&#1081;: %1$s%2$s | %3$s', ENT_QUOTES, 'UTF-8' ),
         'contacts_title'          => html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072; &#1072;&#1074;&#1090;&#1086;&#1079;&#1072;&#1087;&#1095;&#1072;&#1089;&#1090;&#1077;&#1081; &#1074; %1$s | %2$s', ENT_QUOTES, 'UTF-8' ),
         'about_title'             => html_entity_decode( '&#1054; &#1082;&#1086;&#1084;&#1087;&#1072;&#1085;&#1080;&#1080; %1$s &mdash; &#1072;&#1074;&#1090;&#1086;&#1079;&#1072;&#1087;&#1095;&#1072;&#1089;&#1090;&#1080; &#1074; %2$s', ENT_QUOTES, 'UTF-8' ),
-        'delivery_title'          => 'Доставка автозапчастей по России | %s',
-        'return_title'            => 'Возврат товара | %s',
-        'privacy_title'           => 'Политика конфиденциальности | %s',
-        'agreement_title'         => 'Пользовательское соглашение | %s',
+        'delivery_title'          => 'Доставка автозапчастей по России: условия | %s',
+        'return_title'            => 'Возврат и обмен автозапчастей: условия | %s',
+        'privacy_title'           => 'Политика конфиденциальности и обработка данных | %s',
+        'agreement_title'         => 'Пользовательское соглашение и правила заказа | %s',
         'home'                    => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;', ENT_QUOTES, 'UTF-8' ),
         'catalog'                 => html_entity_decode( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
         'search_label'            => html_entity_decode( '&#1055;&#1086;&#1080;&#1089;&#1082;: %s', ENT_QUOTES, 'UTF-8' ),
@@ -869,6 +869,52 @@ function dv_build_term_seo_title( $term, $paged_suffix = '' ) {
     return $name . ' — купить, цены в каталоге' . $paged_suffix . ' | ' . dv_get_seo_shop_name();
 }
 
+function dv_build_custom_service_page_seo_title( $custom_page ) {
+    if ( ! is_array( $custom_page ) || empty( $custom_page['title'] ) ) {
+        return '';
+    }
+
+    if ( ! empty( $custom_page['seo_title'] ) ) {
+        return dv_trim_seo_text( $custom_page['seo_title'], 90 );
+    }
+
+    return dv_trim_seo_text(
+        sprintf(
+            '%1$s: автозапчасти и кузовные детали | %2$s',
+            trim( (string) $custom_page['title'] ),
+            dv_get_seo_shop_name()
+        ),
+        90
+    );
+}
+
+function dv_build_custom_service_page_seo_description( $custom_page ) {
+    if ( ! is_array( $custom_page ) || empty( $custom_page['title'] ) ) {
+        return '';
+    }
+
+    if ( ! empty( $custom_page['seo_description'] ) ) {
+        return dv_trim_seo_text( $custom_page['seo_description'], 170 );
+    }
+
+    $description = trim( (string) ( $custom_page['intro'] ?? '' ) . ' ' . ( $custom_page['body'] ?? '' ) );
+    if ( '' !== $description && dv_seo_mb_strlen( wp_strip_all_tags( $description ) ) >= 120 ) {
+        return dv_trim_seo_text( $description, 170 );
+    }
+
+    $fallback = sprintf(
+        '%1$s: подбор автозапчастей, кузовных деталей и элементов системы выпуска под регулярные заказы. Согласуем наличие, условия и доставку по России.',
+        trim( (string) $custom_page['title'] )
+    );
+
+    $short_description = dv_trim_seo_text( $description, 118 );
+    if ( '' !== $short_description ) {
+        $fallback = $short_description . ' ' . $fallback;
+    }
+
+    return dv_trim_seo_text( $fallback, 170 );
+}
+
 function dv_build_product_seo_description( $product ) {
     if ( ! $product instanceof WC_Product ) {
         return '';
@@ -1016,14 +1062,7 @@ function dv_get_seo_description() {
     if ( function_exists( 'dv_get_current_custom_service_page' ) ) {
         $custom_page = dv_get_current_custom_service_page();
         if ( ! empty( $custom_page ) ) {
-            if ( ! empty( $custom_page['seo_description'] ) ) {
-                return dv_trim_seo_text( $custom_page['seo_description'], 170 );
-            }
-
-            $description = trim( (string) ( $custom_page['intro'] ?? '' ) . ' ' . ( $custom_page['body'] ?? '' ) );
-            if ( '' !== $description ) {
-                return dv_trim_seo_text( $description, 170 );
-            }
+            return dv_build_custom_service_page_seo_description( $custom_page );
         }
     }
 
@@ -1285,9 +1324,7 @@ function dv_filter_document_title_parts( $parts ) {
     } elseif ( function_exists( 'dv_get_current_custom_service_page' ) ) {
         $custom_page = dv_get_current_custom_service_page();
         if ( ! empty( $custom_page ) ) {
-            $parts['title'] = ! empty( $custom_page['seo_title'] )
-                ? $custom_page['seo_title']
-                : $custom_page['title'] . ' | ' . dv_get_seo_shop_name();
+            $parts['title'] = dv_build_custom_service_page_seo_title( $custom_page );
         }
     }
 
