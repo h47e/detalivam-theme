@@ -1797,7 +1797,7 @@ function dv_seo_tools_count_products_with_meta( $meta_key ) {
              WHERE p.post_type = %s
                AND p.post_status = %s
                AND pm.meta_key = %s
-               AND pm.meta_value <> ''",
+               AND TRIM(pm.meta_value) <> ''",
             'product',
             'publish',
             $meta_key
@@ -3043,11 +3043,11 @@ function dv_seo_tools_query_duplicate_meta_groups( $object_type, $meta_key, $lim
     if ( 'term' === $object_type ) {
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT tm.meta_value AS value, COUNT(*) AS total, GROUP_CONCAT(tm.term_id ORDER BY tm.term_id DESC SEPARATOR ',') AS ids
+                "SELECT TRIM(tm.meta_value) AS value, COUNT(*) AS total, GROUP_CONCAT(tm.term_id ORDER BY tm.term_id DESC SEPARATOR ',') AS ids
                 FROM {$wpdb->termmeta} tm
                 INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = tm.term_id
                 WHERE tm.meta_key = %s AND tt.taxonomy = %s AND TRIM(tm.meta_value) <> ''
-                GROUP BY tm.meta_value
+                GROUP BY TRIM(tm.meta_value)
                 HAVING COUNT(*) > 1
                 ORDER BY total DESC
                 LIMIT %d",
@@ -3060,11 +3060,11 @@ function dv_seo_tools_query_duplicate_meta_groups( $object_type, $meta_key, $lim
     } else {
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT pm.meta_value AS value, COUNT(*) AS total, GROUP_CONCAT(pm.post_id ORDER BY pm.post_id DESC SEPARATOR ',') AS ids
+                "SELECT TRIM(pm.meta_value) AS value, COUNT(*) AS total, GROUP_CONCAT(pm.post_id ORDER BY pm.post_id DESC SEPARATOR ',') AS ids
                 FROM {$wpdb->postmeta} pm
                 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
                 WHERE pm.meta_key = %s AND p.post_type = %s AND p.post_status = %s AND TRIM(pm.meta_value) <> ''
-                GROUP BY pm.meta_value
+                GROUP BY TRIM(pm.meta_value)
                 HAVING COUNT(*) > 1
                 ORDER BY total DESC
                 LIMIT %d",
@@ -3130,17 +3130,127 @@ function dv_seo_tools_get_duplicate_report( $overview ) {
                 'groups' => dv_seo_tools_query_duplicate_meta_groups( 'term', '_dv_seo_description' ),
             ),
         ),
+        'effective_duplicates' => dv_seo_tools_get_effective_duplicate_report(),
+    );
+}
+
+function dv_seo_tools_add_effective_duplicate_value( &$values, $type, $value, $label, $url = '', $edit_url = '' ) {
+    $value = trim( wp_strip_all_tags( (string) $value ) );
+
+    if ( '' === $value ) {
+        return;
+    }
+
+    if ( ! isset( $values[ $type ][ $value ] ) ) {
+        $values[ $type ][ $value ] = array();
+    }
+
+    $values[ $type ][ $value ][] = array(
+        'label'    => trim( wp_strip_all_tags( (string) $label ) ),
+        'url'      => esc_url_raw( $url ),
+        'edit_url' => esc_url_raw( $edit_url ),
+    );
+}
+
+function dv_seo_tools_build_effective_duplicate_groups( $items, $limit = 8 ) {
+    $groups = array();
+
+    foreach ( $items as $value => $links ) {
+        if ( count( $links ) < 2 ) {
+            continue;
+        }
+
+        $groups[] = array(
+            'value' => (string) $value,
+            'total' => count( $links ),
+            'links' => array_slice( $links, 0, 6 ),
+        );
+    }
+
+    usort(
+        $groups,
+        static function ( $a, $b ) {
+            return (int) $b['total'] <=> (int) $a['total'];
+        }
+    );
+
+    return array_slice( $groups, 0, max( 1, absint( $limit ) ) );
+}
+
+function dv_seo_tools_get_effective_duplicate_report() {
+    $values = array(
+        'title'       => array(),
+        'description' => array(),
+    );
+
+    if ( taxonomy_exists( 'product_cat' ) ) {
+        $terms = get_terms(
+            array(
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => false,
+            )
+        );
+
+        if ( ! is_wp_error( $terms ) ) {
+            foreach ( $terms as $term ) {
+                if ( ! $term instanceof WP_Term ) {
+                    continue;
+                }
+
+                $term_link = get_term_link( $term );
+                $url       = is_wp_error( $term_link ) ? '' : $term_link;
+                $edit_url  = get_edit_term_link( $term->term_id, 'product_cat' );
+                $title     = function_exists( 'dv_get_term_seo_title_override' ) ? dv_get_term_seo_title_override( $term->term_id ) : '';
+                $desc      = function_exists( 'dv_get_term_seo_description_override' ) ? dv_get_term_seo_description_override( $term->term_id ) : '';
+
+                if ( '' === $title && function_exists( 'dv_build_term_seo_title' ) ) {
+                    $title = dv_build_term_seo_title( $term );
+                }
+
+                if ( '' === $desc && function_exists( 'dv_build_term_seo_description' ) ) {
+                    $desc = dv_build_term_seo_description( $term );
+                }
+
+                dv_seo_tools_add_effective_duplicate_value( $values, 'title', $title, 'Категория: ' . $term->name, $url, $edit_url );
+                dv_seo_tools_add_effective_duplicate_value( $values, 'description', $desc, 'Категория: ' . $term->name, $url, $edit_url );
+            }
+        }
+    }
+
+    foreach ( dv_seo_tools_get_preview_rows() as $row ) {
+        $type = (string) ( $row['type'] ?? '' );
+        if ( false !== strpos( $type, 'Пример ' ) ) {
+            continue;
+        }
+
+        dv_seo_tools_add_effective_duplicate_value( $values, 'title', $row['title'] ?? '', $type, $row['url'] ?? '', $row['edit_url'] ?? '' );
+        dv_seo_tools_add_effective_duplicate_value( $values, 'description', $row['description'] ?? '', $type, $row['url'] ?? '', $row['edit_url'] ?? '' );
+    }
+
+    return array(
+        array(
+            'label'  => 'Фактические Title категорий и страниц',
+            'groups' => dv_seo_tools_build_effective_duplicate_groups( $values['title'] ),
+        ),
+        array(
+            'label'  => 'Фактические Description категорий и страниц',
+            'groups' => dv_seo_tools_build_effective_duplicate_groups( $values['description'] ),
+        ),
     );
 }
 
 function dv_seo_tools_render_duplicate_report( $report ) {
     $duplicate_total = 0;
     $empty_total     = 0;
+    $effective_duplicate_total = 0;
     foreach ( $report['empty'] as $item ) {
         $empty_total += absint( $item['count'] ?? 0 );
     }
     foreach ( $report['duplicates'] as $section ) {
         $duplicate_total += count( $section['groups'] );
+    }
+    foreach ( $report['effective_duplicates'] as $section ) {
+        $effective_duplicate_total += count( $section['groups'] );
     }
     ?>
     <details id="dv-seo-duplicates" class="dv-seo-tools-card dv-seo-tools-card--wide dv-seo-tools-section">
@@ -3152,6 +3262,7 @@ function dv_seo_tools_render_duplicate_report( $report ) {
             <span class="dv-seo-tools-section-meta">
                 <span class="is-ok"><?php echo esc_html( number_format_i18n( $empty_total ) ); ?> авто-вместо-ручных</span>
                 <span class="<?php echo $duplicate_total > 0 ? 'is-warning' : 'is-ok'; ?>"><?php echo esc_html( number_format_i18n( $duplicate_total ) ); ?> дублей</span>
+                <span class="<?php echo $effective_duplicate_total > 0 ? 'is-warning' : 'is-ok'; ?>"><?php echo esc_html( number_format_i18n( $effective_duplicate_total ) ); ?> факт. дублей</span>
             </span>
         </summary>
         <div class="dv-seo-tools-section-body">
@@ -3182,6 +3293,40 @@ function dv_seo_tools_render_duplicate_report( $report ) {
                                         <div>
                                             <?php foreach ( $group['links'] as $link ) : ?>
                                                 <a href="<?php echo esc_url( $link['url'] ); ?>">#<?php echo esc_html( absint( $link['id'] ) ); ?></a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ( 0 === $effective_duplicate_total ) : ?>
+                <div class="dv-seo-tools-empty-state">Дубли фактических title/description категорий и служебных страниц не найдены.</div>
+            <?php else : ?>
+                <div class="dv-seo-duplicate-list">
+                    <?php foreach ( $report['effective_duplicates'] as $section ) : ?>
+                        <?php if ( empty( $section['groups'] ) ) : ?>
+                            <?php continue; ?>
+                        <?php endif; ?>
+                        <article class="dv-seo-duplicate-section">
+                            <h3><?php echo esc_html( $section['label'] ); ?></h3>
+                            <?php foreach ( $section['groups'] as $group ) : ?>
+                                <div class="dv-seo-duplicate-group">
+                                    <span><?php echo esc_html( number_format_i18n( absint( $group['total'] ) ) ); ?> совпад.</span>
+                                    <p><?php echo esc_html( dv_trim_seo_text( $group['value'], 180 ) ); ?></p>
+                                    <?php if ( ! empty( $group['links'] ) ) : ?>
+                                        <div>
+                                            <?php foreach ( $group['links'] as $link ) : ?>
+                                                <?php if ( ! empty( $link['edit_url'] ) ) : ?>
+                                                    <a href="<?php echo esc_url( $link['edit_url'] ); ?>"><?php echo esc_html( $link['label'] ); ?></a>
+                                                <?php elseif ( ! empty( $link['url'] ) ) : ?>
+                                                    <a href="<?php echo esc_url( $link['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $link['label'] ); ?></a>
+                                                <?php else : ?>
+                                                    <span><?php echo esc_html( $link['label'] ); ?></span>
+                                                <?php endif; ?>
                                             <?php endforeach; ?>
                                         </div>
                                     <?php endif; ?>
