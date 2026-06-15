@@ -109,6 +109,7 @@ function dv_render_product_seo_metabox( $post ) {
     $product         = function_exists( 'wc_get_product' ) ? wc_get_product( $post->ID ) : null;
     $auto_title      = $product && function_exists( 'dv_build_product_seo_title' ) ? dv_build_product_seo_title( $product ) : '';
     $auto_desc       = $product && function_exists( 'dv_build_product_seo_description' ) ? dv_build_product_seo_description( $product ) : '';
+    $last_change     = dv_seo_tools_get_post_seo_change_summary( $post->ID );
     ?>
     <p>
         <label for="dv-seo-title"><strong>SEO Title</strong></label>
@@ -121,6 +122,7 @@ function dv_render_product_seo_metabox( $post ) {
         <span class="description"><?php echo esc_html( $labels['field_hint_desc'] ); ?></span>
     </p>
     <p class="description"><?php echo esc_html( $labels['desc_auto_both'] ); ?></p>
+    <p class="description">Последнее SEO-изменение: <?php echo esc_html( $last_change ); ?></p>
     <?php if ( $auto_title || $auto_desc ) : ?>
         <div class="dv-seo-admin-preview">
             <strong><?php echo esc_html( $labels['auto_preview_title'] ); ?></strong>
@@ -149,6 +151,85 @@ function dv_add_product_seo_metabox() {
 }
 add_action( 'add_meta_boxes', 'dv_add_product_seo_metabox' );
 
+function dv_seo_tools_current_user_label( $user_id ) {
+    $user_id = absint( $user_id );
+    if ( ! $user_id ) {
+        return '';
+    }
+
+    $user = get_userdata( $user_id );
+    if ( ! $user ) {
+        return '';
+    }
+
+    return $user->display_name ? $user->display_name : $user->user_login;
+}
+
+function dv_seo_tools_source_label( $source ) {
+    return 'manual' === sanitize_key( $source ) ? 'ручной' : 'авто';
+}
+
+function dv_seo_tools_record_post_seo_change( $post_id, $source ) {
+    update_post_meta( $post_id, '_dv_seo_last_changed_at', time() );
+    update_post_meta( $post_id, '_dv_seo_last_changed_by', get_current_user_id() );
+    update_post_meta( $post_id, '_dv_seo_last_source', sanitize_key( $source ) );
+}
+
+function dv_seo_tools_record_term_seo_change( $term_id, $source ) {
+    update_term_meta( $term_id, '_dv_seo_last_changed_at', time() );
+    update_term_meta( $term_id, '_dv_seo_last_changed_by', get_current_user_id() );
+    update_term_meta( $term_id, '_dv_seo_last_source', sanitize_key( $source ) );
+}
+
+function dv_seo_tools_format_seo_change_summary( $timestamp, $source, $user_id = 0 ) {
+    $parts = array( dv_seo_tools_source_label( $source ) );
+
+    if ( $timestamp > 0 ) {
+        $parts[] = date_i18n( 'd.m.Y H:i', (int) $timestamp );
+    } else {
+        $parts[] = 'дата не фиксировалась';
+    }
+
+    $user_label = dv_seo_tools_current_user_label( $user_id );
+    if ( '' !== $user_label ) {
+        $parts[] = $user_label;
+    }
+
+    return implode( ', ', $parts );
+}
+
+function dv_seo_tools_get_post_seo_change_summary( $post_id ) {
+    $source    = get_post_meta( $post_id, '_dv_seo_last_source', true );
+    $timestamp = absint( get_post_meta( $post_id, '_dv_seo_last_changed_at', true ) );
+    $user_id   = absint( get_post_meta( $post_id, '_dv_seo_last_changed_by', true ) );
+
+    if ( '' === $source ) {
+        $has_manual = '' !== (string) get_post_meta( $post_id, '_dv_seo_title', true )
+            || '' !== (string) get_post_meta( $post_id, '_dv_seo_description', true );
+        $source = $has_manual ? 'manual' : 'auto';
+    }
+
+    return dv_seo_tools_format_seo_change_summary( $timestamp, $source, $user_id );
+}
+
+function dv_seo_tools_get_term_seo_change_summary( $term_id ) {
+    $source    = get_term_meta( $term_id, '_dv_seo_last_source', true );
+    $timestamp = absint( get_term_meta( $term_id, '_dv_seo_last_changed_at', true ) );
+    $user_id   = absint( get_term_meta( $term_id, '_dv_seo_last_changed_by', true ) );
+
+    if ( '' === $source ) {
+        $has_manual = '' !== (string) get_term_meta( $term_id, '_dv_seo_title', true )
+            || '' !== (string) get_term_meta( $term_id, '_dv_seo_description', true )
+            || '' !== (string) get_term_meta( $term_id, '_dv_seo_h1', true )
+            || '' !== trim( wp_strip_all_tags( (string) get_term_meta( $term_id, '_dv_seo_intro', true ) ) )
+            || '' !== trim( wp_strip_all_tags( (string) get_term_meta( $term_id, '_dv_seo_text', true ) ) )
+            || ! empty( get_term_meta( $term_id, '_dv_seo_faq', true ) );
+        $source = $has_manual ? 'manual' : 'auto';
+    }
+
+    return dv_seo_tools_format_seo_change_summary( $timestamp, $source, $user_id );
+}
+
 function dv_save_product_seo_meta( $post_id ) {
     if ( ! isset( $_POST['dv_product_seo_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['dv_product_seo_nonce'] ) ), 'dv_save_product_seo' ) ) {
         return;
@@ -168,6 +249,8 @@ function dv_save_product_seo_meta( $post_id ) {
 
     $seo_title       = sanitize_text_field( wp_unslash( $_POST['dv_seo_title'] ?? '' ) );
     $seo_description = sanitize_textarea_field( wp_unslash( $_POST['dv_seo_description'] ?? '' ) );
+    $previous_title  = (string) get_post_meta( $post_id, '_dv_seo_title', true );
+    $previous_desc   = (string) get_post_meta( $post_id, '_dv_seo_description', true );
 
     if ( '' !== $seo_title ) {
         update_post_meta( $post_id, '_dv_seo_title', $seo_title );
@@ -179,6 +262,10 @@ function dv_save_product_seo_meta( $post_id ) {
         update_post_meta( $post_id, '_dv_seo_description', $seo_description );
     } else {
         delete_post_meta( $post_id, '_dv_seo_description' );
+    }
+
+    if ( $previous_title !== $seo_title || $previous_desc !== $seo_description ) {
+        dv_seo_tools_record_post_seo_change( $post_id, ( '' !== $seo_title || '' !== $seo_description ) ? 'manual' : 'auto' );
     }
 }
 add_action( 'save_post_product', 'dv_save_product_seo_meta' );
@@ -240,9 +327,14 @@ function dv_product_cat_seo_edit_fields( $term ) {
     $auto_intro      = function_exists( 'dv_build_term_seo_intro' ) ? dv_build_term_seo_intro( $term ) : '';
     $auto_text       = function_exists( 'dv_build_term_seo_text' ) ? dv_build_term_seo_text( $term ) : '';
     $auto_faq        = function_exists( 'dv_build_term_default_faq' ) ? dv_build_term_default_faq( $term ) : array();
+    $last_change     = dv_seo_tools_get_term_seo_change_summary( $term->term_id );
     ?>
     <tr class="form-field">
         <th colspan="2"><h2><?php echo esc_html( $labels['content_title'] ); ?></h2></th>
+    </tr>
+    <tr class="form-field">
+        <th scope="row">Последнее SEO-изменение</th>
+        <td><p class="description"><?php echo esc_html( $last_change ); ?></p></td>
     </tr>
     <tr class="form-field">
         <th scope="row"><label for="dv-term-seo-h1"><?php echo esc_html( $labels['h1_label'] ); ?></label></th>
@@ -358,6 +450,16 @@ function dv_save_product_cat_seo_meta( $term_id ) {
     $seo_text        = wp_kses_post( wp_unslash( $_POST['dv_term_seo_text'] ?? '' ) );
     $raw_faq         = isset( $_POST['dv_term_faq'] ) && is_array( $_POST['dv_term_faq'] ) ? wp_unslash( $_POST['dv_term_faq'] ) : array();
     $seo_faq         = array();
+    $previous_faq    = get_term_meta( $term_id, '_dv_seo_faq', true );
+    $previous_faq    = is_array( $previous_faq ) ? $previous_faq : array();
+    $previous_values = array(
+        'title'       => (string) get_term_meta( $term_id, '_dv_seo_title', true ),
+        'description' => (string) get_term_meta( $term_id, '_dv_seo_description', true ),
+        'h1'          => (string) get_term_meta( $term_id, '_dv_seo_h1', true ),
+        'intro'       => (string) get_term_meta( $term_id, '_dv_seo_intro', true ),
+        'text'        => (string) get_term_meta( $term_id, '_dv_seo_text', true ),
+        'faq'         => $previous_faq,
+    );
 
     foreach ( $raw_faq as $index => $faq_item ) {
         if ( ! is_array( $faq_item ) ) {
@@ -411,6 +513,26 @@ function dv_save_product_cat_seo_meta( $term_id ) {
         update_term_meta( $term_id, '_dv_seo_faq', $seo_faq );
     } else {
         delete_term_meta( $term_id, '_dv_seo_faq' );
+    }
+
+    $current_values = array(
+        'title'       => $seo_title,
+        'description' => $seo_description,
+        'h1'          => $seo_h1,
+        'intro'       => $seo_intro,
+        'text'        => $seo_text,
+        'faq'         => $seo_faq,
+    );
+
+    if ( $previous_values !== $current_values ) {
+        $has_manual = '' !== $seo_title
+            || '' !== $seo_description
+            || '' !== $seo_h1
+            || '' !== trim( wp_strip_all_tags( $seo_intro ) )
+            || '' !== trim( wp_strip_all_tags( $seo_text ) )
+            || ! empty( $seo_faq );
+
+        dv_seo_tools_record_term_seo_change( $term_id, $has_manual ? 'manual' : 'auto' );
     }
 }
 add_action( 'created_product_cat', 'dv_save_product_cat_seo_meta' );
@@ -575,7 +697,7 @@ function dv_seo_tools_text_has_city( $text ) {
     return false !== dv_seo_mb_stripos( wp_strip_all_tags( (string) $text ), $city );
 }
 
-function dv_seo_tools_add_preview_row( &$rows, $type, $url, $title, $description, $source = 'Авто', $edit_url = '', $check_city = false ) {
+function dv_seo_tools_add_preview_row( &$rows, $type, $url, $title, $description, $source = 'Авто', $edit_url = '', $check_city = false, $last_change = '' ) {
     $title       = trim( wp_strip_all_tags( (string) $title ) );
     $description = trim( wp_strip_all_tags( (string) $description ) );
 
@@ -588,6 +710,7 @@ function dv_seo_tools_add_preview_row( &$rows, $type, $url, $title, $description
         'robots'      => 'index, follow',
         'source'      => $source,
         'edit_url'    => $edit_url,
+        'last_change' => $last_change,
         'city_issue'  => $check_city && ( dv_seo_tools_text_has_city( $title ) || dv_seo_tools_text_has_city( $description ) ),
     );
 }
@@ -657,7 +780,7 @@ function dv_seo_tools_get_preview_rows() {
             }
 
             if ( ! is_wp_error( $term_link ) ) {
-                dv_seo_tools_add_preview_row( $rows, 'Пример категории', $term_link, $term_title, $term_desc, 'Авто/ручные поля категории', get_edit_term_link( $term->term_id, 'product_cat' ), true );
+                dv_seo_tools_add_preview_row( $rows, 'Пример категории', $term_link, $term_title, $term_desc, 'Авто/ручные поля категории', get_edit_term_link( $term->term_id, 'product_cat' ), true, dv_seo_tools_get_term_seo_change_summary( $term->term_id ) );
             }
         }
     }
@@ -690,7 +813,7 @@ function dv_seo_tools_get_preview_rows() {
                 $product_desc = dv_build_product_seo_description( $product );
             }
 
-            dv_seo_tools_add_preview_row( $rows, 'Пример товара', get_permalink( $product->get_id() ), $product_title, $product_desc, 'Авто/ручные поля товара', get_edit_post_link( $product->get_id(), '' ), true );
+            dv_seo_tools_add_preview_row( $rows, 'Пример товара', get_permalink( $product->get_id() ), $product_title, $product_desc, 'Авто/ручные поля товара', get_edit_post_link( $product->get_id(), '' ), true, dv_seo_tools_get_post_seo_change_summary( $product->get_id() ) );
         }
     }
 
@@ -865,6 +988,10 @@ function dv_seo_tools_format_checked_at( $timestamp ) {
 }
 
 function dv_seo_tools_cache_status_label( $report ) {
+    if ( ! empty( $report['needs_check'] ) ) {
+        return 'не проверялось';
+    }
+
     return ! empty( $report['cached'] ) ? 'из кеша' : 'свежая';
 }
 
@@ -945,7 +1072,38 @@ function dv_seo_tools_clear_robots_report_cache() {
     dv_seo_tools_clear_remembered_transient_key( 'dv_seo_robots_report_cache_key', 'dv_seo_robots_report_v1' );
 }
 
-function dv_seo_tools_get_sitemap_http_report( $stats, $force = false ) {
+function dv_seo_tools_empty_sitemap_http_report() {
+    return array(
+        'ready'       => false,
+        'cached'      => false,
+        'needs_check' => true,
+        'checked_at'  => 0,
+        'items'       => array(),
+        'issues'      => array(),
+    );
+}
+
+function dv_seo_tools_empty_robots_report() {
+    return array(
+        'public'                    => (bool) get_option( 'blog_public' ),
+        'cached'                    => false,
+        'needs_check'               => true,
+        'status'                    => 0,
+        'content_type'              => '',
+        'bytes'                     => 0,
+        'source'                    => 'not checked',
+        'checked_at'                => 0,
+        'line_count'                => 0,
+        'has_sitemap'               => false,
+        'has_global_block'          => false,
+        'has_ajax_allow'            => false,
+        'has_service_disallow'      => false,
+        'missing_service_disallows' => array(),
+        'issues'                    => array(),
+    );
+}
+
+function dv_seo_tools_get_sitemap_http_report( $stats, $force = false, $allow_fetch = true ) {
     $targets = array(
         'index'  => array(
             'label'    => 'sitemap.xml',
@@ -985,6 +1143,10 @@ function dv_seo_tools_get_sitemap_http_report( $stats, $force = false ) {
             $cached_report['cached'] = true;
             return $cached_report;
         }
+    }
+
+    if ( ! $allow_fetch ) {
+        return dv_seo_tools_empty_sitemap_http_report();
     }
 
     $report = array(
@@ -1095,7 +1257,7 @@ function dv_seo_tools_get_sitemap_http_report( $stats, $force = false ) {
     return $report;
 }
 
-function dv_seo_tools_get_robots_report( $force = false ) {
+function dv_seo_tools_get_robots_report( $force = false, $allow_fetch = true ) {
     $cache_key = dv_seo_tools_robots_report_cache_key();
     dv_seo_tools_remember_transient_key( 'dv_seo_robots_report_cache_key', $cache_key );
 
@@ -1105,6 +1267,10 @@ function dv_seo_tools_get_robots_report( $force = false ) {
             $cached_report['cached'] = true;
             return $cached_report;
         }
+    }
+
+    if ( ! $allow_fetch ) {
+        return dv_seo_tools_empty_robots_report();
     }
 
     $public   = (bool) get_option( 'blog_public' );
@@ -1406,6 +1572,55 @@ function dv_seo_tools_normalize_check_url( $raw_url ) {
     return $url;
 }
 
+function dv_seo_tools_noindex_reason_for_url( $url ) {
+    $path  = dv_seo_tools_url_path( $url );
+    $query = (string) wp_parse_url( (string) $url, PHP_URL_QUERY );
+    $args  = array();
+
+    if ( '' !== $query ) {
+        parse_str( $query, $args );
+    }
+
+    if ( isset( $args['s'] ) ) {
+        return 'поиск по сайту закрыт от индексации';
+    }
+
+    foreach ( array_keys( $args ) as $query_key ) {
+        if ( function_exists( 'dv_is_seo_indexing_noise_query_key' ) && dv_is_seo_indexing_noise_query_key( (string) $query_key ) ) {
+            return 'фильтр или служебный параметр URL закрыт от индексации';
+        }
+    }
+
+    if ( function_exists( 'wc_get_page_permalink' ) ) {
+        $woocommerce_pages = array(
+            'cart'       => 'корзина',
+            'checkout'   => 'checkout',
+            'myaccount'  => 'личный кабинет',
+        );
+
+        foreach ( $woocommerce_pages as $page_key => $label ) {
+            $page_url = wc_get_page_permalink( $page_key );
+            if ( $page_url && ! is_wp_error( $page_url ) && $path === dv_seo_tools_url_path( $page_url ) ) {
+                return 'служебная WooCommerce-страница: ' . $label;
+            }
+        }
+    }
+
+    if ( function_exists( 'dv_get_core_service_page_slugs' ) ) {
+        foreach ( dv_get_core_service_page_slugs() as $slug ) {
+            if ( '/' . trim( (string) $slug, '/' ) === $path ) {
+                return 'служебная информационная страница';
+            }
+        }
+    }
+
+    if ( false !== strpos( $path . '/', '/page/' ) ) {
+        return 'страница пагинации закрыта от индексации';
+    }
+
+    return '';
+}
+
 function dv_seo_tools_fetch_head_report( $raw_url ) {
     $url = dv_seo_tools_normalize_check_url( $raw_url );
 
@@ -1453,6 +1668,7 @@ function dv_seo_tools_fetch_head_report( $raw_url ) {
         'description' => dv_seo_tools_find_meta_content( $head, 'name', 'description' ),
         'canonical'   => dv_seo_tools_find_link_href( $head, 'canonical' ),
         'robots'      => dv_seo_tools_find_meta_content( $head, 'name', 'robots' ),
+        'noindex_reason' => dv_seo_tools_noindex_reason_for_url( $url ),
         'og_title'    => dv_seo_tools_find_meta_content( $head, 'property', 'og:title' ),
         'og_image'    => dv_seo_tools_find_meta_content( $head, 'property', 'og:image' ),
         'og_image_alt' => dv_seo_tools_find_meta_content( $head, 'property', 'og:image:alt' ),
@@ -1682,6 +1898,15 @@ function dv_seo_tools_get_head_issues( $report ) {
         );
     }
 
+    if ( false !== strpos( $robots, 'noindex' ) || false !== strpos( $x_robots, 'noindex' ) ) {
+        $issues[] = array(
+            'level' => ! empty( $report['noindex_reason'] ) ? 'warning' : 'info',
+            'text'  => ! empty( $report['noindex_reason'] )
+                ? 'Почему noindex: ' . $report['noindex_reason']
+                : 'Почему noindex: явная причина по URL не распознана, проверьте шаблон страницы и фильтры robots.',
+        );
+    }
+
     $issues[] = array(
         'level' => (int) $report['json_ld'] > 0 ? 'good' : 'warning',
         'text'  => (int) $report['json_ld'] > 0 ? 'JSON-LD найден: ' . (int) $report['json_ld'] : 'JSON-LD не найден',
@@ -1750,6 +1975,7 @@ function dv_seo_tools_render_head_report( $report ) {
         'Description'    => $report['description'],
         'Canonical'      => $report['canonical'],
         'Robots'         => $report['robots'],
+        'Почему noindex' => $report['noindex_reason'] ?? '',
         'OG title'       => $report['og_title'],
         'OG image'       => $report['og_image'],
         'OG image alt'   => $report['og_image_alt'],
@@ -1873,6 +2099,7 @@ function dv_seo_tools_get_manual_overview() {
                     'text'           => ! empty( $field_statuses['text']['filled'] ),
                     'faq'            => ! empty( $field_statuses['faq']['filled'] ),
                     'edit_link'      => get_edit_term_link( $term->term_id, 'product_cat' ),
+                    'last_change'    => dv_seo_tools_get_term_seo_change_summary( $term->term_id ),
                 );
             }
         }
@@ -1994,6 +2221,7 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                         <th>Верхний текст</th>
                         <th>Нижний текст</th>
                         <th>FAQ</th>
+                        <th>SEO изменено</th>
                         <th>Готовность</th>
                         <th>Недостаёт</th>
                         <th>Действие</th>
@@ -2029,6 +2257,7 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                             <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['intro'] ?? array( 'status' => 'none' ) ); ?></td>
                             <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['text'] ?? array( 'status' => 'none' ) ); ?></td>
                             <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['faq'] ?? array( 'status' => 'none' ) ); ?></td>
+                            <td><span class="dv-seo-tools-muted"><?php echo esc_html( $item['last_change'] ?? '' ); ?></span></td>
                             <td>
                                 <span class="dv-seo-tools-mini-progress">
                                     <i style="width: <?php echo esc_attr( $ready_percent ); ?>%;"></i>
@@ -2050,7 +2279,7 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                         </tr>
                     <?php endforeach; ?>
                     <tr class="dv-seo-tools-empty-row" data-dv-seo-category-empty hidden>
-                        <td colspan="9">По текущим условиям категории не найдены.</td>
+                        <td colspan="10">По текущим условиям категории не найдены.</td>
                     </tr>
                 </tbody>
             </table>
@@ -2211,6 +2440,11 @@ function dv_seo_tools_empty_product_gaps_result( $sample_limit = 8, $audit_pendi
         'is_stale'            => false,
         'checked_at'          => 0,
         'sample_limit'        => $sample_limit,
+        'effective_duplicate_values' => array(
+            'title'       => array(),
+            'description' => array(),
+        ),
+        'effective_duplicate_products' => dv_seo_tools_empty_product_effective_duplicate_sections(),
         'samples'             => array(
             'missing_image'       => array(),
             'missing_image_alt'   => array(),
@@ -2255,10 +2489,31 @@ function dv_seo_tools_scan_product_gap_ids( &$result, $product_ids, $sample_limi
         $excerpt     = trim( wp_strip_all_tags( (string) get_post_field( 'post_excerpt', $product_id ) ) );
         $seo_sku     = $product && function_exists( 'dv_get_product_seo_sku' ) ? dv_get_product_seo_sku( $product ) : '';
         $sample_item = array(
-            'title'     => $title,
-            'edit_link' => $edit_link,
-            'url'       => $permalink,
+            'title'       => $title,
+            'edit_link'   => $edit_link,
+            'url'         => $permalink,
+            'last_change' => dv_seo_tools_get_post_seo_change_summary( $product_id ),
         );
+        $effective_title = function_exists( 'dv_get_product_seo_title_override' ) ? dv_get_product_seo_title_override( $product_id ) : '';
+        $effective_desc  = function_exists( 'dv_get_product_seo_description_override' ) ? dv_get_product_seo_description_override( $product_id ) : '';
+
+        if ( '' === $effective_title && $product && function_exists( 'dv_build_product_seo_title' ) ) {
+            $effective_title = dv_build_product_seo_title( $product );
+        }
+
+        if ( '' === $effective_desc && $product && function_exists( 'dv_build_product_seo_description' ) ) {
+            $effective_desc = dv_build_product_seo_description( $product );
+        }
+
+        if ( ! isset( $result['effective_duplicate_values'] ) || ! is_array( $result['effective_duplicate_values'] ) ) {
+            $result['effective_duplicate_values'] = array(
+                'title'       => array(),
+                'description' => array(),
+            );
+        }
+
+        dv_seo_tools_add_effective_duplicate_value( $result['effective_duplicate_values'], 'title', $effective_title, 'Товар: ' . $title, $permalink, $edit_link );
+        dv_seo_tools_add_effective_duplicate_value( $result['effective_duplicate_values'], 'description', $effective_desc, 'Товар: ' . $title, $permalink, $edit_link );
 
         $thumbnail_id = absint( get_post_thumbnail_id( $product_id ) );
         $gallery_ids  = $product ? $product->get_gallery_image_ids() : array();
@@ -2336,6 +2591,8 @@ function dv_seo_tools_get_product_seo_gaps( $sample_limit = 8, $force_refresh = 
     $result['audit_pending'] = false;
     $result['is_stale']      = false;
     $result['checked_at']    = time();
+    $result['effective_duplicate_products'] = dv_seo_tools_build_product_effective_duplicate_sections( $result['effective_duplicate_values'] ?? array() );
+    unset( $result['effective_duplicate_values'] );
 
     set_transient( $cache_key, $result, 6 * HOUR_IN_SECONDS );
     update_option( dv_seo_tools_product_gaps_snapshot_key( $sample_limit ), $result, false );
@@ -2389,6 +2646,8 @@ function dv_seo_tools_run_product_audit_batch( $offset = 0, $limit = 150, $sampl
     $result['checked_at']    = $is_done ? time() : 0;
 
     if ( $is_done ) {
+        $result['effective_duplicate_products'] = dv_seo_tools_build_product_effective_duplicate_sections( $result['effective_duplicate_values'] ?? array() );
+        unset( $result['effective_duplicate_values'] );
         delete_option( $batch_key );
         set_transient( dv_seo_tools_product_gaps_cache_key( $sample_limit ), $result, 6 * HOUR_IN_SECONDS );
         update_option( dv_seo_tools_product_gaps_snapshot_key( $sample_limit ), $result, false );
@@ -2543,6 +2802,9 @@ function dv_seo_tools_render_product_gaps( $gaps ) {
                                     <strong><?php echo esc_html( $item['title'] ); ?></strong>
                                     <?php if ( ! empty( $item['url'] ) ) : ?>
                                         <br><a href="<?php echo esc_url( $item['url'] ); ?>" target="_blank" rel="noopener">Открыть товар</a>
+                                    <?php endif; ?>
+                                    <?php if ( ! empty( $item['last_change'] ) ) : ?>
+                                        <br><span class="dv-seo-tools-muted">SEO: <?php echo esc_html( $item['last_change'] ); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="dv-seo-tools-actions">
@@ -2773,18 +3035,51 @@ function dv_seo_tools_render_progress_summary( $summary ) {
     <?php
 }
 
-function dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_report = null, $sitemap_http_report = null ) {
+function dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_report = null, $sitemap_http_report = null, $gaps = null ) {
     $percents = array();
     foreach ( $summary as $item ) {
         $percents[] = max( 0, min( 100, (int) ( $item['percent'] ?? 0 ) ) );
     }
 
     $base_score       = ! empty( $percents ) ? (int) round( array_sum( $percents ) / count( $percents ) ) : 0;
-    $has_sitemap_http_report = is_array( $sitemap_http_report );
-    $sitemap_ready    = ! empty( $stats['total'] ) && empty( $stats['warnings'] ) && ( ! $has_sitemap_http_report || ! empty( $sitemap_http_report['ready'] ) );
-    $has_robots_report = is_array( $robots_report );
-    $robots_ready     = ! $has_robots_report || empty( $robots_report['issues'] );
+    $has_sitemap_http_report = is_array( $sitemap_http_report ) && empty( $sitemap_http_report['needs_check'] );
+    $sitemap_ready    = ! empty( $stats['total'] ) && empty( $stats['warnings'] ) && $has_sitemap_http_report && ! empty( $sitemap_http_report['ready'] ) && empty( $sitemap_http_report['issues'] );
+    $has_robots_report = is_array( $robots_report ) && empty( $robots_report['needs_check'] );
+    $robots_ready     = $has_robots_report && empty( $robots_report['issues'] ) && ! empty( $robots_report['public'] ) && empty( $robots_report['has_global_block'] );
     $score            = max( 0, min( 100, (int) round( ( $base_score * 0.85 ) + ( $sitemap_ready ? 8 : 0 ) + ( $robots_ready ? 7 : 0 ) ) ) );
+    $caps             = array();
+
+    if ( empty( $stats['total'] ) ) {
+        $caps[] = array( 35, 'Sitemap пустой: поисковик не получает список страниц.' );
+    } elseif ( ! $has_sitemap_http_report ) {
+        $caps[] = array( 80, 'HTTP-проверка sitemap не запускалась: оценка ограничена до проверки.' );
+    } elseif ( ! empty( $sitemap_http_report['issues'] ) || empty( $sitemap_http_report['ready'] ) ) {
+        $caps[] = array( 55, 'Sitemap отдаётся с ошибками: сначала исправьте XML/HTTP.' );
+    }
+
+    if ( ! $has_robots_report ) {
+        $caps[] = array( 80, 'HTTP-проверка robots.txt не запускалась: оценка ограничена до проверки.' );
+    } elseif ( empty( $robots_report['public'] ) || ! empty( $robots_report['has_global_block'] ) ) {
+        $caps[] = array( 35, 'Robots закрывает сайт от индексации.' );
+    } elseif ( ! empty( $robots_report['issues'] ) ) {
+        $caps[] = array( 55, 'Robots.txt требует исправления.' );
+    }
+
+    if ( is_array( $gaps ) && ! empty( $gaps['audit_pending'] ) ) {
+        $caps[] = array( 60, 'Аудит товаров ещё не запускался: оценка ограничена до фоновой проверки.' );
+    } elseif ( is_array( $gaps ) && ! empty( $gaps['is_stale'] ) ) {
+        $caps[] = array( 70, 'Аудит товаров устарел после изменений каталога.' );
+    }
+
+    if ( ! empty( $caps ) ) {
+        $cap_values = array_map(
+            static function ( $cap ) {
+                return (int) $cap[0];
+            },
+            $caps
+        );
+        $score = min( $score, min( $cap_values ) );
+    }
     $level         = 'bad';
     $label         = 'Требует внимания';
     $message       = 'Начните с критичных пропусков: фото, описания товаров и базовые тексты категорий.';
@@ -2797,6 +3092,11 @@ function dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_repo
         $level   = 'warning';
         $label   = 'Нужно доработать';
         $message = 'Основные элементы есть, но часть посадочных страниц и товаров ещё просит ручной доработки.';
+    }
+
+    if ( ! empty( $caps ) ) {
+        $label   = $score < 65 ? 'Критично' : $label;
+        $message = $caps[0][1];
     }
 
     $action_counts = array(
@@ -2821,7 +3121,42 @@ function dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_repo
         'message'       => $message,
         'sitemap_ready' => $sitemap_ready,
         'robots_ready'  => $robots_ready,
+        'caps'          => $caps,
         'action_counts' => $action_counts,
+    );
+}
+
+function dv_seo_tools_empty_product_effective_duplicate_sections() {
+    return array(
+        array(
+            'label'  => 'Фактические Title товаров',
+            'groups' => array(),
+        ),
+        array(
+            'label'  => 'Фактические Description товаров',
+            'groups' => array(),
+        ),
+    );
+}
+
+function dv_seo_tools_build_product_effective_duplicate_sections( $values ) {
+    $values = wp_parse_args(
+        (array) $values,
+        array(
+            'title'       => array(),
+            'description' => array(),
+        )
+    );
+
+    return array(
+        array(
+            'label'  => 'Фактические Title товаров',
+            'groups' => dv_seo_tools_build_effective_duplicate_groups( (array) $values['title'] ),
+        ),
+        array(
+            'label'  => 'Фактические Description товаров',
+            'groups' => dv_seo_tools_build_effective_duplicate_groups( (array) $values['description'] ),
+        ),
     );
 }
 
@@ -3089,7 +3424,7 @@ function dv_seo_tools_query_duplicate_meta_groups( $object_type, $meta_key, $lim
     );
 }
 
-function dv_seo_tools_get_duplicate_report( $overview ) {
+function dv_seo_tools_get_duplicate_report( $overview, $gaps = null ) {
     $total_products = absint( $overview['total_products'] ?? 0 );
     $total_terms    = absint( $overview['total_terms'] ?? 0 );
 
@@ -3130,7 +3465,7 @@ function dv_seo_tools_get_duplicate_report( $overview ) {
                 'groups' => dv_seo_tools_query_duplicate_meta_groups( 'term', '_dv_seo_description' ),
             ),
         ),
-        'effective_duplicates' => dv_seo_tools_get_effective_duplicate_report(),
+        'effective_duplicates' => dv_seo_tools_get_effective_duplicate_report( $gaps ),
     );
 }
 
@@ -3177,7 +3512,7 @@ function dv_seo_tools_build_effective_duplicate_groups( $items, $limit = 8 ) {
     return array_slice( $groups, 0, max( 1, absint( $limit ) ) );
 }
 
-function dv_seo_tools_get_effective_duplicate_report() {
+function dv_seo_tools_get_effective_duplicate_report( $gaps = null ) {
     $values = array(
         'title'       => array(),
         'description' => array(),
@@ -3227,7 +3562,7 @@ function dv_seo_tools_get_effective_duplicate_report() {
         dv_seo_tools_add_effective_duplicate_value( $values, 'description', $row['description'] ?? '', $type, $row['url'] ?? '', $row['edit_url'] ?? '' );
     }
 
-    return array(
+    $sections = array(
         array(
             'label'  => 'Фактические Title категорий и страниц',
             'groups' => dv_seo_tools_build_effective_duplicate_groups( $values['title'] ),
@@ -3237,6 +3572,12 @@ function dv_seo_tools_get_effective_duplicate_report() {
             'groups' => dv_seo_tools_build_effective_duplicate_groups( $values['description'] ),
         ),
     );
+
+    if ( is_array( $gaps ) && ! empty( $gaps['effective_duplicate_products'] ) && is_array( $gaps['effective_duplicate_products'] ) ) {
+        $sections = array_merge( $sections, $gaps['effective_duplicate_products'] );
+    }
+
+    return $sections;
 }
 
 function dv_seo_tools_render_duplicate_report( $report ) {
@@ -3354,7 +3695,15 @@ function dv_seo_tools_get_action_queue( $overview, $gaps, $stats = null, $robots
         );
     }
 
-    if ( is_array( $sitemap_http_report ) && ! empty( $sitemap_http_report['issues'] ) ) {
+    if ( is_array( $sitemap_http_report ) && ! empty( $sitemap_http_report['needs_check'] ) ) {
+        $actions[] = array(
+            'level' => 'warning',
+            'title' => 'Sitemap HTTP',
+            'text'  => 'HTTP-проверка sitemap ещё не запускалась после очистки кеша. Нажмите «Обновить HTTP-проверки».',
+            'count' => 1,
+            'link'  => admin_url( 'admin.php?page=dv-seo-tools#dv-seo-overview' ),
+        );
+    } elseif ( is_array( $sitemap_http_report ) && ! empty( $sitemap_http_report['issues'] ) ) {
         $actions[] = array(
             'level' => 'bad',
             'title' => 'Sitemap HTTP',
@@ -3364,7 +3713,15 @@ function dv_seo_tools_get_action_queue( $overview, $gaps, $stats = null, $robots
         );
     }
 
-    if ( is_array( $robots_report ) && ! empty( $robots_report['issues'] ) ) {
+    if ( is_array( $robots_report ) && ! empty( $robots_report['needs_check'] ) ) {
+        $actions[] = array(
+            'level' => 'warning',
+            'title' => 'Robots.txt',
+            'text'  => 'HTTP-проверка robots.txt ещё не запускалась после очистки кеша. Нажмите «Обновить HTTP-проверки».',
+            'count' => 1,
+            'link'  => admin_url( 'admin.php?page=dv-seo-tools#dv-seo-overview' ),
+        );
+    } elseif ( is_array( $robots_report ) && ! empty( $robots_report['issues'] ) ) {
         $actions[] = array(
             'level' => 'bad',
             'title' => 'Robots.txt',
@@ -3528,11 +3885,11 @@ function dv_seo_tools_export_report() {
     $gaps     = dv_seo_tools_get_product_seo_gaps();
     $stats    = dv_seo_tools_get_sitemap_stats();
     $progress = dv_seo_tools_get_progress_summary( $overview, $gaps );
-    $duplicates = dv_seo_tools_get_duplicate_report( $overview );
-    $robots_report = dv_seo_tools_get_robots_report();
-    $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats );
+    $duplicates = dv_seo_tools_get_duplicate_report( $overview, $gaps );
+    $robots_report = dv_seo_tools_get_robots_report( false, false );
+    $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats, false, false );
     $actions  = dv_seo_tools_get_action_queue( $overview, $gaps, $stats, $robots_report, $sitemap_http_report );
-    $health   = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report );
+    $health   = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps );
 
     if ( function_exists( 'nocache_headers' ) ) {
         nocache_headers();
@@ -3832,15 +4189,15 @@ function dv_render_seo_tools_page() {
     $overview   = dv_seo_tools_get_manual_overview();
     $gaps       = dv_seo_tools_get_product_seo_gaps();
     $progress   = dv_seo_tools_get_progress_summary( $overview, $gaps );
-    $duplicates = dv_seo_tools_get_duplicate_report( $overview );
+    $duplicates = dv_seo_tools_get_duplicate_report( $overview, $gaps );
     $sitemap    = home_url( '/sitemap.xml' );
     $urlset     = home_url( '/sitemaps.xml' );
     $notice     = isset( $_GET['dv_seo_notice'] ) ? sanitize_key( wp_unslash( $_GET['dv_seo_notice'] ) ) : '';
     $robots_url = home_url( '/robots.txt' );
-    $robots_report = dv_seo_tools_get_robots_report();
-    $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats );
+    $robots_report = dv_seo_tools_get_robots_report( false, false );
+    $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats, false, false );
     $actions    = dv_seo_tools_get_action_queue( $overview, $gaps, $stats, $robots_report, $sitemap_http_report );
-    $health     = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report );
+    $health     = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps );
     $product_audit_state = dv_seo_tools_get_product_audit_state();
     $check_url  = isset( $_GET['dv_seo_check_url'] ) ? esc_url_raw( wp_unslash( $_GET['dv_seo_check_url'] ) ) : '';
     $head_report = null;
@@ -3848,6 +4205,9 @@ function dv_render_seo_tools_page() {
     if ( '' !== $check_url && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'dv_seo_tools_check_url' ) ) {
         $head_report = dv_seo_tools_fetch_head_report( $check_url );
     }
+
+    $sitemap_http_ok = empty( $sitemap_http_report['needs_check'] ) && empty( $sitemap_http_report['issues'] );
+    $robots_ok       = empty( $robots_report['needs_check'] ) && empty( $robots_report['issues'] );
     ?>
     <div class="wrap dv-suite-page dv-seo-tools">
         <?php
@@ -3901,8 +4261,8 @@ function dv_render_seo_tools_page() {
                 </span>
                 <span class="dv-seo-tools-section-meta">
                     <span><?php echo esc_html( number_format_i18n( $stats['total'] ) ); ?> URL</span>
-                    <span class="<?php echo empty( $sitemap_http_report['issues'] ) ? 'is-ok' : 'is-warning'; ?>">sitemap <?php echo empty( $sitemap_http_report['issues'] ) ? 'OK' : 'проверить'; ?></span>
-                    <span class="<?php echo empty( $robots_report['issues'] ) ? 'is-ok' : 'is-warning'; ?>">robots <?php echo empty( $robots_report['issues'] ) ? 'OK' : 'проверить'; ?></span>
+                    <span class="<?php echo $sitemap_http_ok ? 'is-ok' : 'is-warning'; ?>">sitemap <?php echo $sitemap_http_ok ? 'OK' : 'проверить'; ?></span>
+                    <span class="<?php echo $robots_ok ? 'is-ok' : 'is-warning'; ?>">robots <?php echo $robots_ok ? 'OK' : 'проверить'; ?></span>
                 </span>
             </summary>
             <div class="dv-seo-tools-section-body">
@@ -3948,7 +4308,9 @@ function dv_render_seo_tools_page() {
                         <?php endforeach; ?>
                     </dl>
                 <?php endif; ?>
-                <?php if ( ! empty( $sitemap_http_report['issues'] ) ) : ?>
+                <?php if ( ! empty( $sitemap_http_report['needs_check'] ) ) : ?>
+                    <p class="description">HTTP-проверка sitemap не запускалась после очистки кеша. Нажмите «Обновить HTTP-проверки», чтобы проверить sitemap без замедления открытия админки.</p>
+                <?php elseif ( ! empty( $sitemap_http_report['issues'] ) ) : ?>
                     <ul class="dv-seo-tools-mini-list">
                         <?php foreach ( $sitemap_http_report['issues'] as $issue ) : ?>
                             <li><?php echo esc_html( $issue ); ?></li>
@@ -3997,7 +4359,9 @@ function dv_render_seo_tools_page() {
                     <dt>Content-Type</dt><dd><?php echo esc_html( ! empty( $robots_report['content_type'] ) ? $robots_report['content_type'] : 'не указан' ); ?></dd>
                     <dt>Размер</dt><dd><?php echo esc_html( dv_seo_tools_format_bytes( $robots_report['bytes'] ?? 0 ) ); ?></dd>
                 </dl>
-                <?php if ( ! empty( $robots_report['issues'] ) ) : ?>
+                <?php if ( ! empty( $robots_report['needs_check'] ) ) : ?>
+                    <p class="description">HTTP-проверка robots.txt не запускалась после очистки кеша. Нажмите «Обновить HTTP-проверки», чтобы получить свежий статус.</p>
+                <?php elseif ( ! empty( $robots_report['issues'] ) ) : ?>
                     <ul class="dv-seo-tools-mini-list">
                         <?php foreach ( $robots_report['issues'] as $issue ) : ?>
                             <li><?php echo esc_html( $issue ); ?></li>
@@ -4147,6 +4511,9 @@ function dv_render_seo_tools_page() {
                         </td>
                         <td>
                             <?php echo esc_html( $row['source'] ); ?>
+                            <?php if ( ! empty( $row['last_change'] ) ) : ?>
+                                <br><span class="dv-seo-tools-muted">SEO: <?php echo esc_html( $row['last_change'] ); ?></span>
+                            <?php endif; ?>
                             <?php if ( ! empty( $row['city_issue'] ) ) : ?>
                                 <br><span class="dv-seo-tools-issue dv-seo-tools-issue--warning">город в авто-SEO</span>
                             <?php endif; ?>
