@@ -15,6 +15,7 @@ function dv_reserved_service_page_slugs() {
         'vozvrat',
         'return',
         'politika-konfidencialnosti',
+        'politika-konfidentsialnosti',
         'privacy-policy',
         'polzovatelskoe-soglashenie',
         'publichna-oferta',
@@ -65,6 +66,11 @@ function dv_virtual_service_page_map() {
             'type'     => 'return',
         ),
         'politika-konfidencialnosti' => array(
+            'template' => DV_DIR . '/page-politika-konfidencialnosti.php',
+            'title'    => html_entity_decode( '&#1055;&#1086;&#1083;&#1080;&#1090;&#1080;&#1082;&#1072; &#1082;&#1086;&#1085;&#1092;&#1080;&#1076;&#1077;&#1085;&#1094;&#1080;&#1072;&#1083;&#1100;&#1085;&#1086;&#1089;&#1090;&#1080;', ENT_QUOTES, 'UTF-8' ),
+            'type'     => 'privacy',
+        ),
+        'politika-konfidentsialnosti' => array(
             'template' => DV_DIR . '/page-politika-konfidencialnosti.php',
             'title'    => html_entity_decode( '&#1055;&#1086;&#1083;&#1080;&#1090;&#1080;&#1082;&#1072; &#1082;&#1086;&#1085;&#1092;&#1080;&#1076;&#1077;&#1085;&#1094;&#1080;&#1072;&#1083;&#1100;&#1085;&#1086;&#1089;&#1090;&#1080;', ENT_QUOTES, 'UTF-8' ),
             'type'     => 'privacy',

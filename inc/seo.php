@@ -321,6 +321,11 @@ function dv_get_seo_canonical_url() {
         return dv_service_page_url( $virtual_service_type );
     }
 
+    $core_service_type = dv_get_current_core_service_page_type();
+    if ( '' !== $core_service_type && function_exists( 'dv_service_page_url' ) ) {
+        return dv_service_page_url( $core_service_type );
+    }
+
     if ( is_singular() ) {
         return get_permalink();
     }
@@ -361,28 +366,72 @@ function dv_is_service_page_type( $type, $slugs = array() ) {
     return $type === $virtual_type || is_page( (array) $slugs );
 }
 
+function dv_get_core_service_page_slugs() {
+    return array(
+        'about'     => array( 'o-kompanii', 'about' ),
+        'delivery'  => array( 'dostavka', 'delivery' ),
+        'contacts'  => array( 'kontakty', 'contacts' ),
+        'return'    => array( 'vozvrat', 'return' ),
+        'privacy'   => array( 'politika-konfidencialnosti', 'politika-konfidentsialnosti', 'privacy-policy' ),
+        'agreement' => array( 'polzovatelskoe-soglashenie', 'publichna-oferta', 'user-agreement' ),
+    );
+}
+
+function dv_get_current_core_service_page_type() {
+    $virtual_type = (string) get_query_var( 'dv_virtual_page' );
+    $core_slugs   = dv_get_core_service_page_slugs();
+
+    if ( '' !== $virtual_type && isset( $core_slugs[ $virtual_type ] ) ) {
+        return $virtual_type;
+    }
+
+    foreach ( $core_slugs as $type => $slugs ) {
+        if ( is_page( $slugs ) ) {
+            return $type;
+        }
+    }
+
+    return '';
+}
+
+function dv_is_noncanonical_service_page_alias() {
+    $type = dv_get_current_core_service_page_type();
+    if ( '' === $type || ! function_exists( 'dv_service_page_url' ) ) {
+        return false;
+    }
+
+    $canonical_path = (string) wp_parse_url( dv_service_page_url( $type ), PHP_URL_PATH );
+    $current_path   = (string) wp_parse_url( dv_get_clean_current_request_url(), PHP_URL_PATH );
+
+    if ( '' === $canonical_path || '' === $current_path ) {
+        return false;
+    }
+
+    return trailingslashit( $canonical_path ) !== trailingslashit( $current_path );
+}
+
 function dv_is_contacts_page() {
-    return dv_is_service_page_type( 'contacts', array( 'kontakty', 'contacts' ) );
+    return dv_is_service_page_type( 'contacts', dv_get_core_service_page_slugs()['contacts'] );
 }
 
 function dv_is_about_page() {
-    return dv_is_service_page_type( 'about', array( 'o-kompanii', 'about' ) );
+    return dv_is_service_page_type( 'about', dv_get_core_service_page_slugs()['about'] );
 }
 
 function dv_is_delivery_page() {
-    return dv_is_service_page_type( 'delivery', array( 'dostavka', 'delivery' ) );
+    return dv_is_service_page_type( 'delivery', dv_get_core_service_page_slugs()['delivery'] );
 }
 
 function dv_is_return_page() {
-    return dv_is_service_page_type( 'return', array( 'vozvrat', 'return' ) );
+    return dv_is_service_page_type( 'return', dv_get_core_service_page_slugs()['return'] );
 }
 
 function dv_is_privacy_page() {
-    return dv_is_service_page_type( 'privacy', array( 'politika-konfidencialnosti', 'privacy-policy' ) );
+    return dv_is_service_page_type( 'privacy', dv_get_core_service_page_slugs()['privacy'] );
 }
 
 function dv_is_agreement_page() {
-    return dv_is_service_page_type( 'agreement', array( 'polzovatelskoe-soglashenie', 'publichna-oferta', 'user-agreement' ) );
+    return dv_is_service_page_type( 'agreement', dv_get_core_service_page_slugs()['agreement'] );
 }
 
 function dv_get_product_seo_title_override( $product_id ) {
@@ -545,6 +594,40 @@ function dv_get_term_seo_phrase( $term ) {
     $phrase = preg_replace( '/\s+для\s+ВАЗ\s+ВАЗ$/u', ' для ВАЗ', $phrase );
 
     return trim( $phrase );
+}
+
+function dv_get_term_seo_specific_label( $term, $phrase = '' ) {
+    if ( ! $term instanceof WP_Term ) {
+        return '';
+    }
+
+    $name   = trim( (string) $term->name );
+    $phrase = trim( (string) $phrase );
+
+    if ( '' === $name ) {
+        return '';
+    }
+
+    if ( '' !== $phrase && false !== dv_seo_mb_stripos( $phrase, $name ) ) {
+        return '';
+    }
+
+    return dv_trim_seo_text( dv_get_term_seo_display_name( $term ), 52 );
+}
+
+function dv_get_term_seo_specific_phrase( $term ) {
+    if ( ! $term instanceof WP_Term ) {
+        return '';
+    }
+
+    $phrase   = dv_get_term_seo_phrase( $term );
+    $specific = dv_get_term_seo_specific_label( $term, $phrase );
+
+    if ( '' === $specific ) {
+        return $phrase;
+    }
+
+    return $phrase . ': ' . $specific;
 }
 
 function dv_build_term_auto_seo_h1( $term ) {
@@ -781,7 +864,7 @@ function dv_build_term_seo_title( $term, $paged_suffix = '' ) {
         return '';
     }
 
-    $name = dv_get_term_seo_phrase( $term );
+    $name = dv_get_term_seo_specific_phrase( $term );
 
     return $name . ' — купить, цены в каталоге' . $paged_suffix . ' | ' . dv_get_seo_shop_name();
 }
@@ -832,7 +915,7 @@ function dv_build_term_seo_description( $term ) {
     }
 
     $labels      = dv_seo_labels();
-    $name        = dv_get_term_seo_phrase( $term );
+    $name        = dv_get_term_seo_specific_phrase( $term );
     $description = dv_trim_seo_text( dv_get_term_seo_intro( $term->term_id ), 120 );
     if ( ! $description ) {
         $description = dv_trim_seo_text( term_description( $term, 'product_cat' ), 120 );
@@ -846,6 +929,17 @@ function dv_build_term_seo_description( $term ) {
     }
 
     return dv_trim_seo_text( sprintf( '%1$s: цены, наличие, подбор по марке авто, самовывоз и доставка по России в магазине %2$s.', $name, dv_get_seo_shop_name() ), 170 );
+}
+
+function dv_append_paged_to_seo_description( $description ) {
+    $description = trim( (string) $description );
+    $paged       = max( 1, (int) get_query_var( 'paged' ) );
+
+    if ( $paged < 2 ) {
+        return dv_trim_seo_text( $description, 170 );
+    }
+
+    return dv_trim_seo_text( $description . ' Страница ' . $paged . ': продолжение каталога.', 170 );
 }
 
 function dv_get_seo_description() {
@@ -873,21 +967,20 @@ function dv_get_seo_description() {
         if ( $term instanceof WP_Term ) {
             $custom_description = dv_get_term_seo_description_override( $term->term_id );
             if ( '' !== $custom_description ) {
-                return dv_trim_seo_text( $custom_description, 170 );
+                return dv_append_paged_to_seo_description( $custom_description );
             }
 
-            return dv_build_term_seo_description( $term );
+            return dv_append_paged_to_seo_description( dv_build_term_seo_description( $term ) );
         }
     }
 
     if ( is_post_type_archive( 'product' ) ) {
-        return 'Каталог автозапчастей: кузовные детали, система выпуска, подвеска и двигатель. Цены, наличие, самовывоз и доставка по России.';
+        return dv_append_paged_to_seo_description( 'Каталог автозапчастей: кузовные детали, система выпуска, подвеска и двигатель. Цены, наличие, самовывоз и доставка по России.' );
     }
 
     if ( is_search() ) {
-        return dv_trim_seo_text(
-            sprintf( 'Результаты поиска по запросу «%1$s» в каталоге автозапчастей %2$s. Цены, наличие и подбор запчастей.', get_search_query(), dv_get_seo_shop_name() ),
-            170
+        return dv_append_paged_to_seo_description(
+            sprintf( 'Результаты поиска по запросу «%1$s» в каталоге автозапчастей %2$s. Цены, наличие и подбор запчастей.', get_search_query(), dv_get_seo_shop_name() )
         );
     }
 
@@ -1847,7 +1940,7 @@ add_filter( 'robots_txt', 'dv_filter_robots_txt', 20, 2 );
 function dv_filter_wp_robots( $robots ) {
     $filters = dv_get_request_filter_args();
 
-    if ( is_404() || is_search() || is_cart() || is_checkout() || is_account_page() || dv_request_has_indexing_noise_params() ) {
+    if ( is_404() || is_search() || is_cart() || is_checkout() || is_account_page() || dv_request_has_indexing_noise_params() || dv_is_noncanonical_service_page_alias() ) {
         $robots['noindex'] = true;
         $robots['follow']  = true;
         unset( $robots['index'] );
