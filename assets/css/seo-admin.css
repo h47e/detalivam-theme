@@ -878,12 +878,19 @@
   font-weight: 700;
 }
 
-.dv-seo-tools-fill--yes {
+.dv-seo-tools-fill--yes,
+.dv-seo-tools-fill--manual {
   background: #e8f7ef;
   color: #11643a;
 }
 
-.dv-seo-tools-fill--no {
+.dv-seo-tools-fill--auto {
+  background: #eaf3ff;
+  color: #0758a8;
+}
+
+.dv-seo-tools-fill--no,
+.dv-seo-tools-fill--none {
   background: #fff7df;
   color: #7a5200;
 }

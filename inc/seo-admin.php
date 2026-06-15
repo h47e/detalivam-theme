@@ -1863,19 +1863,22 @@ function dv_seo_tools_get_manual_overview() {
 
         if ( ! is_wp_error( $terms ) ) {
             foreach ( $terms as $term ) {
-                $faq = get_term_meta( $term->term_id, '_dv_seo_faq', true );
+                $field_statuses = dv_seo_tools_get_term_field_statuses( $term );
 
                 $priority_terms[] = array(
-                    'term'      => $term,
-                    'h1'        => '' !== trim( (string) get_term_meta( $term->term_id, '_dv_seo_h1', true ) ),
-                    'intro'     => '' !== trim( wp_strip_all_tags( (string) get_term_meta( $term->term_id, '_dv_seo_intro', true ) ) ),
-                    'text'      => '' !== trim( wp_strip_all_tags( (string) get_term_meta( $term->term_id, '_dv_seo_text', true ) ) ),
-                    'faq'       => is_array( $faq ) && ! empty( $faq ),
-                    'edit_link' => get_edit_term_link( $term->term_id, 'product_cat' ),
+                    'term'           => $term,
+                    'field_statuses' => $field_statuses,
+                    'h1'             => ! empty( $field_statuses['h1']['filled'] ),
+                    'intro'          => ! empty( $field_statuses['intro']['filled'] ),
+                    'text'           => ! empty( $field_statuses['text']['filled'] ),
+                    'faq'            => ! empty( $field_statuses['faq']['filled'] ),
+                    'edit_link'      => get_edit_term_link( $term->term_id, 'product_cat' ),
                 );
             }
         }
     }
+
+    $effective_term_counts = dv_seo_tools_count_effective_term_fields();
 
     return array(
         'total_products'           => $total_products,
@@ -1888,14 +1891,35 @@ function dv_seo_tools_get_manual_overview() {
         'terms_with_intro'         => dv_seo_tools_count_terms_with_meta( '_dv_seo_intro' ),
         'terms_with_text'          => dv_seo_tools_count_terms_with_meta( '_dv_seo_text' ),
         'terms_with_faq'           => dv_seo_tools_count_terms_with_meta( '_dv_seo_faq' ),
+        'terms_effective_title'    => $effective_term_counts['title'],
+        'terms_effective_desc'     => $effective_term_counts['description'],
+        'terms_effective_h1'       => $effective_term_counts['h1'],
+        'terms_effective_intro'    => $effective_term_counts['intro'],
+        'terms_effective_text'     => $effective_term_counts['text'],
+        'terms_effective_faq'      => $effective_term_counts['faq'],
         'priority_terms'           => $priority_terms,
     );
 }
 
-function dv_seo_tools_render_fill_badge( $filled ) {
+function dv_seo_tools_render_fill_badge( $state ) {
+    if ( is_array( $state ) ) {
+        $status = (string) ( $state['status'] ?? 'none' );
+    } else {
+        $status = $state ? 'manual' : 'none';
+    }
+
+    $labels = array(
+        'manual' => 'ручной',
+        'auto'   => 'авто',
+        'none'   => 'нет',
+    );
+
+    if ( ! isset( $labels[ $status ] ) ) {
+        $status = 'none';
+    }
     ?>
-    <span class="dv-seo-tools-fill dv-seo-tools-fill--<?php echo $filled ? 'yes' : 'no'; ?>">
-        <?php echo esc_html( $filled ? 'есть' : 'нет' ); ?>
+    <span class="dv-seo-tools-fill dv-seo-tools-fill--<?php echo esc_attr( $status ); ?>">
+        <?php echo esc_html( $labels[ $status ] ); ?>
     </span>
     <?php
 }
@@ -1905,15 +1929,15 @@ function dv_seo_tools_render_manual_overview( $overview ) {
     <details id="dv-seo-manual" class="dv-seo-tools-card dv-seo-tools-card--wide dv-seo-tools-section">
         <summary>
             <span class="dv-seo-tools-section-heading">
-                <span class="dv-seo-tools-section-title">Ручные SEO-поля</span>
-                <span class="dv-seo-tools-section-note">title/description, H1, тексты и FAQ по товарам и категориям</span>
+                <span class="dv-seo-tools-section-title">SEO-поля и автоматика</span>
+                <span class="dv-seo-tools-section-note">ручные overrides и автоматическое покрытие title/description, H1, текстов и FAQ</span>
             </span>
         </summary>
         <div class="dv-seo-tools-section-body">
 
         <div class="dv-seo-tools-manual-grid">
             <div>
-                <h3>Товары</h3>
+                <h3>Товары: ручные overrides</h3>
                 <dl class="dv-seo-tools-stats">
                     <dt>Всего товаров</dt><dd><?php echo esc_html( number_format_i18n( $overview['total_products'] ) ); ?></dd>
                     <dt>С ручным title</dt><dd><?php echo esc_html( number_format_i18n( $overview['products_with_title'] ) ); ?></dd>
@@ -1924,18 +1948,18 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                 <h3>Категории</h3>
                 <dl class="dv-seo-tools-stats">
                     <dt>Всего категорий</dt><dd><?php echo esc_html( number_format_i18n( $overview['total_terms'] ) ); ?></dd>
-                    <dt>С ручным title</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_title'] ) ); ?></dd>
-                    <dt>С ручным description</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_desc'] ) ); ?></dd>
-                    <dt>С SEO H1</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_h1'] ) ); ?></dd>
-                    <dt>С верхним текстом</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_intro'] ) ); ?></dd>
-                    <dt>С нижним текстом</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_text'] ) ); ?></dd>
-                    <dt>С FAQ</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_faq'] ) ); ?></dd>
+                    <dt>Title</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_title'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_title'] - $overview['terms_with_title'] ) ) . ' авто' ); ?></dd>
+                    <dt>Description</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_desc'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_desc'] - $overview['terms_with_desc'] ) ) . ' авто' ); ?></dd>
+                    <dt>SEO H1</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_h1'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_h1'] - $overview['terms_with_h1'] ) ) . ' авто' ); ?></dd>
+                    <dt>Верхний текст</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_intro'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_intro'] - $overview['terms_with_intro'] ) ) . ' авто' ); ?></dd>
+                    <dt>Нижний текст</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_text'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_text'] - $overview['terms_with_text'] ) ) . ' авто' ); ?></dd>
+                    <dt>FAQ</dt><dd><?php echo esc_html( number_format_i18n( $overview['terms_with_faq'] ) . ' ручн. / ' . number_format_i18n( max( 0, $overview['terms_effective_faq'] - $overview['terms_with_faq'] ) ) . ' авто' ); ?></dd>
                 </dl>
             </div>
         </div>
 
         <?php if ( ! empty( $overview['priority_terms'] ) ) : ?>
-            <h3>Крупные категории для ручной доработки</h3>
+            <h3>Крупные категории: ручное и авто-покрытие</h3>
             <div class="dv-seo-tools-table-controls" data-dv-seo-category-controls>
                 <label>
                     <span>Поиск категории</span>
@@ -1987,24 +2011,24 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                         );
 
                         foreach ( $field_labels as $field_key => $field_label ) {
-                            if ( empty( $item[ $field_key ] ) ) {
+                            if ( empty( $item['field_statuses'][ $field_key ]['filled'] ) ) {
                                 $missing_parts[] = $field_label;
                             }
                         }
 
-                        $ready_count = (int) ! empty( $item['h1'] )
-                            + (int) ! empty( $item['intro'] )
-                            + (int) ! empty( $item['text'] )
-                            + (int) ! empty( $item['faq'] );
+                        $ready_count = (int) ! empty( $item['field_statuses']['h1']['filled'] )
+                            + (int) ! empty( $item['field_statuses']['intro']['filled'] )
+                            + (int) ! empty( $item['field_statuses']['text']['filled'] )
+                            + (int) ! empty( $item['field_statuses']['faq']['filled'] );
                         $ready_percent = dv_seo_tools_percent( $ready_count, 4 );
                         ?>
                         <tr data-name="<?php echo esc_attr( function_exists( 'dv_seo_mb_strtolower' ) ? dv_seo_mb_strtolower( $item['term']->name ) : strtolower( $item['term']->name ) ); ?>" data-products="<?php echo esc_attr( (int) $item['term']->count ); ?>" data-ready="<?php echo esc_attr( $ready_percent ); ?>">
                             <td><strong><?php echo esc_html( $item['term']->name ); ?></strong></td>
                             <td><?php echo esc_html( number_format_i18n( (int) $item['term']->count ) ); ?></td>
-                            <td><?php dv_seo_tools_render_fill_badge( $item['h1'] ); ?></td>
-                            <td><?php dv_seo_tools_render_fill_badge( $item['intro'] ); ?></td>
-                            <td><?php dv_seo_tools_render_fill_badge( $item['text'] ); ?></td>
-                            <td><?php dv_seo_tools_render_fill_badge( $item['faq'] ); ?></td>
+                            <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['h1'] ?? array( 'status' => 'none' ) ); ?></td>
+                            <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['intro'] ?? array( 'status' => 'none' ) ); ?></td>
+                            <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['text'] ?? array( 'status' => 'none' ) ); ?></td>
+                            <td><?php dv_seo_tools_render_fill_badge( $item['field_statuses']['faq'] ?? array( 'status' => 'none' ) ); ?></td>
                             <td>
                                 <span class="dv-seo-tools-mini-progress">
                                     <i style="width: <?php echo esc_attr( $ready_percent ); ?>%;"></i>
@@ -2013,7 +2037,7 @@ function dv_seo_tools_render_manual_overview( $overview ) {
                             </td>
                             <td>
                                 <?php if ( empty( $missing_parts ) ) : ?>
-                                    <span class="dv-seo-tools-ready-note">готово</span>
+                                    <span class="dv-seo-tools-ready-note">покрыто</span>
                                 <?php else : ?>
                                     <span class="dv-seo-tools-missing-note"><?php echo esc_html( implode( ', ', $missing_parts ) ); ?></span>
                                 <?php endif; ?>
@@ -2568,16 +2592,116 @@ function dv_seo_tools_percent( $part, $total ) {
     return max( 0, min( 100, (int) round( ( (int) $part / $total ) * 100 ) ) );
 }
 
+function dv_seo_tools_term_meta_filled( $term_id, $meta_key ) {
+    $value = get_term_meta( $term_id, $meta_key, true );
+
+    if ( is_array( $value ) ) {
+        return ! empty( $value );
+    }
+
+    return '' !== trim( wp_strip_all_tags( (string) $value ) );
+}
+
+function dv_seo_tools_term_auto_value_filled( $term, $field ) {
+    if ( ! $term instanceof WP_Term ) {
+        return false;
+    }
+
+    switch ( $field ) {
+        case 'title':
+            return function_exists( 'dv_build_term_seo_title' ) && '' !== trim( (string) dv_build_term_seo_title( $term ) );
+        case 'description':
+            return function_exists( 'dv_build_term_seo_description' ) && '' !== trim( (string) dv_build_term_seo_description( $term ) );
+        case 'h1':
+            return function_exists( 'dv_build_term_auto_seo_h1' ) && '' !== trim( (string) dv_build_term_auto_seo_h1( $term ) );
+        case 'intro':
+            return function_exists( 'dv_get_term_effective_seo_intro' ) && '' !== trim( wp_strip_all_tags( (string) dv_get_term_effective_seo_intro( $term ) ) );
+        case 'text':
+            return function_exists( 'dv_get_term_effective_seo_text' ) && '' !== trim( wp_strip_all_tags( (string) dv_get_term_effective_seo_text( $term ) ) );
+        case 'faq':
+            return function_exists( 'dv_get_term_effective_seo_faq' ) && ! empty( dv_get_term_effective_seo_faq( $term ) );
+    }
+
+    return false;
+}
+
+function dv_seo_tools_get_term_field_statuses( $term ) {
+    if ( ! $term instanceof WP_Term ) {
+        return array();
+    }
+
+    $meta_keys = array(
+        'title'       => '_dv_seo_title',
+        'description' => '_dv_seo_description',
+        'h1'          => '_dv_seo_h1',
+        'intro'       => '_dv_seo_intro',
+        'text'        => '_dv_seo_text',
+        'faq'         => '_dv_seo_faq',
+    );
+
+    $statuses = array();
+    foreach ( $meta_keys as $field => $meta_key ) {
+        $manual = dv_seo_tools_term_meta_filled( $term->term_id, $meta_key );
+        $auto   = ! $manual && dv_seo_tools_term_auto_value_filled( $term, $field );
+
+        $statuses[ $field ] = array(
+            'status' => $manual ? 'manual' : ( $auto ? 'auto' : 'none' ),
+            'filled' => $manual || $auto,
+            'manual' => $manual,
+            'auto'   => $auto,
+        );
+    }
+
+    return $statuses;
+}
+
+function dv_seo_tools_count_effective_term_fields() {
+    $counts = array(
+        'title'       => 0,
+        'description' => 0,
+        'h1'          => 0,
+        'intro'       => 0,
+        'text'        => 0,
+        'faq'         => 0,
+    );
+
+    if ( ! taxonomy_exists( 'product_cat' ) ) {
+        return $counts;
+    }
+
+    $terms = get_terms(
+        array(
+            'taxonomy'   => 'product_cat',
+            'hide_empty' => false,
+        )
+    );
+
+    if ( is_wp_error( $terms ) ) {
+        return $counts;
+    }
+
+    foreach ( $terms as $term ) {
+        $statuses = dv_seo_tools_get_term_field_statuses( $term );
+        foreach ( array_keys( $counts ) as $field ) {
+            if ( ! empty( $statuses[ $field ]['filled'] ) ) {
+                $counts[ $field ]++;
+            }
+        }
+    }
+
+    return $counts;
+}
+
 function dv_seo_tools_get_progress_summary( $overview, $gaps ) {
     $total_terms    = max( 0, (int) ( $overview['total_terms'] ?? 0 ) );
     $total_products = max( 0, (int) ( $gaps['total'] ?? 0 ) );
     $audit_pending  = ! empty( $gaps['audit_pending'] );
 
     $category_total = $total_terms * 4;
-    $category_ready = (int) ( $overview['terms_with_h1'] ?? 0 )
-        + (int) ( $overview['terms_with_intro'] ?? 0 )
-        + (int) ( $overview['terms_with_text'] ?? 0 )
-        + (int) ( $overview['terms_with_faq'] ?? 0 );
+    $category_ready = (int) ( $overview['terms_effective_h1'] ?? 0 )
+        + (int) ( $overview['terms_effective_intro'] ?? 0 )
+        + (int) ( $overview['terms_effective_text'] ?? 0 )
+        + (int) ( $overview['terms_effective_faq'] ?? 0 );
 
     $content_total = $total_products * 2;
     $content_ready = $audit_pending ? 0 : $content_total
@@ -2595,7 +2719,7 @@ function dv_seo_tools_get_progress_summary( $overview, $gaps ) {
         array(
             'title'   => 'Категории',
             'percent' => dv_seo_tools_percent( $category_ready, $category_total ),
-            'text'    => 'H1, верхний текст, нижний SEO-блок и FAQ.',
+            'text'    => 'Фактическое покрытие: ручные поля плюс автоматика H1, верхнего текста, нижнего блока и FAQ.',
         ),
         array(
             'title'   => 'Контент товаров',
@@ -3022,11 +3146,11 @@ function dv_seo_tools_render_duplicate_report( $report ) {
     <details id="dv-seo-duplicates" class="dv-seo-tools-card dv-seo-tools-card--wide dv-seo-tools-section">
         <summary>
             <span class="dv-seo-tools-section-heading">
-                <span class="dv-seo-tools-section-title">Дубли и пустые SEO-поля</span>
-                <span class="dv-seo-tools-section-note">ручные title/description товаров и категорий</span>
+                <span class="dv-seo-tools-section-title">Ручные SEO-поля и дубли</span>
+                <span class="dv-seo-tools-section-note">пустые ручные title/description не ошибка: тема подставляет автоматический вариант</span>
             </span>
             <span class="dv-seo-tools-section-meta">
-                <span class="<?php echo $empty_total > 0 ? 'is-warning' : 'is-ok'; ?>"><?php echo esc_html( number_format_i18n( $empty_total ) ); ?> пустых</span>
+                <span class="is-ok"><?php echo esc_html( number_format_i18n( $empty_total ) ); ?> авто-вместо-ручных</span>
                 <span class="<?php echo $duplicate_total > 0 ? 'is-warning' : 'is-ok'; ?>"><?php echo esc_html( number_format_i18n( $duplicate_total ) ); ?> дублей</span>
             </span>
         </summary>
@@ -3106,14 +3230,14 @@ function dv_seo_tools_get_action_queue( $overview, $gaps, $stats = null, $robots
     }
 
     $term_checks = array(
-        array( 'intro', 'terms_with_intro', 'Верхний текст категорий', 'Добавить 1-2 строки под H1 для крупных категорий.', 'warning' ),
-        array( 'text', 'terms_with_text', 'Нижний SEO-текст категорий', 'Дописать полезный блок после товаров: подбор, отличия, доставка, гарантия.', 'warning' ),
-        array( 'faq', 'terms_with_faq', 'FAQ категорий', 'Добавить вопросы и ответы для Яндекса и быстрых коммерческих возражений.', 'warning' ),
-        array( 'h1', 'terms_with_h1', 'SEO H1 категорий', 'Уточнить посадочные H1 без переименования самих категорий.', 'info' ),
+        array( 'intro', 'terms_effective_intro', 'Верхний текст категорий', 'Проверить категории без ручного или автоматического верхнего текста.', 'warning' ),
+        array( 'text', 'terms_effective_text', 'Нижний SEO-текст категорий', 'Проверить категории без нижнего SEO-блока.', 'warning' ),
+        array( 'faq', 'terms_effective_faq', 'FAQ категорий', 'Проверить категории без FAQ.', 'warning' ),
+        array( 'h1', 'terms_effective_h1', 'SEO H1 категорий', 'Проверить категории без H1.', 'info' ),
     );
 
     foreach ( $term_checks as $check ) {
-        $missing = max( 0, (int) $overview['total_terms'] - (int) $overview[ $check[1] ] );
+        $missing = max( 0, (int) $overview['total_terms'] - (int) ( $overview[ $check[1] ] ?? 0 ) );
         if ( $missing <= 0 ) {
             continue;
         }
