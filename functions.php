@@ -23,6 +23,7 @@ $dv_theme_modules = array(
     'inc/theme-options.php',
     'inc/service-pages.php',
     'inc/seo.php',
+    'inc/product-feed.php',
     'inc/theme-content.php',
     'inc/lists.php',
     'inc/search.php',

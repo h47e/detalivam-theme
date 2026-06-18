@@ -336,6 +336,7 @@ function dv_sanitize_theme_options( $input ) {
         'home_product_columns'    => max( 2, min( 6, absint( $input['home_product_columns'] ?? $defaults['home_product_columns'] ) ) ),
         'search_live_limit'       => max( 1, min( 20, absint( $input['search_live_limit'] ?? $defaults['search_live_limit'] ) ) ),
         'search_page_per_page'    => max( 1, min( 96, absint( $input['search_page_per_page'] ?? $defaults['search_page_per_page'] ) ) ),
+        'yandex_metrika_counter_id' => preg_replace( '/\D+/', '', (string) ( $input['yandex_metrika_counter_id'] ?? $defaults['yandex_metrika_counter_id'] ) ),
         'not_found_search_enabled' => ! empty( $input['not_found_search_enabled'] ) ? '1' : '0',
         'not_found_actions_enabled' => ! empty( $input['not_found_actions_enabled'] ) ? '1' : '0',
         'not_found_categories_enabled' => ! empty( $input['not_found_categories_enabled'] ) ? '1' : '0',
@@ -1006,11 +1007,13 @@ function dv_theme_admin_body_class( $classes ) {
 add_filter( 'admin_body_class', 'dv_theme_admin_body_class' );
 
 function dv_dashboard_status_cache_key() {
-    return 'dv_dashboard_status_summary_v1';
+    return 'dv_dashboard_status_summary_v3';
 }
 
 function dv_dashboard_status_clear_cache() {
     delete_transient( dv_dashboard_status_cache_key() );
+    delete_transient( 'dv_dashboard_status_summary_v1' );
+    delete_transient( 'dv_dashboard_status_summary_v2' );
 }
 
 function dv_dashboard_uploads_summary() {
@@ -1231,6 +1234,8 @@ function dv_dashboard_status_summary() {
 
     $options      = function_exists( 'dv_get_theme_options' ) ? dv_get_theme_options() : array();
     $audit        = function_exists( 'dv_theme_product_audit_report' ) ? dv_theme_product_audit_report() : array();
+    $analytics    = function_exists( 'dv_theme_analytics_report' ) ? dv_theme_analytics_report( $options ) : array();
+    $product_feed = function_exists( 'dv_product_feed_report' ) ? dv_product_feed_report() : array();
     $profile      = function_exists( 'dv_theme_store_profile_health_report' ) ? dv_theme_store_profile_health_report() : array();
     $marketplaces = function_exists( 'dv_theme_marketplace_diagnostics_report' ) ? dv_theme_marketplace_diagnostics_report( $options ) : array();
     $maintenance  = function_exists( 'dv_theme_maintenance_report' ) ? dv_theme_maintenance_report() : array();
@@ -1260,6 +1265,8 @@ function dv_dashboard_status_summary() {
 
     $summary = array(
         'audit'        => $audit,
+        'analytics'    => $analytics,
+        'product_feed' => $product_feed,
         'profile'      => $profile,
         'marketplaces' => $marketplaces,
         'maintenance'  => $maintenance,
@@ -1328,6 +1335,28 @@ function dv_dashboard_status_tasks( $summary ) {
             'priority' => 65,
             'severity' => 'warning',
             'source'   => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100;' ),
+        );
+    }
+
+    $analytics = isset( $summary['analytics'] ) && is_array( $summary['analytics'] ) ? $summary['analytics'] : array();
+    if ( empty( $analytics['status'] ) ) {
+        $tasks[] = array(
+            'label' => empty( $analytics['counter_id'] ) ? 'Яндекс.Метрика: указать ID счётчика' : 'Яндекс.Метрика: проверить слой целей',
+            'url'   => admin_url( 'admin.php?page=dv-theme-options#dv-options-analytics' ),
+            'priority' => 72,
+            'severity' => 'warning',
+            'source'   => 'Analytics',
+        );
+    }
+
+    $product_feed = isset( $summary['product_feed'] ) && is_array( $summary['product_feed'] ) ? $summary['product_feed'] : array();
+    if ( empty( $product_feed['status'] ) ) {
+        $tasks[] = array(
+            'label' => 'YML-фид: проверить выгрузку товаров',
+            'url'   => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'priority' => 74,
+            'severity' => 'warning',
+            'source'   => 'Feed',
         );
     }
 
@@ -1411,6 +1440,8 @@ function dv_render_dashboard_status_widget() {
 
     $summary      = dv_dashboard_status_summary();
     $audit        = $summary['audit'];
+    $analytics    = isset( $summary['analytics'] ) && is_array( $summary['analytics'] ) ? $summary['analytics'] : array();
+    $product_feed = isset( $summary['product_feed'] ) && is_array( $summary['product_feed'] ) ? $summary['product_feed'] : array();
     $profile      = $summary['profile'];
     $marketplaces = $summary['marketplaces'];
     $maintenance  = $summary['maintenance'];
@@ -1476,6 +1507,26 @@ function dv_render_dashboard_status_widget() {
                     count( $marketplaces['issues'] ?? array() )
                 ),
                 ! empty( $marketplaces['status'] ) ? 'ok' : 'warning'
+            );
+
+            dv_render_dashboard_metric(
+                'Analytics',
+                ! empty( $analytics['status'] ) ? 'OK' : dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100;' ),
+                ! empty( $analytics['counter_id'] ) ? 'ID ' . (string) $analytics['counter_id'] : dv_theme_options_label( 'ID Метрики не задан' ),
+                ! empty( $analytics['status'] ) ? 'ok' : 'warning'
+            );
+
+            dv_render_dashboard_metric(
+                'YML',
+                ! empty( $product_feed['status'] ) ? 'OK' : dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100;' ),
+                sprintf(
+                    '%1$s offers / %2$s товаров / %3$s готово / %4$s KB',
+                    number_format_i18n( absint( $product_feed['offers_count'] ?? 0 ) ),
+                    number_format_i18n( absint( $product_feed['product_count'] ?? 0 ) ),
+                    number_format_i18n( absint( $product_feed['ready_count'] ?? 0 ) ),
+                    number_format_i18n( (float) ( $product_feed['size_kb'] ?? 0 ), 1 )
+                ),
+                ! empty( $product_feed['status'] ) ? 'ok' : 'warning'
             );
 
             dv_render_dashboard_metric(
@@ -2828,12 +2879,58 @@ function dv_theme_diagnostics_context( $options ) {
     return array(
         'overrides'      => dv_theme_woocommerce_overrides_report(),
         'audit'          => dv_theme_product_audit_report(),
+        'analytics'      => dv_theme_analytics_report( $options ),
+        'product_feed'   => function_exists( 'dv_product_feed_report' ) ? dv_product_feed_report() : array(),
         'marketplaces'   => dv_theme_marketplace_diagnostics_report( $options ),
         'profile_health' => dv_theme_store_profile_health_report(),
         'maintenance'    => dv_theme_maintenance_report(),
         'backup'         => dv_theme_backup_state(),
         'auto_backup'    => dv_theme_auto_backup_state(),
         'environment'    => dv_theme_environment_report(),
+    );
+}
+
+function dv_theme_analytics_report( $options ) {
+    $options    = is_array( $options ) ? $options : array();
+    $counter_id = preg_replace( '/\D+/', '', (string) ( $options['yandex_metrika_counter_id'] ?? '' ) );
+    $goals      = array( 'add_to_cart', 'phone_click', 'site_search', 'ozon_click', 'product_click', 'checkout_start', 'order_success' );
+    $js_path    = get_stylesheet_directory() . '/assets/js/main.js';
+    $js         = file_exists( $js_path ) ? (string) file_get_contents( $js_path ) : '';
+    $has_layer  = '' !== $js && false !== strpos( $js, 'dvMetrikaGoal' ) && false !== strpos( $js, 'reachGoal' );
+    $checks     = array(
+        array(
+            'key'    => 'counter_id',
+            'label'  => 'ID счётчика',
+            'status' => '' !== $counter_id,
+            'hint'   => '' !== $counter_id ? 'ID задан: ' . $counter_id : 'Укажите ID в разделе Аналитика',
+        ),
+        array(
+            'key'    => 'goal_layer',
+            'label'  => 'Слой целей',
+            'status' => $has_layer,
+            'hint'   => $has_layer ? 'JS-отправка целей подключена' : 'В main.js не найден dvMetrikaGoal',
+        ),
+        array(
+            'key'    => 'counter_duplicate',
+            'label'  => 'Дублирование счётчика',
+            'status' => true,
+            'hint'   => 'Тема не выводит код счётчика, а только отправляет reachGoal',
+        ),
+        array(
+            'key'    => 'manual_goals',
+            'label'  => 'Цели в Метрике',
+            'status' => '' !== $counter_id,
+            'hint'   => '' !== $counter_id ? 'Создайте цели: ' . implode( ', ', $goals ) : 'Сначала укажите ID счётчика',
+        ),
+    );
+
+    return array(
+        'status'      => '' !== $counter_id && $has_layer,
+        'counter_id'  => $counter_id,
+        'goals'       => $goals,
+        'checks'      => $checks,
+        'settings_url' => admin_url( 'admin.php?page=dv-theme-options#dv-options-analytics' ),
+        'docs_file'   => 'YANDEX_METRIKA_GOALS.md',
     );
 }
 
@@ -2846,6 +2943,8 @@ function dv_theme_diagnostics_report_payload( $options ) {
     $backup    = $context['backup'];
     $auto_backup = $context['auto_backup'];
     $audit     = $context['audit'];
+    $analytics = $context['analytics'];
+    $product_feed = isset( $context['product_feed'] ) && is_array( $context['product_feed'] ) ? $context['product_feed'] : array();
     $marketplaces = $context['marketplaces'];
     $history   = dv_theme_settings_history_get();
     $profile_health = $context['profile_health'];
@@ -2887,6 +2986,8 @@ function dv_theme_diagnostics_report_payload( $options ) {
         'settings_history' => array_slice( $history, 0, 5 ),
         'store_profile' => $profile_health,
         'product_audit' => $audit,
+        'analytics' => $analytics,
+        'product_feed' => $product_feed,
         'marketplaces' => $marketplaces,
         'maintenance' => $maintenance,
         'support_summary' => dv_theme_diagnostics_support_summary( $options, $context, $checks ),
@@ -2900,6 +3001,8 @@ function dv_theme_diagnostics_support_summary( $options, $context = array(), $ch
     $context      = is_array( $context ) ? $context : array();
     $checks       = is_array( $checks ) ? $checks : dv_theme_diagnostics_checks( $options, $context );
     $audit        = isset( $context['audit'] ) && is_array( $context['audit'] ) ? $context['audit'] : dv_theme_product_audit_report();
+    $analytics    = isset( $context['analytics'] ) && is_array( $context['analytics'] ) ? $context['analytics'] : dv_theme_analytics_report( $options );
+    $product_feed = isset( $context['product_feed'] ) && is_array( $context['product_feed'] ) ? $context['product_feed'] : ( function_exists( 'dv_product_feed_report' ) ? dv_product_feed_report() : array() );
     $marketplaces = isset( $context['marketplaces'] ) && is_array( $context['marketplaces'] ) ? $context['marketplaces'] : dv_theme_marketplace_diagnostics_report( $options );
     $profile      = isset( $context['profile_health'] ) && is_array( $context['profile_health'] ) ? $context['profile_health'] : dv_theme_store_profile_health_report();
     $maintenance  = isset( $context['maintenance'] ) && is_array( $context['maintenance'] ) ? $context['maintenance'] : dv_theme_maintenance_report();
@@ -2928,6 +3031,8 @@ function dv_theme_diagnostics_support_summary( $options, $context = array(), $ch
         dv_theme_options_label( '&#1055;&#1088;&#1077;&#1089;&#1077;&#1090;: ' ) . sanitize_key( $options['theme_visual_preset'] ?? 'default' ) . ' / ' . sanitize_key( $options['theme_color_scheme'] ?? 'preset' ),
         dv_theme_options_label( '&#1058;&#1086;&#1074;&#1072;&#1088;&#1099;: ' ) . absint( $audit['total'] ?? 0 ) . ', ' . dv_theme_options_label( '&#1079;&#1072;&#1084;&#1077;&#1095;&#1072;&#1085;&#1080;&#1081;: ' ) . absint( $audit['issue_count'] ?? 0 ),
         dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100;: ' ) . absint( $profile['passed'] ?? 0 ) . '/' . absint( $profile['total'] ?? 0 ),
+        'Yandex Metrika: ' . ( ! empty( $analytics['status'] ) ? 'OK' : dv_theme_options_label( '&#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; ID / &#1094;&#1077;&#1083;&#1080;' ) ),
+        'YML feed: ' . ( ! empty( $product_feed['status'] ) ? 'OK' : dv_theme_options_label( '&#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100;' ) ) . ', offers: ' . absint( $product_feed['offers_count'] ?? 0 ),
         'Ozon / marketplace: ' . ( ! empty( $marketplaces['status'] ) ? 'OK' : dv_theme_options_label( '&#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; ' ) . count( $marketplaces['issues'] ?? array() ) ),
         dv_theme_options_label( '&#1054;&#1073;&#1089;&#1083;&#1091;&#1078;&#1080;&#1074;&#1072;&#1085;&#1080;&#1077;: ' ) . ( ! empty( $maintenance['status'] ) ? 'OK' : dv_theme_options_label( '&#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; ' ) . absint( $maintenance['issue_count'] ?? 0 ) ),
         dv_theme_options_label( '&#1056;&#1077;&#1079;&#1077;&#1088;&#1074;: ' ) . ( ! empty( $backup['has_restore'] ) ? $backup['created_at_display'] : dv_theme_options_label( '&#1085;&#1077;&#1090; &#1089;&#1085;&#1080;&#1084;&#1082;&#1072; &#1086;&#1090;&#1082;&#1072;&#1090;&#1072;' ) ),
@@ -3879,6 +3984,10 @@ function dv_theme_clear_service_caches() {
     if ( function_exists( 'dv_clear_sitemap_cache' ) ) {
         dv_clear_sitemap_cache();
     }
+
+    if ( function_exists( 'dv_clear_product_feed_cache' ) ) {
+        dv_clear_product_feed_cache();
+    }
 }
 
 function dv_handle_theme_service_cache_clear() {
@@ -3905,6 +4014,43 @@ function dv_handle_theme_service_cache_clear() {
     exit;
 }
 add_action( 'admin_post_dv_theme_service_cache_clear', 'dv_handle_theme_service_cache_clear' );
+
+function dv_handle_product_feed_refresh() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'Sorry, you are not allowed to refresh product feed.', 'detalivam' ) );
+    }
+
+    check_admin_referer( 'dv_product_feed_refresh' );
+
+    if ( function_exists( 'dv_clear_product_feed_cache' ) ) {
+        dv_clear_product_feed_cache();
+    }
+
+    if ( function_exists( 'dv_product_feed_report' ) ) {
+        dv_product_feed_report( true );
+    }
+
+    if ( function_exists( 'dv_dashboard_status_clear_cache' ) ) {
+        dv_dashboard_status_clear_cache();
+    }
+
+    dv_admin_action_log_record(
+        'product_feed_refresh',
+        dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1085; YML-&#1092;&#1080;&#1076; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;' )
+    );
+
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page'         => 'dv-theme-options',
+                'product-feed' => 'refreshed',
+            ),
+            admin_url( 'admin.php' )
+        ) . '#dv-options-diagnostics'
+    );
+    exit;
+}
+add_action( 'admin_post_dv_product_feed_refresh', 'dv_handle_product_feed_refresh' );
 
 function dv_theme_product_audit_current_filter_issue() {
     if ( empty( $_GET['dv_product_audit_issue'] ) ) {
@@ -4561,6 +4707,23 @@ function dv_render_theme_options_number_field( $options, $key, $label, $descript
             min="<?php echo esc_attr( $min ); ?>"
             max="<?php echo esc_attr( $max ); ?>"
             step="1"
+        >
+        <small><?php echo esc_html( $description ); ?></small>
+    </label>
+    <?php
+}
+
+function dv_render_theme_options_text_field( $options, $key, $label, $description, $placeholder = '', $inputmode = 'text' ) {
+    ?>
+    <label class="dv-admin-field" data-dv-option-key="<?php echo esc_attr( $key ); ?>" data-dv-option-type="text">
+        <span><?php echo esc_html( $label ); ?></span>
+        <input
+            type="text"
+            name="dv_theme_options[<?php echo esc_attr( $key ); ?>]"
+            value="<?php echo esc_attr( $options[ $key ] ?? '' ); ?>"
+            placeholder="<?php echo esc_attr( $placeholder ); ?>"
+            inputmode="<?php echo esc_attr( $inputmode ); ?>"
+            autocomplete="off"
         >
         <small><?php echo esc_html( $description ); ?></small>
     </label>
@@ -5416,6 +5579,8 @@ function dv_theme_diagnostics_checks( $options, $context = array() ) {
     $context   = is_array( $context ) ? $context : array();
     $overrides = isset( $context['overrides'] ) && is_array( $context['overrides'] ) ? $context['overrides'] : dv_theme_woocommerce_overrides_report();
     $audit     = isset( $context['audit'] ) && is_array( $context['audit'] ) ? $context['audit'] : dv_theme_product_audit_report();
+    $analytics = isset( $context['analytics'] ) && is_array( $context['analytics'] ) ? $context['analytics'] : dv_theme_analytics_report( $options );
+    $product_feed = isset( $context['product_feed'] ) && is_array( $context['product_feed'] ) ? $context['product_feed'] : ( function_exists( 'dv_product_feed_report' ) ? dv_product_feed_report() : array() );
     $marketplaces = isset( $context['marketplaces'] ) && is_array( $context['marketplaces'] ) ? $context['marketplaces'] : dv_theme_marketplace_diagnostics_report( $options );
     $profile_health = isset( $context['profile_health'] ) && is_array( $context['profile_health'] ) ? $context['profile_health'] : dv_theme_store_profile_health_report();
     $maintenance = isset( $context['maintenance'] ) && is_array( $context['maintenance'] ) ? $context['maintenance'] : dv_theme_maintenance_report();
@@ -5498,6 +5663,18 @@ function dv_theme_diagnostics_checks( $options, $context = array() ) {
             'status' => ! empty( $marketplaces['status'] ),
             'ok'     => 'Кнопки, URL, логотип и rel-атрибуты выглядят корректно',
             'fail'   => 'Проверьте: ' . implode( ', ', wp_list_pluck( array_slice( $marketplaces['issues'], 0, 4 ), 'label' ) ),
+        ),
+        array(
+            'label'  => 'Яндекс.Метрика',
+            'status' => ! empty( $analytics['status'] ),
+            'ok'     => 'ID счётчика задан, слой целей подключён',
+            'fail'   => empty( $analytics['counter_id'] ) ? 'Укажите ID счётчика в разделе Аналитика' : 'Проверьте слой целей в main.js',
+        ),
+        array(
+            'label'  => 'YML-фид',
+            'status' => ! empty( $product_feed['status'] ),
+            'ok'     => 'Фид валиден, товары и категории есть',
+            'fail'   => empty( $product_feed['xml_valid'] ) ? 'Проверьте XML-фид' : 'Проверьте товары/категории в фиде',
         ),
         array(
             'label'  => 'Sitemap',
@@ -5662,6 +5839,457 @@ function dv_render_theme_marketplace_diagnostics_card( $report ) {
     <?php
 }
 
+function dv_render_theme_analytics_card( $report ) {
+    $checks = isset( $report['checks'] ) && is_array( $report['checks'] ) ? $report['checks'] : array();
+    ?>
+    <div class="dv-admin-marketplace-audit">
+        <div class="dv-admin-marketplace-audit-head">
+            <div>
+                <h3>Яндекс.Метрика</h3>
+                <p>Проверяет ID счётчика и слой отправки целей. Код счётчика тема не дублирует.</p>
+            </div>
+            <a class="button button-secondary" href="<?php echo esc_url( $report['settings_url'] ?? admin_url( 'admin.php?page=dv-theme-options#dv-options-analytics' ) ); ?>">
+                Открыть аналитику
+            </a>
+        </div>
+        <div class="dv-admin-marketplace-audit-grid">
+            <?php foreach ( $checks as $check ) : ?>
+                <article class="<?php echo ! empty( $check['status'] ) ? 'is-ok' : 'is-warning'; ?>">
+                    <span><?php echo ! empty( $check['status'] ) ? 'OK' : 'Проверить'; ?></span>
+                    <strong><?php echo esc_html( $check['label'] ?? '' ); ?></strong>
+                    <small><?php echo esc_html( $check['hint'] ?? '' ); ?></small>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php
+}
+
+function dv_render_theme_product_feed_card( $report ) {
+    $runtime_probe = array(
+        'theme_dir'                 => defined( 'DV_DIR' ) ? (string) DV_DIR : get_template_directory(),
+        'functions_path'            => ( defined( 'DV_DIR' ) ? (string) DV_DIR : get_template_directory() ) . '/functions.php',
+        'functions_exists'          => false,
+        'functions_includes_feed'   => false,
+        'feed_path'                 => ( defined( 'DV_DIR' ) ? (string) DV_DIR : get_template_directory() ) . '/inc/product-feed.php',
+        'feed_exists'               => false,
+        'feed_size'                 => 0,
+        'feed_mtime'                => '',
+        'feed_has_report_version'   => false,
+        'feed_has_db_snapshot'      => false,
+    );
+    if ( file_exists( $runtime_probe['functions_path'] ) ) {
+        $runtime_probe['functions_exists'] = true;
+        $functions_contents = (string) file_get_contents( $runtime_probe['functions_path'] );
+        $runtime_probe['functions_includes_feed'] = false !== strpos( $functions_contents, 'inc/product-feed.php' );
+    }
+    if ( file_exists( $runtime_probe['feed_path'] ) ) {
+        $runtime_probe['feed_exists'] = true;
+        $runtime_probe['feed_size']   = absint( filesize( $runtime_probe['feed_path'] ) );
+        $runtime_probe['feed_mtime']  = function_exists( 'wp_date' ) ? wp_date( 'd.m.Y H:i:s', filemtime( $runtime_probe['feed_path'] ) ) : date_i18n( 'd.m.Y H:i:s', filemtime( $runtime_probe['feed_path'] ) );
+        $feed_contents = (string) file_get_contents( $runtime_probe['feed_path'] );
+        $runtime_probe['feed_has_report_version'] = false !== strpos( $feed_contents, 'dv_product_feed_report_version' );
+        $runtime_probe['feed_has_db_snapshot'] = false !== strpos( $feed_contents, 'dv_product_feed_database_snapshot' );
+    }
+
+    $report          = is_array( $report ) ? $report : array();
+    $checks          = isset( $report['checks'] ) && is_array( $report['checks'] ) ? $report['checks'] : array();
+    $sample_skips    = isset( $report['sample_skips'] ) && is_array( $report['sample_skips'] ) ? array_slice( $report['sample_skips'], 0, 5 ) : array();
+    $flow            = isset( $report['flow'] ) && is_array( $report['flow'] ) ? $report['flow'] : array();
+    $problem_samples = isset( $report['problem_samples'] ) && is_array( $report['problem_samples'] ) ? $report['problem_samples'] : array();
+    $problem_summary = isset( $report['problem_summary'] ) && is_array( $report['problem_summary'] ) ? $report['problem_summary'] : array();
+    $database_snapshot = isset( $report['database_snapshot'] ) && is_array( $report['database_snapshot'] ) ? $report['database_snapshot'] : array();
+    $diagnostics_source = 'report';
+    if ( empty( $database_snapshot ) ) {
+        $diagnostics_source = function_exists( 'dv_product_feed_database_snapshot' ) ? 'live' : 'missing';
+        $database_snapshot = function_exists( 'dv_product_feed_database_snapshot' )
+            ? dv_product_feed_database_snapshot()
+            : array(
+                'posts_table'         => dv_theme_options_label( '&#1085;&#1077;&#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1086;' ),
+                'posts_table_exists'  => false,
+                'total_posts'         => 0,
+                'product_statuses'    => array(),
+                'product_like_types'  => array(),
+                'top_post_types'      => array(),
+                'lookup_table'        => dv_theme_options_label( '&#1085;&#1077;&#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1086;' ),
+                'lookup_table_exists' => false,
+                'lookup_rows'         => 0,
+                'lookup_priced_rows'  => 0,
+                'last_error'          => 'Theme is using an older inc/product-feed.php without live diagnostics functions.',
+            );
+    }
+    $sql_product_count = absint( $report['sql_product_count'] ?? $report['product_count'] ?? 0 );
+    $product_count     = absint( $report['product_count'] ?? $sql_product_count );
+    $sql_priced_count  = absint( $report['sql_priced_count'] ?? 0 );
+    $ready_count       = absint( $report['ready_count'] ?? 0 );
+    $offers_count      = absint( $report['offers_count'] ?? 0 );
+    $size_bytes        = absint( $report['size_bytes'] ?? 0 );
+    $report_version    = sanitize_text_field( (string) ( $report['report_version'] ?? ( function_exists( 'dv_product_feed_report_version' ) ? dv_product_feed_report_version() : 'legacy' ) ) );
+    $feed_module_missing = 'missing' === $diagnostics_source;
+
+    if ( empty( $checks ) ) {
+        $checks = array(
+            array(
+                'status' => $sql_product_count > 0,
+                'label'  => dv_theme_options_label( '&#1041;&#1072;&#1079;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;' ),
+                'hint'   => sprintf( '%s: %s', dv_theme_options_label( '&#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1074; &#1041;&#1044;' ), number_format_i18n( $sql_product_count ) ),
+            ),
+            array(
+                'status' => $sql_priced_count > 0,
+                'label'  => dv_theme_options_label( '&#1062;&#1077;&#1085;&#1099;' ),
+                'hint'   => sprintf( '%s: %s', dv_theme_options_label( '&#1089; &#1094;&#1077;&#1085;&#1086;&#1081;' ), number_format_i18n( $sql_priced_count ) ),
+            ),
+            array(
+                'status' => $offers_count > 0 && $size_bytes > 0,
+                'label'  => 'XML',
+                'hint'   => sprintf( '%s %s, %s %s', number_format_i18n( $offers_count ), dv_theme_options_label( '&#1086;&#1092;&#1092;&#1077;&#1088;&#1086;&#1074;' ), number_format_i18n( (float) ( $report['size_kb'] ?? 0 ), 1 ), dv_theme_options_label( '&#1050;&#1041;' ) ),
+            ),
+        );
+    }
+
+    if ( empty( $flow ) ) {
+        $flow_total = max( 1, $sql_product_count, $product_count, $sql_priced_count, $ready_count, $offers_count );
+        $flow = array(
+            array(
+                'status'  => $sql_product_count > 0,
+                'label'   => dv_theme_options_label( '&#1041;&#1072;&#1079;&#1072;' ),
+                'value'   => $sql_product_count,
+                'total'   => $flow_total,
+                'caption' => 'post_type=product',
+            ),
+            array(
+                'status'  => $sql_priced_count > 0,
+                'label'   => dv_theme_options_label( '&#1057; &#1094;&#1077;&#1085;&#1086;&#1081;' ),
+                'value'   => $sql_priced_count,
+                'total'   => $flow_total,
+                'caption' => '_price / _regular_price / _sale_price',
+            ),
+            array(
+                'status'  => $product_count > 0,
+                'label'   => dv_theme_options_label( '&#1042;&#1099;&#1073;&#1088;&#1072;&#1085;&#1086;' ),
+                'value'   => $product_count,
+                'total'   => $flow_total,
+                'caption' => 'wc_get_products + fallback',
+            ),
+            array(
+                'status'  => $ready_count > 0,
+                'label'   => dv_theme_options_label( '&#1043;&#1086;&#1090;&#1086;&#1074;&#1086;' ),
+                'value'   => $ready_count,
+                'total'   => $flow_total,
+                'caption' => dv_theme_options_label( '&#1094;&#1077;&#1085;&#1072; + URL + &#1090;&#1086;&#1074;&#1072;&#1088;' ),
+            ),
+            array(
+                'status'  => $offers_count > 0 && $size_bytes > 0,
+                'label'   => 'XML',
+                'value'   => $offers_count,
+                'total'   => $flow_total,
+                'caption' => sprintf( '%s %s', number_format_i18n( (float) ( $report['size_kb'] ?? 0 ), 1 ), dv_theme_options_label( '&#1050;&#1041;' ) ),
+            ),
+        );
+    }
+
+    if ( $feed_module_missing ) {
+        $problem_summary = array(
+            'title' => dv_theme_options_label( '&#1053;&#1072; &#1089;&#1077;&#1088;&#1074;&#1077;&#1088;&#1077; &#1089;&#1090;&#1072;&#1088;&#1072;&#1103; &#1074;&#1077;&#1088;&#1089;&#1080;&#1103; product-feed.php' ),
+            'text'  => 'Upload the current inc/product-feed.php from this theme. The admin page is newer than the feed module, so database diagnostics are unavailable.',
+        );
+    } elseif ( empty( $problem_summary ) ) {
+        if ( 0 === $sql_product_count ) {
+            $problem_summary = array(
+                'title' => dv_theme_options_label( '&#1058;&#1086;&#1074;&#1072;&#1088;&#1099; &#1085;&#1077; &#1074;&#1080;&#1076;&#1085;&#1099; &#1074; &#1041;&#1044;' ),
+                'text'  => 'SQL fallback did not find published product posts.',
+            );
+        } elseif ( 0 === $sql_priced_count ) {
+            $problem_summary = array(
+                'title' => dv_theme_options_label( '&#1053;&#1077;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1089; &#1094;&#1077;&#1085;&#1086;&#1081;' ),
+                'text'  => 'Check _price, _regular_price or _sale_price in product meta.',
+            );
+        } elseif ( 0 === $ready_count ) {
+            $problem_summary = array(
+                'title' => dv_theme_options_label( '&#1058;&#1086;&#1074;&#1072;&#1088;&#1099; &#1077;&#1089;&#1090;&#1100;, &#1085;&#1086; &#1085;&#1077; &#1075;&#1086;&#1090;&#1086;&#1074;&#1099; &#1082; XML' ),
+                'text'  => 'Most likely products are missing URL, WooCommerce object or required catalog data.',
+            );
+        } elseif ( 0 === $offers_count || 0 === $size_bytes ) {
+            $problem_summary = array(
+                'title' => dv_theme_options_label( '&#1054;&#1092;&#1092;&#1077;&#1088;&#1099; &#1085;&#1077; &#1087;&#1086;&#1087;&#1072;&#1083;&#1080; &#1074; XML' ),
+                'text'  => 'Products passed checks, but final feed output is empty. Rebuild the feed and check PHP errors.',
+            );
+        }
+    }
+    ?>
+    <div class="dv-admin-marketplace-audit">
+        <div class="dv-admin-marketplace-audit-head">
+            <div>
+                <h3>YML-фид</h3>
+                <p>Проверяет XML-выгрузку товаров для Яндекс-рекламы, товарных кампаний и агрегаторов.</p>
+            </div>
+            <div class="dv-suite-action-row">
+                <button
+                    type="submit"
+                    class="button"
+                    form="dv-product-feed-refresh"
+                    data-dv-confirm="<?php echo esc_attr( dv_theme_options_label( '&#1057;&#1073;&#1088;&#1086;&#1089;&#1080;&#1090;&#1100; &#1082;&#1101;&#1096; &#1080; &#1087;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1090;&#1100; YML-&#1092;&#1080;&#1076;?' ) ); ?>"
+                >
+                    <?php echo esc_html( dv_theme_options_label( '&#1055;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1090;&#1100; &#1092;&#1080;&#1076;' ) ); ?>
+                </button>
+                <?php if ( ! empty( $report['url'] ) ) : ?>
+                    <a class="button button-secondary" href="<?php echo esc_url( $report['url'] ); ?>" target="_blank" rel="noopener">
+                        Открыть фид
+                    </a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="dv-admin-marketplace-audit-grid">
+            <article class="<?php echo ! empty( $report['status'] ) ? 'is-ok' : 'is-warning'; ?>">
+                <span><?php echo ! empty( $report['status'] ) ? 'OK' : 'Проверить'; ?></span>
+                <strong><?php echo esc_html( number_format_i18n( absint( $report['offers_count'] ?? 0 ) ) ); ?> <?php echo esc_html( dv_theme_options_label( '&#1086;&#1092;&#1092;&#1077;&#1088;&#1086;&#1074;' ) ); ?></strong>
+                <small><?php echo esc_html( number_format_i18n( (float) ( $report['size_kb'] ?? 0 ), 1 ) ); ?> <?php echo esc_html( dv_theme_options_label( '&#1050;&#1041;' ) ); ?>, <?php echo esc_html( number_format_i18n( absint( $report['product_count'] ?? 0 ) ) ); ?> товаров, <?php echo esc_html( number_format_i18n( absint( $report['ready_count'] ?? 0 ) ) ); ?> готово, обновлено <?php echo esc_html( (string) ( $report['generated_at_display'] ?? '' ) ); ?></small>
+            </article>
+            <?php foreach ( $checks as $check ) : ?>
+                <article class="<?php echo ! empty( $check['status'] ) ? 'is-ok' : 'is-warning'; ?>">
+                    <span><?php echo ! empty( $check['status'] ) ? 'OK' : 'Проверить'; ?></span>
+                    <strong><?php echo esc_html( $check['label'] ?? '' ); ?></strong>
+                    <small><?php echo esc_html( $check['hint'] ?? '' ); ?></small>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <?php if ( ! empty( $flow ) ) : ?>
+            <div class="dv-product-feed-flow">
+                <?php foreach ( $flow as $step ) : ?>
+                    <?php
+                    $value   = absint( $step['value'] ?? 0 );
+                    $total   = max( 1, absint( $step['total'] ?? 1 ) );
+                    $percent = min( 100, max( 0, round( ( $value / $total ) * 100 ) ) );
+                    ?>
+                    <article class="<?php echo ! empty( $step['status'] ) ? 'is-ok' : 'is-warning'; ?>">
+                        <div class="dv-product-feed-flow-head">
+                            <span><?php echo esc_html( $step['label'] ?? '' ); ?></span>
+                            <strong><?php echo esc_html( number_format_i18n( $value ) ); ?> / <?php echo esc_html( number_format_i18n( $total ) ); ?></strong>
+                        </div>
+                        <div class="dv-product-feed-flow-bar" aria-hidden="true">
+                            <i style="width: <?php echo esc_attr( (string) $percent ); ?>%;"></i>
+                        </div>
+                        <small><?php echo esc_html( $step['caption'] ?? '' ); ?></small>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        <?php if ( ! empty( $problem_summary ) ) : ?>
+            <div class="dv-product-feed-problem<?php echo ! empty( $report['status'] ) ? ' is-ok' : ' is-warning'; ?>">
+                <span><?php echo ! empty( $report['status'] ) ? 'OK' : 'Где проблема'; ?></span>
+                <strong><?php echo esc_html( $problem_summary['title'] ?? '' ); ?></strong>
+                <p><?php echo esc_html( $problem_summary['text'] ?? '' ); ?></p>
+            </div>
+        <?php endif; ?>
+        <?php if ( $feed_module_missing ) : ?>
+            <div class="dv-admin-support-summary" style="margin-top:12px;">
+                <div>
+                    <h3><?php echo esc_html( dv_theme_options_label( '&#1063;&#1090;&#1086; &#1086;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?></h3>
+                    <p><?php echo esc_html( 'Check the active theme files on the server. Current state: report=' . $report_version . ', diagnostics=' . $diagnostics_source . '.' ); ?></p>
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php if ( $feed_module_missing ) : ?>
+            <details class="dv-product-feed-snapshot dv-product-feed-technical">
+                <summary>
+                    <span><?php echo esc_html( dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1072; &#1087;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1077;&#1085;&#1080;&#1103; &#1084;&#1086;&#1076;&#1091;&#1083;&#1103;' ) ); ?></span>
+                    <small>functions.php / inc/product-feed.php / markers</small>
+                </summary>
+                <div class="dv-product-feed-table-wrap">
+                <table class="widefat striped dv-product-feed-table">
+                    <tbody>
+                        <tr>
+                            <th>Theme dir</th>
+                            <td><?php echo esc_html( $runtime_probe['theme_dir'] ); ?></td>
+                        </tr>
+                        <tr>
+                            <th>functions.php</th>
+                            <td>
+                                <?php echo ! empty( $runtime_probe['functions_exists'] ) ? 'OK' : esc_html( dv_theme_options_label( '&#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;' ) ); ?>,
+                                include product-feed: <?php echo ! empty( $runtime_probe['functions_includes_feed'] ) ? 'yes' : 'no'; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>inc/product-feed.php</th>
+                            <td>
+                                <?php echo ! empty( $runtime_probe['feed_exists'] ) ? 'OK' : esc_html( dv_theme_options_label( '&#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;' ) ); ?>,
+                                size: <?php echo esc_html( number_format_i18n( absint( $runtime_probe['feed_size'] ) ) ); ?> B,
+                                mtime: <?php echo esc_html( (string) $runtime_probe['feed_mtime'] ); ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Markers</th>
+                            <td>
+                                report_version: <?php echo ! empty( $runtime_probe['feed_has_report_version'] ) ? 'yes' : 'no'; ?>,
+                                database_snapshot: <?php echo ! empty( $runtime_probe['feed_has_db_snapshot'] ) ? 'yes' : 'no'; ?>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </details>
+        <?php endif; ?>
+        <?php if ( ! empty( $database_snapshot ) ) : ?>
+            <?php
+            $format_snapshot_rows = static function ( $rows, $primary_key = 'post_type' ) {
+                if ( ! is_array( $rows ) || empty( $rows ) ) {
+                    return '';
+                }
+
+                $items = array();
+                foreach ( array_slice( $rows, 0, 8 ) as $row ) {
+                    if ( ! is_array( $row ) ) {
+                        continue;
+                    }
+
+                    $primary = sanitize_text_field( (string) ( $row[ $primary_key ] ?? '' ) );
+                    $status  = 'post_status' === $primary_key ? '' : sanitize_text_field( (string) ( $row['post_status'] ?? '' ) );
+                    $total   = number_format_i18n( absint( $row['total'] ?? 0 ) );
+                    $label   = '' !== $status ? $primary . ':' . $status : $primary;
+
+                    $items[] = trim( $label, ':' ) . ' - ' . $total;
+                }
+
+                return implode( '; ', $items );
+            };
+            $product_statuses_text = $format_snapshot_rows( $database_snapshot['product_statuses'] ?? array(), 'post_status' );
+            $product_like_text     = $format_snapshot_rows( $database_snapshot['product_like_types'] ?? array(), 'post_type' );
+            $top_post_types_text   = $format_snapshot_rows( $database_snapshot['top_post_types'] ?? array(), 'post_type' );
+
+            $snapshot_open          = empty( $report['status'] ) || $feed_module_missing;
+            $snapshot_summary_parts = array();
+
+            $snapshot_summary_parts[] = sprintf(
+                'записей: %s',
+                number_format_i18n( absint( $database_snapshot['total_posts'] ?? 0 ) )
+            );
+
+            if ( ! empty( $database_snapshot['lookup_rows'] ) ) {
+                $snapshot_summary_parts[] = sprintf(
+                    'lookup-таблица: %s',
+                    number_format_i18n( absint( $database_snapshot['lookup_rows'] ?? 0 ) )
+                );
+            }
+
+            if ( '' !== $product_statuses_text ) {
+                $snapshot_summary_parts[] = sprintf( 'товары: %s', $product_statuses_text );
+            }
+
+            $snapshot_summary_text = implode( ' | ', $snapshot_summary_parts );
+            ?>
+            <details class="dv-product-feed-snapshot"<?php echo $snapshot_open ? ' open' : ''; ?>>
+                <summary>
+                    <span><?php echo esc_html( dv_theme_options_label( 'Снимок базы для фида' ) ); ?></span>
+                    <?php if ( ! empty( $snapshot_summary_text ) ) : ?>
+                        <small><?php echo esc_html( $snapshot_summary_text ); ?></small>
+                    <?php endif; ?>
+                </summary>
+                <div class="dv-product-feed-table-wrap">
+                <table class="widefat striped dv-product-feed-table">
+                    <tbody>
+                        <tr>
+                            <th><?php echo esc_html( dv_theme_options_label( '&#1058;&#1072;&#1073;&#1083;&#1080;&#1094;&#1072; posts' ) ); ?></th>
+                            <td>
+                                <?php echo esc_html( (string) ( $database_snapshot['posts_table'] ?? '' ) ); ?>,
+                                <?php echo ! empty( $database_snapshot['posts_table_exists'] ) ? 'OK' : esc_html( dv_theme_options_label( '&#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1072;' ) ); ?>,
+                                <?php echo esc_html( number_format_i18n( absint( $database_snapshot['total_posts'] ?? 0 ) ) ); ?> rows
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>product</th>
+                            <td><?php echo '' !== $product_statuses_text ? esc_html( $product_statuses_text ) : esc_html( dv_theme_options_label( '&#1085;&#1077;&#1090; &#1079;&#1072;&#1087;&#1080;&#1089;&#1077;&#1081; post_type=product' ) ); ?></td>
+                        </tr>
+                        <tr>
+                            <th>LIKE %product%</th>
+                            <td><?php echo '' !== $product_like_text ? esc_html( $product_like_text ) : esc_html( dv_theme_options_label( '&#1085;&#1077;&#1090; post_type, &#1087;&#1086;&#1093;&#1086;&#1078;&#1080;&#1093; &#1085;&#1072; product' ) ); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Top post_type</th>
+                            <td><?php echo '' !== $top_post_types_text ? esc_html( $top_post_types_text ) : '&mdash;'; ?></td>
+                        </tr>
+                        <tr>
+                            <th>wc_product_meta_lookup</th>
+                            <td>
+                                <?php echo ! empty( $database_snapshot['lookup_table_exists'] ) ? 'OK' : esc_html( dv_theme_options_label( '&#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1072;' ) ); ?>,
+                                rows: <?php echo esc_html( number_format_i18n( absint( $database_snapshot['lookup_rows'] ?? 0 ) ) ); ?>,
+                                priced: <?php echo esc_html( number_format_i18n( absint( $database_snapshot['lookup_priced_rows'] ?? 0 ) ) ); ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></th>
+                            <td>
+                                v: <?php echo esc_html( $report_version ); ?>,
+                                source: <?php echo esc_html( $diagnostics_source ); ?>
+                            </td>
+                        </tr>
+                        <?php if ( ! empty( $database_snapshot['last_error'] ) ) : ?>
+                            <tr>
+                                <th>SQL error</th>
+                                <td><?php echo esc_html( (string) $database_snapshot['last_error'] ); ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                </div>
+            </details>
+        <?php endif; ?>
+        <?php if ( ! empty( $problem_samples ) ) : ?>
+            <?php $problem_samples_count = count( $problem_samples ); ?>
+            <details class="dv-product-feed-snapshot dv-product-feed-technical">
+                <summary>
+                    <span><?php echo esc_html( dv_theme_options_label( '&#1055;&#1088;&#1080;&#1084;&#1077;&#1088;&#1099; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1089; &#1087;&#1088;&#1086;&#1073;&#1083;&#1077;&#1084;&#1086;&#1081;' ) ); ?></span>
+                    <small><?php echo esc_html( number_format_i18n( $problem_samples_count ) ); ?> <?php echo esc_html( dv_theme_options_label( '&#1087;&#1088;&#1080;&#1084;&#1077;&#1088;&#1086;&#1074;' ) ); ?></small>
+                </summary>
+                <div class="dv-product-feed-table-wrap">
+                <h4>Примеры товаров с проблемой</h4>
+                <table class="widefat striped dv-product-feed-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Проблема</th>
+                            <th>Товар</th>
+                            <th>Цена</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $problem_samples as $sample ) : ?>
+                            <tr>
+                                <td><?php echo esc_html( absint( $sample['id'] ?? 0 ) ); ?></td>
+                                <td><span class="dv-product-feed-issue"><?php echo esc_html( $sample['issue'] ?? '' ); ?></span></td>
+                                <td><?php echo esc_html( $sample['title'] ?? '' ); ?></td>
+                                <td><?php echo '' !== (string) ( $sample['price'] ?? '' ) ? esc_html( (string) $sample['price'] ) : '&mdash;'; ?></td>
+                                <td>
+                                    <?php if ( ! empty( $sample['edit_url'] ) ) : ?>
+                                        <a class="button button-small" href="<?php echo esc_url( $sample['edit_url'] ); ?>">Открыть</a>
+                                    <?php endif; ?>
+                                    <?php if ( ! empty( $sample['view_url'] ) ) : ?>
+                                        <a class="button button-small button-secondary" href="<?php echo esc_url( $sample['view_url'] ); ?>" target="_blank" rel="noopener">На сайте</a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
+            </details>
+        <?php endif; ?>
+        <?php if ( empty( $report['status'] ) && ! empty( $sample_skips ) ) : ?>
+            <?php $sample_skips_count = count( $sample_skips ); ?>
+            <details class="dv-product-feed-snapshot dv-product-feed-technical">
+                <summary>
+                    <span><?php echo esc_html( dv_theme_options_label( '&#1055;&#1088;&#1080;&#1084;&#1077;&#1088;&#1099; &#1087;&#1088;&#1086;&#1087;&#1091;&#1089;&#1082;&#1086;&#1074;' ) ); ?></span>
+                    <small><?php echo esc_html( number_format_i18n( $sample_skips_count ) ); ?> <?php echo esc_html( dv_theme_options_label( '&#1087;&#1088;&#1080;&#1084;&#1077;&#1088;&#1086;&#1074;' ) ); ?></small>
+                </summary>
+                <div class="dv-product-feed-table-wrap">
+                    <p class="dv-product-feed-note"><?php echo esc_html( implode( '; ', array_map( 'sanitize_text_field', $sample_skips ) ) ); ?></p>
+                </div>
+            </details>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
 function dv_render_theme_store_profile_health_card( $report ) {
     $checks      = isset( $report['checks'] ) && is_array( $report['checks'] ) ? $report['checks'] : array();
     $issue_count = absint( $report['issue_count'] ?? 0 );
@@ -5779,6 +6407,8 @@ function dv_render_theme_options_diagnostics( $options ) {
     $snapshot = dv_theme_diagnostics_settings_snapshot( $options );
     $environment = $context['environment'];
     $audit    = $context['audit'];
+    $analytics = $context['analytics'];
+    $product_feed = isset( $context['product_feed'] ) && is_array( $context['product_feed'] ) ? $context['product_feed'] : array();
     $marketplaces = $context['marketplaces'];
     $profile_health = $context['profile_health'];
     $maintenance = $context['maintenance'];
@@ -5814,6 +6444,10 @@ function dv_render_theme_options_diagnostics( $options ) {
         <?php dv_render_theme_product_audit_card( $audit ); ?>
 
         <?php dv_render_theme_store_profile_health_card( $profile_health ); ?>
+
+        <?php dv_render_theme_analytics_card( $analytics ); ?>
+
+        <?php dv_render_theme_product_feed_card( $product_feed ); ?>
 
         <?php dv_render_theme_marketplace_diagnostics_card( $marketplaces ); ?>
 
@@ -5906,7 +6540,12 @@ function dv_render_theme_options_page() {
         <?php endif; ?>
         <?php if ( isset( $_GET['service-cache'] ) && 'cleared' === sanitize_key( wp_unslash( $_GET['service-cache'] ) ) ) : ?>
             <div class="notice notice-success is-dismissible">
-                <p><?php echo esc_html( dv_theme_options_label( '&#1057;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;&#1099;: dashboard, &#1072;&#1091;&#1076;&#1080;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap.' ) ); ?></p>
+                <p><?php echo esc_html( dv_theme_options_label( '&#1057;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; &#1086;&#1095;&#1080;&#1097;&#1077;&#1085;&#1099;: dashboard, &#1072;&#1091;&#1076;&#1080;&#1090; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;, sitemap &#1080; YML-&#1092;&#1080;&#1076;.' ) ); ?></p>
+            </div>
+        <?php endif; ?>
+        <?php if ( isset( $_GET['product-feed'] ) && 'refreshed' === sanitize_key( wp_unslash( $_GET['product-feed'] ) ) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php echo esc_html( dv_theme_options_label( 'YML-&#1092;&#1080;&#1076; &#1087;&#1077;&#1088;&#1077;&#1089;&#1086;&#1073;&#1088;&#1072;&#1085;. &#1054;&#1090;&#1095;&#1105;&#1090; &#1074; &#1076;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1077; &#1086;&#1073;&#1085;&#1086;&#1074;&#1083;&#1105;&#1085;.' ) ); ?></p>
             </div>
         <?php endif; ?>
         <?php if ( isset( $_GET['search-index'] ) && 'rebuilt' === sanitize_key( wp_unslash( $_GET['search-index'] ) ) ) : ?>
@@ -5953,6 +6592,7 @@ function dv_render_theme_options_page() {
                     <a href="#dv-options-catalog-card"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1072; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;&#1077;' ) ); ?></a>
                     <a href="#dv-options-home"><?php echo esc_html( dv_theme_options_label( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;' ) ); ?></a>
                     <a href="#dv-options-search"><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1080;&#1089;&#1082; &#1080; 404' ) ); ?></a>
+                    <a href="#dv-options-analytics">Аналитика</a>
                     <a href="#dv-options-footer"><?php echo esc_html( dv_theme_options_label( '&#1060;&#1091;&#1090;&#1077;&#1088;' ) ); ?></a>
                     <a href="#dv-options-cart"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1086;&#1088;&#1079;&#1080;&#1085;&#1072;' ) ); ?></a>
                     <a href="#dv-options-checkout">Checkout</a>
@@ -6477,6 +7117,26 @@ function dv_render_theme_options_page() {
                     </div>
                 </section>
 
+                <section class="dv-admin-card" id="dv-options-analytics">
+                    <h2>Аналитика</h2>
+                    <?php
+                    dv_render_theme_options_text_field(
+                        $options,
+                        'yandex_metrika_counter_id',
+                        'ID счётчика Яндекс.Метрики',
+                        'Только цифры. После сохранения цели add_to_cart, phone_click, site_search, ozon_click, product_click, checkout_start и order_success будут отправляться через ym(..., reachGoal, ...).',
+                        '12345678',
+                        'numeric'
+                    );
+                    ?>
+                    <div class="dv-admin-actions">
+                        <a class="button button-secondary" href="<?php echo esc_url( add_query_arg( 'dv_metrika_debug', '1', home_url( '/' ) ) ); ?>" target="_blank" rel="noopener">
+                            Открыть сайт в режиме проверки целей
+                        </a>
+                        <p class="description">Панель появится только у администратора и покажет реальные события целей без отправки тестовых фейковых конверсий.</p>
+                    </div>
+                </section>
+
                 <section class="dv-admin-card" id="dv-options-footer">
                     <h2><?php echo esc_html( dv_theme_options_label( '&#1060;&#1091;&#1090;&#1077;&#1088;' ) ); ?></h2>
                     <?php
@@ -6887,6 +7547,11 @@ function dv_render_theme_options_page() {
         <form id="dv-theme-service-cache-clear" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
             <?php wp_nonce_field( 'dv_theme_service_cache_clear' ); ?>
             <input type="hidden" name="action" value="dv_theme_service_cache_clear">
+        </form>
+
+        <form id="dv-product-feed-refresh" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <?php wp_nonce_field( 'dv_product_feed_refresh' ); ?>
+            <input type="hidden" name="action" value="dv_product_feed_refresh">
         </form>
 
         <form id="dv-live-search-index-rebuild" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

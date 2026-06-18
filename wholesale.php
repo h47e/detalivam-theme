@@ -10,22 +10,23 @@ $all_total  = function_exists( 'dv_wholesale_get_all_products_total' ) ? dv_whol
 $pages      = $query ? dv_wholesale_query_pages( $query ) : 1;
 $logo_url   = function_exists( 'dv_get_theme_logo_url' ) ? dv_get_theme_logo_url() : get_template_directory_uri() . '/assets/logo.png';
 $store      = function_exists( 'dv_get_store_profile' ) ? dv_get_store_profile() : array();
+$store_name = function_exists( 'dv_string_value' ) ? dv_string_value( $store['name'] ?? '', get_bloginfo( 'name' ) ) : ( is_scalar( $store['name'] ?? null ) ? trim( (string) $store['name'] ) : get_bloginfo( 'name' ) );
 $base_url   = function_exists( 'dv_wholesale_page_url' ) ? dv_wholesale_page_url() : home_url( '/optovik/' );
 
 ?><!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
-<meta charset="<?php bloginfo( 'charset' ); ?>">
+<meta charset="<?php echo esc_attr( get_bloginfo( 'charset' ) ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <?php wp_head(); ?>
 </head>
-<body <?php body_class(); ?>>
+<body <?php function_exists( 'dv_body_class' ) ? dv_body_class() : body_class(); ?>>
 <?php wp_body_open(); ?>
 
 <main class="dv-wholesale-shell">
     <header class="dv-wholesale-top">
         <a class="dv-wholesale-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>">
-            <img src="<?php echo esc_url( $logo_url ); ?>" alt="<?php echo esc_attr( $store['name'] ?? get_bloginfo( 'name' ) ); ?>">
+            <img src="<?php echo esc_url( $logo_url ); ?>" alt="<?php echo esc_attr( $store_name ); ?>">
         </a>
         <div class="dv-wholesale-heading">
             <h1><?php echo esc_html( $labels['page_title'] ); ?></h1>

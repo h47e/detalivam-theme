@@ -2220,6 +2220,221 @@
     line-height: 1.35;
 }
 
+.dv-theme-options-page .dv-product-feed-flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dv-theme-options-page .dv-product-feed-flow article {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d8e8f8;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.dv-theme-options-page .dv-product-feed-flow article.is-warning {
+    border-color: #fed7aa;
+    background: #fffaf3;
+}
+
+.dv-theme-options-page .dv-product-feed-flow-head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.dv-theme-options-page .dv-product-feed-flow-head span {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.dv-theme-options-page .dv-product-feed-flow-head strong {
+    color: #0b1727;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.dv-theme-options-page .dv-product-feed-flow-bar {
+    overflow: hidden;
+    height: 8px;
+    border-radius: 999px;
+    background: #e6eef8;
+}
+
+.dv-theme-options-page .dv-product-feed-flow-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #16a34a;
+}
+
+.dv-theme-options-page .dv-product-feed-flow .is-warning .dv-product-feed-flow-bar i {
+    background: #f59e0b;
+}
+
+.dv-theme-options-page .dv-product-feed-flow small {
+    color: #64748b;
+    line-height: 1.3;
+}
+
+.dv-theme-options-page .dv-product-feed-problem {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    background: #f0fdf4;
+}
+
+.dv-theme-options-page .dv-product-feed-problem.is-warning {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.dv-theme-options-page .dv-product-feed-problem span {
+    color: #047857;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.dv-theme-options-page .dv-product-feed-problem.is-warning span {
+    color: #9a3412;
+}
+
+.dv-theme-options-page .dv-product-feed-problem strong {
+    color: #0b1727;
+    font-size: 16px;
+}
+
+.dv-theme-options-page .dv-product-feed-problem p {
+    margin: 0;
+}
+
+.dv-theme-options-page .dv-product-feed-table-wrap {
+    display: grid;
+    gap: 10px;
+}
+
+.dv-theme-options-page .dv-product-feed-table-wrap h4 {
+    margin: 0;
+    color: #0b1727;
+    font-size: 14px;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot {
+    border: 1px solid #d8e8f8;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot summary::-webkit-details-marker {
+    display: none;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot summary::after {
+    content: "+";
+    color: #0b1727;
+    font-weight: 800;
+    transition: transform 0.2s ease;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot[open] summary::after {
+    content: "-";
+    transform: none;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot summary span {
+    font-weight: 700;
+    color: #0b1727;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot summary small {
+    color: #64748b;
+    text-align: right;
+}
+
+.dv-theme-options-page .dv-product-feed-snapshot .dv-product-feed-table-wrap {
+    margin: 0;
+    border-top: 1px solid #d8e8f8;
+    border-radius: 0;
+    padding: 0 14px 14px;
+    gap: 0;
+}
+
+.dv-theme-options-page .dv-product-feed-technical summary {
+    background: #f8fbff;
+}
+
+.dv-theme-options-page .dv-product-feed-technical .dv-product-feed-table-wrap h4 {
+    display: none;
+}
+
+.dv-theme-options-page .dv-product-feed-note {
+    margin: 12px 0 0;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.dv-theme-options-page .dv-product-feed-table td,
+.dv-theme-options-page .dv-product-feed-table th {
+    vertical-align: middle;
+}
+
+.dv-theme-options-page .dv-product-feed-issue {
+    display: inline-flex;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+@media (max-width: 1200px) {
+    .dv-theme-options-page .dv-product-feed-flow {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 782px) {
+    .dv-theme-options-page .dv-product-feed-flow {
+        grid-template-columns: 1fr;
+    }
+
+    .dv-theme-options-page .dv-product-feed-table-wrap {
+        overflow-x: auto;
+    }
+
+    .dv-theme-options-page .dv-product-feed-snapshot summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .dv-theme-options-page .dv-product-feed-snapshot summary small {
+        text-align: left;
+    }
+}
+
 .dv-theme-options-page .dv-admin-maintenance-audit {
     display: grid;
     gap: 14px;

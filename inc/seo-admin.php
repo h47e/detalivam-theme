@@ -585,18 +585,13 @@ function dv_seo_tools_handle_actions() {
     if ( 'refresh_http_checks' === $action ) {
         check_admin_referer( 'dv_seo_tools_refresh_http_checks' );
 
-        dv_seo_tools_clear_sitemap_http_report_cache();
-        dv_seo_tools_clear_robots_report_cache();
-        dv_seo_tools_clear_sitemap_stats_cache();
-        $stats = dv_seo_tools_get_sitemap_stats( true );
-        dv_seo_tools_get_sitemap_http_report( $stats, true );
-        dv_seo_tools_get_robots_report( true );
+        dv_seo_tools_request_http_checks_refresh();
 
         wp_safe_redirect(
             add_query_arg(
                 array(
                     'page'          => 'dv-seo-tools',
-                    'dv_seo_notice' => 'http_checks_refreshed',
+                    'dv_seo_notice' => 'http_checks_scheduled',
                 ),
                 admin_url( 'admin.php' )
             )
@@ -1071,6 +1066,110 @@ function dv_seo_tools_clear_sitemap_http_report_cache() {
 function dv_seo_tools_clear_robots_report_cache() {
     dv_seo_tools_clear_remembered_transient_key( 'dv_seo_robots_report_cache_key', 'dv_seo_robots_report_v1' );
 }
+
+function dv_seo_tools_http_checks_state_key() {
+    return 'dv_seo_http_checks_state_v1';
+}
+
+function dv_seo_tools_http_checks_job_lock_key() {
+    return 'dv_seo_http_checks_job_lock_v1';
+}
+
+function dv_seo_tools_http_checks_cron_hook() {
+    return 'dv_seo_tools_refresh_http_checks_cron';
+}
+
+function dv_seo_tools_clear_http_checks_state() {
+    delete_option( dv_seo_tools_http_checks_state_key() );
+    delete_transient( dv_seo_tools_http_checks_job_lock_key() );
+}
+
+function dv_seo_tools_get_http_checks_state() {
+    $state = get_option( dv_seo_tools_http_checks_state_key(), array() );
+
+    if ( ! is_array( $state ) ) {
+        $state = array();
+    }
+
+    return wp_parse_args(
+        $state,
+        array(
+            'status'       => 'idle',
+            'scheduled_at' => 0,
+            'started_at'   => 0,
+            'completed_at' => 0,
+            'message'      => '',
+        )
+    );
+}
+
+function dv_seo_tools_update_http_checks_state( $state ) {
+    $state = wp_parse_args( (array) $state, dv_seo_tools_get_http_checks_state() );
+    update_option( dv_seo_tools_http_checks_state_key(), $state, false );
+
+    return $state;
+}
+
+function dv_seo_tools_http_checks_schedule() {
+    $hook = dv_seo_tools_http_checks_cron_hook();
+
+    if ( ! wp_next_scheduled( $hook ) ) {
+        wp_schedule_single_event( time() + 1, $hook );
+    }
+}
+
+function dv_seo_tools_request_http_checks_refresh() {
+    dv_seo_tools_clear_sitemap_http_report_cache();
+    dv_seo_tools_clear_robots_report_cache();
+    dv_seo_tools_clear_http_checks_state();
+    dv_seo_tools_clear_sitemap_stats_cache();
+
+    dv_seo_tools_update_http_checks_state(
+        array(
+            'status'       => 'queued',
+            'scheduled_at' => time(),
+            'started_at'   => 0,
+            'completed_at' => 0,
+            'message'      => 'Проверка запрошена',
+        )
+    );
+
+    dv_seo_tools_http_checks_schedule();
+
+    return true;
+}
+
+function dv_seo_tools_refresh_http_checks_job() {
+    $lock_key = dv_seo_tools_http_checks_job_lock_key();
+    if ( get_transient( $lock_key ) ) {
+        return;
+    }
+
+    set_transient( $lock_key, 1, 5 * MINUTE_IN_SECONDS );
+
+    dv_seo_tools_update_http_checks_state(
+        array(
+            'status'     => 'running',
+            'started_at' => time(),
+            'message'    => 'Выполняется',
+        )
+    );
+
+    $stats          = dv_seo_tools_get_sitemap_stats( true );
+    $sitemap_report = dv_seo_tools_get_sitemap_http_report( $stats, true );
+    $robots_report  = dv_seo_tools_get_robots_report( true );
+
+    dv_seo_tools_update_http_checks_state(
+        array(
+            'status'       => empty( $sitemap_report['issues'] ) && empty( $robots_report['issues'] ) ? 'completed' : 'completed_with_issues',
+            'completed_at' => time(),
+            'message'      => empty( $sitemap_report['issues'] ) && empty( $robots_report['issues'] ) ? 'Проверка выполнена' : 'Проверка выполнена с предупреждениями',
+        )
+    );
+
+    delete_transient( $lock_key );
+}
+add_action( dv_seo_tools_http_checks_cron_hook(), 'dv_seo_tools_refresh_http_checks_job' );
 
 function dv_seo_tools_empty_sitemap_http_report() {
     return array(
@@ -3126,6 +3225,103 @@ function dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_repo
     );
 }
 
+function dv_seo_tools_get_health_score_strict( $summary, $actions, $stats, $robots_report = null, $sitemap_http_report = null, $gaps = null, $http_checks_state = array(), $product_audit_state = array() ) {
+    $health = dv_seo_tools_get_health_score( $summary, $actions, $stats, $robots_report, $sitemap_http_report, $gaps );
+    $score  = max( 0, min( 100, (int) ( $health['score'] ?? 0 ) ) );
+
+    $http_checks_state   = is_array( $http_checks_state ) ? $http_checks_state : array();
+    $product_audit_state = is_array( $product_audit_state ) ? $product_audit_state : array();
+    $http_checks_status  = sanitize_key( $http_checks_state['status'] ?? '' );
+    $product_audit_status = sanitize_key( $product_audit_state['status'] ?? '' );
+
+    $sitemap_http_has_urls = false;
+    if ( is_array( $sitemap_http_report ) && is_array( $sitemap_http_report['items'] ?? null ) ) {
+        foreach ( $sitemap_http_report['items'] as $sitemap_http_item ) {
+            if ( (int) ( $sitemap_http_item['loc_count'] ?? 0 ) > 0 ) {
+                $sitemap_http_has_urls = true;
+                break;
+            }
+        }
+    }
+
+    $sitemap_is_empty = ! empty( $stats['total'] ) && ! $sitemap_http_has_urls;
+    $caps             = array();
+
+    if ( ! empty( $http_checks_status ) && in_array( $http_checks_status, array( 'queued', 'running' ), true ) ) {
+        $caps[] = array( 65, 'HTTP checks are in progress, score kept conservative.' );
+    }
+
+    if ( is_array( $sitemap_http_report ) ) {
+        $sitemap_ready = ! empty( $sitemap_http_report['ready'] ) && empty( $sitemap_http_report['issues'] );
+        if ( ! $sitemap_ready ) {
+            $caps[] = array( 40, 'Sitemap HTTP pipeline is not healthy.' );
+        } elseif ( $sitemap_is_empty ) {
+            $caps[] = array( 20, 'Sitemap returns no indexed URLs.' );
+        }
+    } elseif ( ! empty( $stats['total'] ) ) {
+        $caps[] = array( 70, 'Sitemap HTTP report is missing.' );
+    }
+
+    if ( is_array( $robots_report ) ) {
+        $robots_blocked = empty( $robots_report['public'] ) || ! empty( $robots_report['has_global_block'] );
+        if ( $robots_blocked ) {
+            $caps[] = array( 20, 'Robots blocks indexing globally or site is excluded from indexation.' );
+        }
+    }
+
+    if ( is_array( $gaps ) && ! empty( $gaps['audit_pending'] ) ) {
+        $caps[] = array( 55, 'Product SEO audit is not ready yet.' );
+    } elseif ( is_array( $gaps ) && ! empty( $gaps['is_stale'] ) ) {
+        $caps[] = array( 45, 'Product SEO audit is stale and should be refreshed.' );
+    }
+
+    if ( 'running' === $product_audit_status ) {
+        $caps[] = array( 50, 'Product SEO audit is running.' );
+    }
+
+    $score_cap = 100;
+    if ( ! empty( $caps ) ) {
+        foreach ( $caps as $cap ) {
+            if ( is_array( $cap ) && isset( $cap[0], $cap[1] ) ) {
+                $score_cap = min( $score_cap, (int) $cap[0] );
+            }
+        }
+    }
+
+    $score = min( $score, $score_cap );
+
+    $level = $score >= 85 ? 'good' : ( $score >= 65 ? 'warning' : 'bad' );
+    $labels = array(
+        'bad'     => 'Critical',
+        'warning' => 'Needs improvement',
+        'good'    => 'Good',
+    );
+    $health['score'] = $score;
+    $health['level'] = $level;
+
+    if ( ! empty( $caps ) ) {
+        $worst_cap = null;
+        foreach ( $caps as $cap ) {
+            if ( ! is_array( $cap ) || ! isset( $cap[0], $cap[1] ) ) {
+                continue;
+            }
+
+            if ( null === $worst_cap || (int) $cap[0] < (int) $worst_cap[0] ) {
+                $worst_cap = $cap;
+            }
+        }
+
+        if ( null !== $worst_cap ) {
+            $health['label']   = $labels['bad'];
+            $health['message'] = (string) $worst_cap[1];
+        }
+    } else {
+        $health['label']   = $labels[ $level ] ?? $health['label'];
+    }
+
+    return $health;
+}
+
 function dv_seo_tools_empty_product_effective_duplicate_sections() {
     return array(
         array(
@@ -3888,8 +4084,10 @@ function dv_seo_tools_export_report() {
     $duplicates = dv_seo_tools_get_duplicate_report( $overview, $gaps );
     $robots_report = dv_seo_tools_get_robots_report( false, false );
     $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats, false, false );
+    $http_checks_state = dv_seo_tools_get_http_checks_state();
+    $product_audit_state = dv_seo_tools_get_product_audit_state();
     $actions  = dv_seo_tools_get_action_queue( $overview, $gaps, $stats, $robots_report, $sitemap_http_report );
-    $health   = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps );
+    $health   = dv_seo_tools_get_health_score_strict( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps, $http_checks_state, $product_audit_state );
 
     if ( function_exists( 'nocache_headers' ) ) {
         nocache_headers();
@@ -4196,9 +4394,10 @@ function dv_render_seo_tools_page() {
     $robots_url = home_url( '/robots.txt' );
     $robots_report = dv_seo_tools_get_robots_report( false, false );
     $sitemap_http_report = dv_seo_tools_get_sitemap_http_report( $stats, false, false );
-    $actions    = dv_seo_tools_get_action_queue( $overview, $gaps, $stats, $robots_report, $sitemap_http_report );
-    $health     = dv_seo_tools_get_health_score( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps );
+    $http_checks_state = dv_seo_tools_get_http_checks_state();
     $product_audit_state = dv_seo_tools_get_product_audit_state();
+    $actions    = dv_seo_tools_get_action_queue( $overview, $gaps, $stats, $robots_report, $sitemap_http_report );
+    $health     = dv_seo_tools_get_health_score_strict( $progress, $actions, $stats, $robots_report, $sitemap_http_report, $gaps, $http_checks_state, $product_audit_state );
     $check_url  = isset( $_GET['dv_seo_check_url'] ) ? esc_url_raw( wp_unslash( $_GET['dv_seo_check_url'] ) ) : '';
     $head_report = null;
 
@@ -4226,8 +4425,8 @@ function dv_render_seo_tools_page() {
             <div class="notice notice-success is-dismissible"><p>SEO-аудит товаров обновлён.</p></div>
         <?php elseif ( 'product_audit_scheduled' === $notice ) : ?>
             <div class="notice notice-success is-dismissible"><p>Фоновый SEO-аудит товаров запущен. Можно закрыть страницу: задача продолжит выполняться через WP-Cron.</p></div>
-        <?php elseif ( 'http_checks_refreshed' === $notice ) : ?>
-            <div class="notice notice-success is-dismissible"><p>HTTP-проверки robots.txt и sitemap-файлов обновлены.</p></div>
+        <?php elseif ( 'http_checks_scheduled' === $notice ) : ?>
+            <div class="notice notice-success is-dismissible"><p>HTTP-проверки поставлены в фоновый режим.</p></div>
         <?php endif; ?>
 
         <?php
@@ -4417,6 +4616,9 @@ function dv_render_seo_tools_page() {
                     <a href="<?php echo esc_url( admin_url( 'edit-tags.php?taxonomy=product_cat&post_type=product' ) ); ?>">Категории</a>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-content' ) ); ?>">Контент темы</a>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-store-settings' ) ); ?>">Профиль магазина</a>
+                    <?php if ( function_exists( 'dv_product_feed_url' ) ) : ?>
+                        <a href="<?php echo esc_url( dv_product_feed_url() ); ?>" target="_blank" rel="noopener">YML-фид</a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

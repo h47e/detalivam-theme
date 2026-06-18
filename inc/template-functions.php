@@ -1301,8 +1301,10 @@ function dv_get_product_specs_for_tabs( $product, $description_specs = array() )
         dv_add_product_spec_row( $rows, 'Вес', $product->get_weight() . ' кг' );
     }
 
-    if ( $product->get_dimensions() ) {
-        dv_add_product_spec_row( $rows, 'Размеры (Д×Ш×В)', $product->get_dimensions() . ' см' );
+    $dimensions = $product->get_dimensions( false );
+    if ( is_array( $dimensions ) && array_filter( $dimensions ) ) {
+        $dimensions_text = function_exists( 'wc_format_dimensions' ) ? wc_format_dimensions( $dimensions ) : implode( ' x ', array_filter( $dimensions ) );
+        dv_add_product_spec_row( $rows, 'Размеры (Д×Ш×В)', $dimensions_text );
     }
 
     return array_values( $rows );

@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
-<meta charset="<?php bloginfo( 'charset' ); ?>">
+<meta charset="<?php echo esc_attr( get_bloginfo( 'charset' ) ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <?php wp_head(); ?>
 </head>
-<body <?php body_class(); ?>>
+<body <?php function_exists( 'dv_body_class' ) ? dv_body_class() : body_class(); ?>>
 <?php wp_body_open(); ?>
 <?php $dv_store = function_exists( 'dv_get_store_profile' ) ? dv_get_store_profile() : array(); ?>
 <?php $dv_content = function_exists( 'dv_get_theme_header_footer_content_settings' ) ? dv_get_theme_header_footer_content_settings() : ( function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array() ); ?>
 <?php
 $dv_logo_url       = function_exists( 'dv_get_theme_logo_url' ) ? dv_get_theme_logo_url() : get_template_directory_uri() . '/assets/logo.png';
+$dv_store_name     = function_exists( 'dv_string_value' ) ? dv_string_value( $dv_store['name'] ?? '', get_bloginfo( 'name' ) ) : ( is_scalar( $dv_store['name'] ?? null ) ? trim( (string) $dv_store['name'] ) : get_bloginfo( 'name' ) );
 $dv_compare_count  = function_exists( 'dv_get_cookie_id_list' ) ? count( dv_get_cookie_id_list( 'dv_compare' ) ) : 0;
 $dv_wishlist_count = function_exists( 'dv_get_cookie_id_list' ) ? count( dv_get_cookie_id_list( 'dv_wishlist' ) ) : 0;
 $dv_header_topbar_enabled   = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'header_topbar_enabled' ) : true;
@@ -95,8 +96,8 @@ if ( function_exists( 'wc_get_page_id' ) ) {
       <div class="header-main-inner">
 
         <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-logo">
-          <img src="<?php echo esc_url( $dv_logo_url ); ?>" alt="<?php echo esc_attr( $dv_store['name'] ?? get_bloginfo( 'name' ) ); ?>" class="logo-img">
-          <span class="sr-only"><?php echo esc_html( $dv_store['name'] ?? get_bloginfo( 'name' ) ); ?></span>
+          <img src="<?php echo esc_url( $dv_logo_url ); ?>" alt="<?php echo esc_attr( $dv_store_name ); ?>" class="logo-img">
+          <span class="sr-only"><?php echo esc_html( $dv_store_name ); ?></span>
         </a>
 
         <?php if ( $dv_header_search_enabled ) : ?>

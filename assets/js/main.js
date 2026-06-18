@@ -15,6 +15,113 @@
     return String(template || '').replace('%s', value);
   }
 
+  function dvMetrikaGoal(goal, params) {
+    var config = (window.dvConfig && window.dvConfig.metrika) || {};
+    var counterId = config.counterId || window.dvMetrikaCounterId || '';
+    var detail = {
+      goal: goal,
+      params: params || {},
+      path: window.location.pathname
+    };
+
+    if (!goal) return;
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'dv_metrika_goal',
+      goal: goal,
+      goalParams: detail.params,
+      pagePath: detail.path
+    });
+
+    window.dispatchEvent(new CustomEvent('dv:metrika-goal', { detail: detail }));
+
+    if (counterId && typeof window.ym === 'function') {
+      window.ym(counterId, 'reachGoal', goal, detail.params);
+    }
+  }
+
+  window.dvMetrikaGoal = dvMetrikaGoal;
+
+  function dvInitMetrikaDebugPanel() {
+    var config = (window.dvConfig && window.dvConfig.metrika) || {};
+    var panel;
+    var list;
+    var status;
+
+    if (!config.debug || document.getElementById('dv-metrika-debug')) return;
+
+    panel = document.createElement('aside');
+    panel.id = 'dv-metrika-debug';
+    panel.setAttribute('aria-live', 'polite');
+    panel.innerHTML =
+      '<div class="dv-metrika-debug-head">' +
+        '<strong>Метрика: проверка целей</strong>' +
+        '<button type="button" aria-label="Скрыть проверку Метрики">×</button>' +
+      '</div>' +
+      '<div class="dv-metrika-debug-status"></div>' +
+      '<ol class="dv-metrika-debug-list"></ol>';
+
+    panel.style.cssText = [
+      'position:fixed',
+      'right:16px',
+      'bottom:16px',
+      'z-index:99999',
+      'width:min(360px,calc(100vw - 32px))',
+      'max-height:60vh',
+      'overflow:auto',
+      'background:#fff',
+      'color:#111827',
+      'border:1px solid #d7dde8',
+      'box-shadow:0 18px 45px rgba(15,23,42,.18)',
+      'border-radius:8px',
+      'font:13px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    ].join(';');
+
+    document.body.appendChild(panel);
+
+    status = panel.querySelector('.dv-metrika-debug-status');
+    list = panel.querySelector('.dv-metrika-debug-list');
+
+    panel.querySelector('.dv-metrika-debug-head').style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc';
+    panel.querySelector('button').style.cssText = 'border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#64748b';
+    status.style.cssText = 'padding:10px 12px;border-bottom:1px solid #eef2f7;color:#475569';
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin:0;padding:10px 12px 12px 28px';
+
+    status.textContent =
+      'ID: ' + (config.counterId || 'не задан') +
+      ' · ym: ' + (typeof window.ym === 'function' ? 'найден' : 'не найден') +
+      ' · ждём реальные действия на странице';
+
+    panel.querySelector('button').addEventListener('click', function() {
+      panel.remove();
+    });
+
+    window.addEventListener('dv:metrika-goal', function(event) {
+      var item = document.createElement('li');
+      var detail = event.detail || {};
+      var params = detail.params || {};
+      var goal = document.createElement('strong');
+      var meta = document.createElement('small');
+
+      goal.textContent = String(detail.goal || '');
+      meta.textContent = String(detail.path || window.location.pathname) +
+        (Object.keys(params).length ? ' · ' + JSON.stringify(params) : '');
+      meta.style.cssText = 'display:block;color:#64748b';
+
+      item.appendChild(goal);
+      item.appendChild(meta);
+
+      list.insertBefore(item, list.firstChild);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', dvInitMetrikaDebugPanel);
+  } else {
+    dvInitMetrikaDebugPanel();
+  }
+
   /* Toast */
   window.dvToast = function(msg, type) {
     var t = document.getElementById('dv-toast');
@@ -109,6 +216,10 @@
           dvUpdateCartUi(d.data);
           dvRefreshCartButtons(productId, true);
           dvToast(dvText('added_to_cart', 'Товар добавлен в корзину'));
+          dvMetrikaGoal('add_to_cart', {
+            product_id: productId || '',
+            source: 'ajax'
+          });
         } else {
           dvToast((d.data && d.data.message) || dvText('add_error', 'Ошибка добавления'), 'error');
         }
@@ -1520,5 +1631,73 @@
   $(document).on('click', '.js-filter-price', function() {
     window.dvApplyPrice();
   });
+
+  (function() {
+    var orderKey = 'dv_metrika_order_success_' + window.location.pathname;
+
+    document.addEventListener('click', function(event) {
+      var link = event.target.closest ? event.target.closest('a') : null;
+      var href;
+
+      if (!link) return;
+
+      href = link.getAttribute('href') || '';
+
+      if (href.indexOf('tel:') === 0) {
+        dvMetrikaGoal('phone_click', {
+          href: href,
+          text: (link.textContent || '').trim()
+        });
+        return;
+      }
+
+      if (link.classList.contains('product-marketplace-link--ozon') || href.indexOf('ozon.ru') !== -1) {
+        dvMetrikaGoal('ozon_click', {
+          href: href,
+          text: (link.textContent || '').trim()
+        });
+        return;
+      }
+
+      if (href && window.dvConfig && dvConfig.checkoutUrl && href.indexOf(dvConfig.checkoutUrl) === 0) {
+        dvMetrikaGoal('checkout_start', {
+          href: href
+        });
+        return;
+      }
+
+      if (link.closest('.products, .product-grid, .dv-products-grid, .related, .upsells') && href) {
+        dvMetrikaGoal('product_click', {
+          href: href,
+          text: (link.textContent || '').trim()
+        });
+      }
+    });
+
+    document.addEventListener('submit', function(event) {
+      var form = event.target;
+      var input;
+      var query;
+
+      if (!form || !form.querySelector) return;
+
+      input = form.querySelector('input[type="search"], input[name="s"], input[name="q"]');
+      query = input ? String(input.value || '').trim() : '';
+
+      if (!query) return;
+
+      dvMetrikaGoal('site_search', {
+        query: query,
+        location: window.location.pathname
+      });
+    }, true);
+
+    if (document.body && document.body.classList.contains('woocommerce-order-received') && !sessionStorage.getItem(orderKey)) {
+      sessionStorage.setItem(orderKey, '1');
+      dvMetrikaGoal('order_success', {
+        location: window.location.pathname
+      });
+    }
+  })();
 
 })(jQuery);

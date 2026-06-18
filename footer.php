@@ -3,6 +3,7 @@
 <?php $dv_content = function_exists( 'dv_get_theme_header_footer_content_settings' ) ? dv_get_theme_header_footer_content_settings() : ( function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array() ); ?>
 <?php
 $dv_logo_url = function_exists( 'dv_get_theme_logo_url' ) ? dv_get_theme_logo_url() : get_template_directory_uri() . '/assets/logo.png';
+$dv_store_name = function_exists( 'dv_string_value' ) ? dv_string_value( $dv_store['name'] ?? '', get_bloginfo( 'name' ) ) : ( is_scalar( $dv_store['name'] ?? null ) ? trim( (string) $dv_store['name'] ) : get_bloginfo( 'name' ) );
 $dv_footer_brand_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'footer_brand_enabled' ) : true;
 $dv_footer_description_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'footer_description_enabled' ) : true;
 $dv_footer_contacts_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'footer_contacts_enabled' ) : true;
@@ -50,8 +51,8 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
         <?php if ( $dv_footer_brand_enabled ) : ?>
         <div class="footer-brand">
           <div class="footer-logo">
-            <img src="<?php echo esc_url( $dv_logo_url ); ?>" alt="<?php echo esc_attr( $dv_store['name'] ?? get_bloginfo( 'name' ) ); ?>" class="footer-logo-img">
-            <span class="sr-only"><?php echo esc_html( $dv_store['name'] ?? get_bloginfo( 'name' ) ); ?></span>
+            <img src="<?php echo esc_url( $dv_logo_url ); ?>" alt="<?php echo esc_attr( $dv_store_name ); ?>" class="footer-logo-img">
+            <span class="sr-only"><?php echo esc_html( $dv_store_name ); ?></span>
           </div>
           <?php if ( $dv_footer_description_enabled ) : ?>
             <p class="footer-desc"><?php echo esc_html( $dv_store['footer_description'] ?? '' ); ?></p>

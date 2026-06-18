@@ -476,7 +476,7 @@ function dv_search_normalize_index_text( $text ) {
 }
 
 function dv_search_index_cache_key() {
-    return 'dv_live_product_search_index_v2';
+    return 'dv_live_product_search_index_v3';
 }
 
 function dv_search_index_version() {
@@ -486,7 +486,7 @@ function dv_search_index_version() {
 }
 
 function dv_live_search_results_cache_key( $query, $limit ) {
-    return 'dv_live_product_search_results_v2_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $query ) . '|' . (int) $limit );
+    return 'dv_live_product_search_results_v3_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $query ) . '|' . (int) $limit );
 }
 
 function dv_flush_live_search_index() {
@@ -639,13 +639,22 @@ function dv_get_live_search_index() {
             p.ID,
             p.post_title,
             p.post_name,
+            p.post_date_gmt,
             p.menu_order,
             sku.meta_value AS sku,
             price.meta_value AS price,
             stock_status.meta_value AS stock_status,
             stock_qty.meta_value AS stock_quantity,
             thumb.meta_value AS thumbnail_id,
-            compat.meta_value AS compatibility
+            compat.meta_value AS compatibility,
+            (
+                SELECT GROUP_CONCAT(CONCAT_WS(' ', t_cat.name, t_cat.slug) ORDER BY t_cat.name SEPARATOR ' ')
+                FROM {$wpdb->term_relationships} tr_cat
+                INNER JOIN {$wpdb->term_taxonomy} tt_cat ON tt_cat.term_taxonomy_id = tr_cat.term_taxonomy_id
+                INNER JOIN {$wpdb->terms} t_cat ON t_cat.term_id = tt_cat.term_id
+                WHERE tr_cat.object_id = p.ID
+                  AND tt_cat.taxonomy = 'product_cat'
+            ) AS categories
         FROM {$wpdb->posts} p
         LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'
         LEFT JOIN {$wpdb->postmeta} price ON price.post_id = p.ID AND price.meta_key = '_price'
@@ -685,9 +694,11 @@ function dv_get_live_search_index() {
         $slug          = (string) ( $row['post_name'] ?? '' );
         $sku           = (string) ( $row['sku'] ?? '' );
         $compatibility = (string) ( $row['compatibility'] ?? '' );
+        $categories    = (string) ( $row['categories'] ?? '' );
         $search_text   = dv_search_normalize_index_text( $title . ' ' . $slug . ' ' . $sku . ' ' . $compatibility );
         $price         = (string) ( $row['price'] ?? '' );
         $thumbnail_id  = (int) ( $row['thumbnail_id'] ?? 0 );
+        $post_date_gmt = (string) ( $row['post_date_gmt'] ?? '' );
 
         if ( ! $product_id || '' === $search_text ) {
             continue;
@@ -700,6 +711,7 @@ function dv_get_live_search_index() {
             'slug_text'      => dv_search_normalize_index_text( $slug ),
             'sku_text'       => dv_search_normalize_index_text( $sku ),
             'compat_text'    => dv_search_normalize_index_text( $compatibility ),
+            'category_text'  => dv_search_normalize_index_text( $categories ),
             'search_text'    => $search_text,
             'sku'            => $sku,
             'price'          => $price,
@@ -710,6 +722,7 @@ function dv_get_live_search_index() {
             'stock_q'        => '' !== (string) ( $row['stock_quantity'] ?? '' ) ? (int) $row['stock_quantity'] : '',
             'thumbnail_id'   => $thumbnail_id,
             'menu_order'     => (int) ( $row['menu_order'] ?? 0 ),
+            'post_date_ts'   => '' !== $post_date_gmt ? strtotime( $post_date_gmt ) : 0,
         );
 
         $index['rows'][ $product_id ] = $indexed_row;
@@ -749,6 +762,7 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
     $slug_text   = (string) ( $row['slug_text'] ?? '' );
     $sku_text    = (string) ( $row['sku_text'] ?? '' );
     $compat_text = (string) ( $row['compat_text'] ?? '' );
+    $category_text = (string) ( $row['category_text'] ?? '' );
 
     foreach ( $required_tokens as $token ) {
         if ( '' === $token || false === strpos( $search_text, $token ) ) {
@@ -757,6 +771,14 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
     }
 
     if ( '' !== $full_query ) {
+        if ( '' !== $category_text ) {
+            if ( $category_text === $full_query ) {
+                $score += 700;
+            } elseif ( false !== strpos( $category_text, $full_query ) ) {
+                $score += 500;
+            }
+        }
+
         if ( $title_text === $full_query ) {
             $score += 1000;
         } elseif ( 0 === strpos( $title_text, $full_query ) ) {
@@ -780,12 +802,30 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
             $score += 260;
         }
 
+        if ( '' !== $text_term && false !== strpos( $category_text, $text_term ) ) {
+            $score += 220;
+        }
+
         if ( false !== strpos( $sku_text, $text_term ) ) {
             $score += 80;
         }
 
         if ( false !== strpos( $compat_text, $text_term ) ) {
             $score += 35;
+        }
+    }
+
+    if ( '' !== $category_text && ! empty( $priority_terms['text'] ) ) {
+        $all_tokens_in_cat = true;
+        foreach ( $priority_terms['text'] as $text_term ) {
+            if ( '' === $text_term || false === strpos( $category_text, $text_term ) ) {
+                $all_tokens_in_cat = false;
+                break;
+            }
+        }
+
+        if ( $all_tokens_in_cat ) {
+            $score += 350;
         }
     }
 
@@ -927,6 +967,10 @@ function dv_get_search_index_matches( $raw_query ) {
 
             if ( (int) $a['menu_order'] !== (int) $b['menu_order'] ) {
                 return (int) $a['menu_order'] <=> (int) $b['menu_order'];
+            }
+
+            if ( (int) ( $a['post_date_ts'] ?? 0 ) !== (int) ( $b['post_date_ts'] ?? 0 ) ) {
+                return (int) ( $a['post_date_ts'] ?? 0 ) <=> (int) ( $b['post_date_ts'] ?? 0 );
             }
 
             return strnatcasecmp( (string) $a['title'], (string) $b['title'] );

@@ -96,6 +96,32 @@ function dv_core_default_label( $key ) {
     return $labels[ $key ] ?? '';
 }
 
+function dv_string_value( $value, $fallback = '' ) {
+    if ( is_array( $value ) ) {
+        $value = reset( $value );
+    }
+
+    if ( is_array( $fallback ) ) {
+        $fallback = reset( $fallback );
+    }
+
+    if ( is_object( $value ) || is_array( $value ) || null === $value ) {
+        $value = $fallback;
+    }
+
+    if ( is_object( $value ) || is_array( $value ) || null === $value ) {
+        return '';
+    }
+
+    $value = trim( (string) $value );
+
+    if ( '' !== $value ) {
+        return $value;
+    }
+
+    return is_scalar( $fallback ) ? trim( (string) $fallback ) : '';
+}
+
 function dv_frontend_script_labels() {
     static $labels = null;
 
@@ -191,18 +217,27 @@ function dv_get_store_profile() {
 
     $profile = wp_parse_args( $saved, $defaults );
     $profile['site_url'] = home_url( '/' );
-    $profile['logo_url'] = esc_url_raw( $profile['logo_url'] ?? '' );
-    $profile['ozon_url'] = esc_url_raw( $profile['ozon_url'] ?? '' );
-    $profile['ozon_icon_url'] = esc_url_raw( $profile['ozon_icon_url'] ?? '' );
-    $profile['marketplace_2_name'] = sanitize_text_field( $profile['marketplace_2_name'] ?? '' );
-    $profile['marketplace_2_url'] = esc_url_raw( $profile['marketplace_2_url'] ?? '' );
-    $profile['marketplace_2_icon'] = esc_url_raw( $profile['marketplace_2_icon'] ?? '' );
-    $profile['marketplace_3_name'] = sanitize_text_field( $profile['marketplace_3_name'] ?? '' );
-    $profile['marketplace_3_url'] = esc_url_raw( $profile['marketplace_3_url'] ?? '' );
-    $profile['marketplace_3_icon'] = esc_url_raw( $profile['marketplace_3_icon'] ?? '' );
-    $profile['phone'] = trim( (string) $profile['phone'] );
-    $profile['phone_display'] = trim( (string) $profile['phone_display'] );
-    $profile['email'] = sanitize_email( $profile['email'] ?? '' );
+    $profile['logo_url'] = esc_url_raw( dv_string_value( $profile['logo_url'] ?? '', '' ) );
+    $profile['ozon_url'] = esc_url_raw( dv_string_value( $profile['ozon_url'] ?? '', $defaults['ozon_url'] ) );
+    $profile['ozon_icon_url'] = esc_url_raw( dv_string_value( $profile['ozon_icon_url'] ?? '', '' ) );
+    $profile['marketplace_2_name'] = sanitize_text_field( dv_string_value( $profile['marketplace_2_name'] ?? '', '' ) );
+    $profile['marketplace_2_url'] = esc_url_raw( dv_string_value( $profile['marketplace_2_url'] ?? '', '' ) );
+    $profile['marketplace_2_icon'] = esc_url_raw( dv_string_value( $profile['marketplace_2_icon'] ?? '', '' ) );
+    $profile['marketplace_3_name'] = sanitize_text_field( dv_string_value( $profile['marketplace_3_name'] ?? '', '' ) );
+    $profile['marketplace_3_url'] = esc_url_raw( dv_string_value( $profile['marketplace_3_url'] ?? '', '' ) );
+    $profile['marketplace_3_icon'] = esc_url_raw( dv_string_value( $profile['marketplace_3_icon'] ?? '', '' ) );
+    $profile['name'] = dv_string_value( $profile['name'] ?? '', $defaults['name'] );
+    $profile['city'] = dv_string_value( $profile['city'] ?? '', $defaults['city'] );
+    $profile['region'] = dv_string_value( $profile['region'] ?? '', $defaults['region'] );
+    $profile['country_name'] = dv_string_value( $profile['country_name'] ?? '', $defaults['country_name'] );
+    $profile['currency'] = dv_string_value( $profile['currency'] ?? '', $defaults['currency'] );
+    $profile['footer_description'] = dv_string_value( $profile['footer_description'] ?? '', $defaults['footer_description'] );
+    $profile['workdays'] = dv_string_value( $profile['workdays'] ?? '', $defaults['workdays'] );
+    $profile['opens'] = dv_string_value( $profile['opens'] ?? '', $defaults['opens'] );
+    $profile['closes'] = dv_string_value( $profile['closes'] ?? '', $defaults['closes'] );
+    $profile['phone'] = dv_string_value( $profile['phone'] ?? '', $defaults['phone'] );
+    $profile['phone_display'] = dv_string_value( $profile['phone_display'] ?? '', $defaults['phone_display'] );
+    $profile['email'] = sanitize_email( dv_string_value( $profile['email'] ?? '', $defaults['email'] ) );
     $profile['phone_href'] = preg_replace( '/[^0-9\+]/', '', $profile['phone'] );
     $profile['email_href'] = ! empty( $profile['email'] ) ? 'mailto:' . $profile['email'] : '';
 
@@ -337,6 +372,28 @@ function dv_theme_visual_preset_body_class( $classes ) {
     return $classes;
 }
 add_filter( 'body_class', 'dv_theme_visual_preset_body_class' );
+
+function dv_body_class( $class = '' ) {
+    global $wp_query;
+
+    $restore_singular = null;
+    $restore_page     = null;
+
+    if ( is_singular() && ! ( get_post() instanceof WP_Post ) && $wp_query instanceof WP_Query ) {
+        $restore_singular      = $wp_query->is_singular;
+        $restore_page          = $wp_query->is_page;
+        $wp_query->is_singular = false;
+        $wp_query->is_page     = false;
+        $class                 = trim( (string) $class . ' dv-virtual-page' );
+    }
+
+    body_class( $class );
+
+    if ( null !== $restore_singular && $wp_query instanceof WP_Query ) {
+        $wp_query->is_singular = $restore_singular;
+        $wp_query->is_page     = $restore_page;
+    }
+}
 
 function dv_is_woocommerce_context() {
     static $is_context = null;
@@ -503,6 +560,22 @@ function dv_cleanup_frontend_assets() {
 }
 add_action( 'wp_enqueue_scripts', 'dv_cleanup_frontend_assets', 110 );
 
+function dv_get_yandex_metrika_counter_id() {
+    $theme_options = get_option( 'dv_theme_options', array() );
+    $theme_options = is_array( $theme_options ) ? $theme_options : array();
+    $counter_id    = get_option( 'dv_yandex_metrika_counter_id', '' );
+
+    foreach ( array( 'yandex_metrika_counter_id', 'metrika_counter_id', 'metrika_id' ) as $option_key ) {
+        if ( '' !== trim( (string) $counter_id ) ) {
+            break;
+        }
+
+        $counter_id = $theme_options[ $option_key ] ?? '';
+    }
+
+    return preg_replace( '/\D+/', '', (string) $counter_id );
+}
+
 function dv_enqueue() {
     $labels = dv_frontend_script_labels();
     wp_enqueue_style(
@@ -554,6 +627,19 @@ function dv_enqueue() {
             'cartUrl'     => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/' ),
             'checkoutUrl' => function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/' ),
             'compareLimit' => function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'compare_limit', 4, 2, 8 ) : 4,
+            'metrika'     => array(
+                'counterId' => dv_get_yandex_metrika_counter_id(),
+                'debug'     => current_user_can( 'manage_options' ) && isset( $_GET['dv_metrika_debug'] ),
+                'goals'     => array(
+                    'addToCart'     => 'add_to_cart',
+                    'phoneClick'    => 'phone_click',
+                    'siteSearch'    => 'site_search',
+                    'ozonClick'     => 'ozon_click',
+                    'productClick'  => 'product_click',
+                    'checkoutStart' => 'checkout_start',
+                    'orderSuccess'  => 'order_success',
+                ),
+            ),
             'i18n'        => array(
                 'adding'                => $labels['adding'],
                 'added_to_cart'         => $labels['added_to_cart'],

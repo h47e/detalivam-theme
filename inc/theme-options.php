@@ -109,6 +109,7 @@ function dv_get_theme_options_defaults() {
         'home_product_columns'    => 4,
         'search_live_limit'       => 8,
         'search_page_per_page'    => 24,
+        'yandex_metrika_counter_id' => '',
         'not_found_search_enabled' => '1',
         'not_found_actions_enabled' => '1',
         'not_found_categories_enabled' => '1',
