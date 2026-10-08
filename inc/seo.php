@@ -1087,7 +1087,7 @@ function dv_get_seo_image_url() {
         }
 
         if ( $image_id ) {
-            $image = wp_get_attachment_image_url( $image_id, 'dv-product-lg' );
+            $image = wp_get_attachment_image_url( $image_id, 'large' );
             if ( $image ) {
                 return $image;
             }
@@ -1099,7 +1099,7 @@ function dv_get_seo_image_url() {
         if ( $term instanceof WP_Term ) {
             $thumbnail_id = absint( get_term_meta( $term->term_id, 'thumbnail_id', true ) );
             if ( $thumbnail_id ) {
-                $image = wp_get_attachment_image_url( $thumbnail_id, 'dv-product-lg' );
+                $image = wp_get_attachment_image_url( $thumbnail_id, 'large' );
                 if ( $image ) {
                     return $image;
                 }
@@ -1137,7 +1137,7 @@ function dv_get_seo_image_url() {
             if ( $product_id ) {
                 $image_id = get_post_thumbnail_id( $product_id );
                 if ( $image_id ) {
-                    $image = wp_get_attachment_image_url( $image_id, 'dv-product-lg' );
+                    $image = wp_get_attachment_image_url( $image_id, 'large' );
                     if ( $image ) {
                         return $image;
                     }

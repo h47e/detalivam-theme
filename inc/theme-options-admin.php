@@ -118,6 +118,7 @@ function dv_get_theme_options_defaults() {
         'compare_limit'           => 4,
         'product_gallery_hint_enabled' => '1',
         'product_meta_sku_enabled' => '1',
+        'product_part_number_enabled' => '1',
         'product_actions_enabled'  => '1',
         'product_wishlist_enabled' => '1',
         'product_compare_enabled'  => '1',
@@ -344,6 +345,7 @@ function dv_sanitize_theme_options( $input ) {
         'compare_limit'           => max( 2, min( 8, absint( $input['compare_limit'] ?? $defaults['compare_limit'] ) ) ),
         'product_gallery_hint_enabled' => ! empty( $input['product_gallery_hint_enabled'] ) ? '1' : '0',
         'product_meta_sku_enabled' => ! empty( $input['product_meta_sku_enabled'] ) ? '1' : '0',
+        'product_part_number_enabled' => ! empty( $input['product_part_number_enabled'] ) ? '1' : '0',
         'product_actions_enabled'  => ! empty( $input['product_actions_enabled'] ) ? '1' : '0',
         'product_wishlist_enabled' => ! empty( $input['product_wishlist_enabled'] ) ? '1' : '0',
         'product_compare_enabled'  => ! empty( $input['product_compare_enabled'] ) ? '1' : '0',
@@ -419,7 +421,7 @@ function dv_admin_suite_pages() {
             'description' => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1072; head, sitemap, &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;&#1072; &#1080; SEO-&#1079;&#1072;&#1076;&#1072;&#1095;.' ),
         ),
         'dv-store-settings' => array(
-            'label'       => dv_theme_options_label( '&#1052;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;' ),
+            'label'       => 'Контакты магазина',
             'description' => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100;, &#1082;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;, &#1083;&#1086;&#1075;&#1086;&#1090;&#1080;&#1087;, &#1092;&#1091;&#1090;&#1077;&#1088; &#1080; &#1084;&#1072;&#1088;&#1082;&#1077;&#1090;&#1087;&#1083;&#1077;&#1081;&#1089;&#1099;.' ),
         ),
         'dv-theme-content'  => array(
@@ -431,7 +433,7 @@ function dv_admin_suite_pages() {
             'description' => dv_theme_options_label( 'Favicon, uploads &#1080; &#1074;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077; &#1080;&#1079; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;&#1072;.' ),
         ),
         'dv-slug-tools'     => array(
-            'label'       => 'Slug',
+            'label'       => 'Адреса страниц',
             'description' => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1072; &#1080; &#1087;&#1077;&#1088;&#1077;&#1074;&#1086;&#1076; &#1089;&#1090;&#1072;&#1088;&#1099;&#1093; URL &#1074; &#1083;&#1072;&#1090;&#1080;&#1085;&#1080;&#1094;&#1091;.' ),
         ),
     );
@@ -484,7 +486,7 @@ function dv_admin_suite_quick_actions() {
             'external'    => false,
         ),
         array(
-            'label'       => 'Slug',
+            'label'       => 'Адреса страниц',
             'description' => dv_theme_options_label( '&#1058;&#1088;&#1072;&#1085;&#1089;&#1083;&#1080;&#1090;&#1077;&#1088;&#1072;&#1094;&#1080;&#1103; URL' ),
             'url'         => admin_url( 'admin.php?page=dv-slug-tools' ),
             'external'    => false,
@@ -509,7 +511,7 @@ function dv_admin_suite_service_commands() {
         array(
             'label'       => dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072; &#1090;&#1077;&#1084;&#1099;' ),
             'description' => dv_theme_options_label( '&#1057;&#1090;&#1072;&#1090;&#1091;&#1089; WordPress, WooCommerce, SEO, sitemap &#1080; &#1082;&#1101;&#1096;&#1077;&#1081;' ),
-            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'url'         => dv_theme_diagnostics_load_url(),
             'keywords'    => 'health diagnostics support status php wordpress woocommerce',
         ),
         array(
@@ -553,7 +555,7 @@ function dv_admin_suite_service_commands() {
         array(
             'label'       => dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1082;&#1101;&#1096;&#1080;' ),
             'description' => dv_theme_options_label( '&#1057;&#1073;&#1088;&#1086;&#1089; dashboard, &#1072;&#1091;&#1076;&#1080;&#1090;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap' ),
-            'url'         => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'url'         => dv_theme_diagnostics_load_url(),
             'form'        => 'dv-suite-service-cache-clear',
             'confirm'     => dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1089;&#1083;&#1091;&#1078;&#1077;&#1073;&#1085;&#1099;&#1077; &#1082;&#1101;&#1096;&#1080; dashboard, &#1072;&#1091;&#1076;&#1080;&#1090;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1080; sitemap?' ),
             'keywords'    => 'cache clear service dashboard audit sitemap кэш очистить',
@@ -572,7 +574,7 @@ function dv_admin_suite_dashboard_task_commands() {
         return array();
     }
 
-    $summary = function_exists( 'dv_dashboard_status_cache_key' ) ? get_transient( dv_dashboard_status_cache_key() ) : array();
+    $summary = function_exists( 'dv_dashboard_status_summary' ) ? dv_dashboard_status_summary() : array();
     $tasks   = is_array( $summary ) && function_exists( 'dv_dashboard_status_tasks' ) ? dv_dashboard_status_tasks( $summary ) : array();
 
     if ( empty( $tasks ) ) {
@@ -739,6 +741,19 @@ function dv_render_admin_suite_health_strip( $current_page = '' ) {
     }
 
     $summary    = dv_dashboard_status_summary();
+    if ( empty( $summary ) ) {
+        ?>
+        <aside class="dv-suite-health-strip" aria-label="Сводка состояния админки ДеталиВам">
+            <a class="dv-suite-health-card" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=dv_dashboard_status_refresh' ), 'dv_dashboard_status_refresh' ) ); ?>">
+                <span>Сводка</span><strong>Нет снимка</strong><small>Обновить сводку</small>
+            </a>
+            <button type="button" class="dv-suite-health-card dv-suite-density-toggle" data-dv-density-toggle aria-pressed="false">
+                <span>Таблицы</span><strong>Компактно</strong><small>переключить плотность</small>
+            </button>
+        </aside>
+        <?php
+        return;
+    }
     $tasks      = function_exists( 'dv_dashboard_status_tasks' ) ? dv_dashboard_status_tasks( $summary ) : array();
     $audit      = isset( $summary['audit'] ) && is_array( $summary['audit'] ) ? $summary['audit'] : array();
     $uploads    = isset( $summary['uploads'] ) && is_array( $summary['uploads'] ) ? $summary['uploads'] : array();
@@ -747,12 +762,12 @@ function dv_render_admin_suite_health_strip( $current_page = '' ) {
     $task_count = count( $tasks );
     ?>
     <aside class="dv-suite-health-strip" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Сводка состояния админки ДеталиВам' ) ); ?>">
-        <a class="dv-suite-health-card<?php echo $task_count ? ' is-warning' : ' is-ok'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+        <a class="dv-suite-health-card<?php echo $task_count ? ' is-warning' : ' is-ok'; ?>" href="<?php echo esc_url( ! empty( $summary['snapshot_stale'] ) ? wp_nonce_url( admin_url( 'admin-post.php?action=dv_dashboard_status_refresh' ), 'dv_dashboard_status_refresh' ) : dv_theme_diagnostics_load_url() ); ?>">
             <span><?php echo esc_html( dv_theme_options_label( 'Задачи' ) ); ?></span>
             <strong><?php echo esc_html( number_format_i18n( $task_count ) ); ?></strong>
-            <small><?php echo esc_html( $task_count ? dv_theme_options_label( 'открыть очередь' ) : dv_theme_options_label( 'критичных нет' ) ); ?></small>
+            <small><?php echo esc_html( ! empty( $summary['snapshot_stale'] ) ? 'Снимок: ' . ( $summary['generated_at_display'] ?? '' ) . ' · обновить' : ( $task_count ? dv_theme_options_label( 'открыть очередь' ) : dv_theme_options_label( 'критичных нет' ) ) ); ?></small>
         </a>
-        <a class="dv-suite-health-card<?php echo empty( $audit['issue_count'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+        <a class="dv-suite-health-card<?php echo empty( $audit['issue_count'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
             <span><?php echo esc_html( dv_theme_options_label( 'Товары' ) ); ?></span>
             <strong><?php echo esc_html( number_format_i18n( absint( $audit['total'] ?? 0 ) ) ); ?></strong>
             <small><?php echo esc_html( sprintf( dv_theme_options_label( 'замечаний: %d' ), absint( $audit['issue_count'] ?? 0 ) ) ); ?></small>
@@ -767,7 +782,7 @@ function dv_render_admin_suite_health_strip( $current_page = '' ) {
             <strong><?php echo esc_html( (string) ( $uploads['label'] ?? '-' ) ); ?></strong>
             <small><?php echo esc_html( (string) ( $uploads['hint'] ?? dv_theme_options_label( 'аудит файлов' ) ) ); ?></small>
         </a>
-        <a class="dv-suite-health-card<?php echo ! empty( $release['has_smoke_check'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+        <a class="dv-suite-health-card<?php echo ! empty( $release['has_smoke_check'] ) ? ' is-ok' : ' is-warning'; ?>" href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
             <span><?php echo esc_html( dv_theme_options_label( 'Релиз' ) ); ?></span>
             <strong><?php echo esc_html( sprintf( 'v%s', (string) ( $release['version'] ?? ( defined( 'DV_VERSION' ) ? DV_VERSION : '1.0.0' ) ) ) ); ?></strong>
             <small><?php echo esc_html( ! empty( $release['commit_short'] ) ? (string) $release['commit_short'] : dv_theme_options_label( 'локальная тема' ) ); ?></small>
@@ -786,14 +801,16 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
     $quick_actions = dv_admin_suite_quick_actions();
     $command_items = dv_admin_suite_command_items( $pages, $quick_actions );
     ?>
-    <header class="dv-suite-header">
+    <header class="dv-suite-header dv-suite-header-simple">
         <div class="dv-suite-heading">
             <span class="dv-suite-kicker"><?php echo esc_html( dv_theme_options_label( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;' ) ); ?></span>
             <h1><?php echo esc_html( $title ); ?></h1>
             <?php if ( '' !== trim( (string) $description ) ) : ?>
                 <p><?php echo esc_html( $description ); ?></p>
             <?php endif; ?>
-            <button type="button" class="dv-suite-command-button" id="dv-suite-command-open" aria-keyshortcuts="Control+K" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1088;&#1099;&#1090;&#1100; &#1087;&#1072;&#1083;&#1080;&#1090;&#1088;&#1091; &#1073;&#1099;&#1089;&#1090;&#1088;&#1086;&#1075;&#1086; &#1087;&#1077;&#1088;&#1077;&#1093;&#1086;&#1076;&#1072;' ) ); ?>">
+        </div>
+        <div class="dv-suite-header-tools">
+            <button type="button" class="dv-suite-command-button" id="dv-suite-command-open" aria-keyshortcuts="Control+K" aria-label="Открыть быстрый переход">
                 <span><?php echo esc_html( dv_theme_options_label( '&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1081; &#1087;&#1077;&#1088;&#1077;&#1093;&#1086;&#1076;' ) ); ?></span>
                 <kbd>Ctrl K</kbd>
             </button>
@@ -803,26 +820,17 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
                 <a
                     class="dv-suite-tab<?php echo $page === $current_page ? ' is-active' : ''; ?>"
                     href="<?php echo esc_url( dv_admin_suite_page_url( $page ) ); ?>"
+                    title="<?php echo esc_attr( $item['description'] ); ?>"
                     <?php echo $page === $current_page ? 'aria-current="page"' : ''; ?>
                 >
                     <strong><?php echo esc_html( $item['label'] ); ?></strong>
-                    <span><?php echo esc_html( $item['description'] ); ?></span>
                 </a>
             <?php endforeach; ?>
         </nav>
-        <div class="dv-suite-quick-actions" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;' ) ); ?>">
-            <?php foreach ( $quick_actions as $action ) : ?>
-                <a
-                    class="dv-suite-quick-action"
-                    href="<?php echo esc_url( $action['url'] ); ?>"
-                    <?php echo ! empty( $action['external'] ) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>
-                >
-                    <span><?php echo esc_html( $action['label'] ); ?></span>
-                    <small><?php echo esc_html( $action['description'] ); ?></small>
-                </a>
-            <?php endforeach; ?>
-        </div>
-        <?php dv_render_admin_suite_health_strip( $current_page ); ?>
+        <details class="dv-suite-health-drawer">
+            <summary>Состояние магазина</summary>
+            <?php dv_render_admin_suite_health_strip( $current_page ); ?>
+        </details>
         <div class="dv-suite-command" id="dv-suite-command" hidden>
             <div class="dv-suite-command-backdrop" data-dv-command-close></div>
             <div class="dv-suite-command-panel" role="dialog" aria-modal="true" aria-labelledby="dv-suite-command-title">
@@ -886,7 +894,7 @@ function dv_render_admin_suite_header( $current_page, $title, $description = '' 
     <?php
 }
 
-function dv_render_admin_suite_local_nav( $items, $label = '' ) {
+function dv_render_admin_suite_local_nav( $items, $label = '', $section_tabs = false ) {
     $items = array_filter(
         (array) $items,
         static function ( $item ) {
@@ -902,11 +910,11 @@ function dv_render_admin_suite_local_nav( $items, $label = '' ) {
         $label = dv_theme_options_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1077;' );
     }
     ?>
-    <nav class="dv-suite-page-nav" aria-label="<?php echo esc_attr( $label ); ?>">
+    <nav class="dv-suite-page-nav<?php echo $section_tabs ? ' dv-suite-section-nav' : ''; ?>" <?php echo $section_tabs ? 'data-dv-section-nav' : ''; ?> aria-label="<?php echo esc_attr( $label ); ?>">
         <?php foreach ( $items as $item ) : ?>
             <a href="<?php echo esc_url( $item['href'] ); ?>">
                 <span><?php echo esc_html( $item['label'] ); ?></span>
-                <?php if ( ! empty( $item['description'] ) ) : ?>
+                <?php if ( ! $section_tabs && ! empty( $item['description'] ) ) : ?>
                     <small><?php echo esc_html( $item['description'] ); ?></small>
                 <?php endif; ?>
             </a>
@@ -915,28 +923,43 @@ function dv_render_admin_suite_local_nav( $items, $label = '' ) {
     <?php
 }
 
+function dv_admin_suite_elapsed_time() {
+    global $timestart;
+
+    $request_start = $_SERVER['REQUEST_TIME_FLOAT'] ?? 0;
+    $start = is_numeric( $timestart ) && (float) $timestart > 0
+        ? (float) $timestart
+        : ( is_numeric( $request_start ) ? (float) $request_start : 0.0 );
+
+    return $start > 0 ? max( 0.0, microtime( true ) - $start ) : 0.0;
+}
+
 function dv_render_admin_suite_footer( $current_page = '' ) {
     $pages = dv_admin_suite_pages();
     $current_label = isset( $pages[ $current_page ] ) ? $pages[ $current_page ]['label'] : dv_theme_options_label( '&#1040;&#1076;&#1084;&#1080;&#1085;&#1082;&#1072; &#1090;&#1077;&#1084;&#1099;' );
+    $server_time   = dv_admin_suite_elapsed_time();
+    $memory_mb     = memory_get_peak_usage( true ) / MB_IN_BYTES;
+    $query_count   = function_exists( 'get_num_queries' ) ? get_num_queries() : 0;
+    $is_slow       = $server_time >= 1.0;
     ?>
     <footer class="dv-suite-footer">
         <div class="dv-suite-footer-main">
             <strong><?php echo esc_html( dv_theme_options_label( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;' ) ); ?></strong>
             <span><?php echo esc_html( $current_label ); ?></span>
+        </div>
+        <details class="dv-suite-runtime-panel">
+            <summary>Технические данные</summary>
+            <div class="dv-suite-footer-main">
             <span><?php echo esc_html( sprintf( 'v%s', defined( 'DV_VERSION' ) ? DV_VERSION : '1.0.0' ) ); ?></span>
             <span><?php echo esc_html( current_time( 'd.m.Y H:i' ) ); ?></span>
-        </div>
-        <nav class="dv-suite-footer-nav" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1056;&#1072;&#1079;&#1076;&#1077;&#1083;&#1099; &#1072;&#1076;&#1084;&#1080;&#1085;&#1082;&#1080;' ) ); ?>">
-            <?php foreach ( $pages as $page => $item ) : ?>
-                <a
-                    href="<?php echo esc_url( dv_admin_suite_page_url( $page ) ); ?>"
-                    class="<?php echo $page === $current_page ? 'is-active' : ''; ?>"
-                    <?php echo $page === $current_page ? 'aria-current="page"' : ''; ?>
-                >
-                    <?php echo esc_html( $item['label'] ); ?>
-                </a>
-            <?php endforeach; ?>
-        </nav>
+            <span
+                class="dv-suite-runtime<?php echo $is_slow ? ' is-slow' : ''; ?>"
+                title="<?php echo esc_attr( 'Время PHP до вывода футера / пиковая память / SQL-запросы' ); ?>"
+            >
+                <?php echo esc_html( sprintf( 'Сервер: %.3f с · %.1f МБ · SQL: %d', $server_time, $memory_mb, $query_count ) ); ?>
+            </span>
+            </div>
+        </details>
     </footer>
     <?php
 }
@@ -990,6 +1013,18 @@ function dv_theme_admin_enqueue_common_assets() {
         )
     );
 }
+
+function dv_admin_approved_style_assets() {
+    $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+    if ( ! isset( dv_admin_suite_pages()[ $page ] ) ) return;
+    $path = DV_DIR . '/assets/css/admin-approved.css';
+    $dependencies = array( 'dv-theme-admin' );
+    foreach ( array( 'dv-theme-content-admin', 'dv-store-admin', 'dv-theme-options-admin' ) as $handle ) {
+        if ( wp_style_is( $handle, 'enqueued' ) ) $dependencies[] = $handle;
+    }
+    wp_enqueue_style( 'dv-admin-approved', DV_URI . '/assets/css/admin-approved.css', $dependencies, file_exists( $path ) ? filemtime( $path ) : DV_VERSION );
+}
+add_action( 'admin_enqueue_scripts', 'dv_admin_approved_style_assets', 100 );
 add_action( 'admin_enqueue_scripts', 'dv_theme_admin_enqueue_common_assets', 5 );
 
 function dv_theme_admin_body_class( $classes ) {
@@ -1208,6 +1243,7 @@ function dv_handle_dashboard_status_refresh() {
 
     check_admin_referer( 'dv_dashboard_status_refresh' );
     dv_dashboard_status_clear_cache();
+    dv_dashboard_status_summary( true );
     dv_admin_action_log_record(
         'dashboard_refresh',
         dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1072; &#1089;&#1074;&#1086;&#1076;&#1082;&#1072; dashboard' )
@@ -1225,11 +1261,24 @@ function dv_handle_dashboard_status_refresh() {
 }
 add_action( 'admin_post_dv_dashboard_status_refresh', 'dv_handle_dashboard_status_refresh' );
 
-function dv_dashboard_status_summary() {
+function dv_dashboard_status_summary( $rebuild = false ) {
     $cached = get_transient( dv_dashboard_status_cache_key() );
 
-    if ( is_array( $cached ) ) {
+    if ( ! $rebuild && is_array( $cached ) && ! empty( $cached ) ) {
+        if ( false === get_option( 'dv_dashboard_status_snapshot_v1', false ) ) {
+            update_option( 'dv_dashboard_status_snapshot_v1', $cached, false );
+        }
         return $cached;
+    }
+
+    // Cache expiry must never trigger product audits or feed generation in page rendering.
+    if ( ! $rebuild ) {
+        $snapshot = get_option( 'dv_dashboard_status_snapshot_v1', array() );
+        if ( ! is_array( $snapshot ) || empty( $snapshot ) ) {
+            return array();
+        }
+        $snapshot['snapshot_stale'] = true;
+        return $snapshot;
     }
 
     $options      = function_exists( 'dv_get_theme_options' ) ? dv_get_theme_options() : array();
@@ -1282,11 +1331,71 @@ function dv_dashboard_status_summary() {
     );
 
     set_transient( dv_dashboard_status_cache_key(), $summary, 10 * MINUTE_IN_SECONDS );
+    update_option( 'dv_dashboard_status_snapshot_v1', $summary, false );
 
     return $summary;
 }
 
+function dv_store_settings_field_url( $field_key ) {
+    $field_map = array(
+        'location'      => 'city',
+        'country'       => 'country_name',
+        'hours'         => 'workdays',
+        'ozon_host'     => 'ozon_url',
+        'ozon_icon'     => 'ozon_icon_url',
+        'marketplace_2' => 'marketplace_2_name',
+        'marketplace_3' => 'marketplace_3_name',
+    );
+    $field_key = sanitize_key( (string) $field_key );
+    $field_key = $field_map[ $field_key ] ?? $field_key;
+
+    if ( '' === $field_key ) {
+        return admin_url( 'admin.php?page=dv-store-settings' );
+    }
+
+    return admin_url( 'admin.php?page=dv-store-settings' ) . '#dv-store-' . str_replace( '_', '-', $field_key );
+}
+
+function dv_theme_options_search_url( $query, $panel = '' ) {
+    $url = add_query_arg( 'dv-settings-search', sanitize_text_field( (string) $query ), admin_url( 'admin.php?page=dv-theme-options' ) );
+    $panel = sanitize_html_class( ltrim( (string) $panel, '#' ) );
+
+    return $url . ( '' !== $panel ? '#' . $panel : '' );
+}
+
+function dv_dashboard_profile_issue_url( $profile ) {
+    $issues = isset( $profile['issues'] ) && is_array( $profile['issues'] ) ? $profile['issues'] : array();
+    $issue  = reset( $issues );
+
+    return is_array( $issue ) && ! empty( $issue['key'] )
+        ? dv_store_settings_field_url( $issue['key'] )
+        : admin_url( 'admin.php?page=dv-store-settings' );
+}
+
+function dv_dashboard_marketplace_issue_url( $marketplaces ) {
+    $issues = isset( $marketplaces['issues'] ) && is_array( $marketplaces['issues'] ) ? $marketplaces['issues'] : array();
+    $issue  = reset( $issues );
+    $key    = is_array( $issue ) ? sanitize_key( (string) ( $issue['key'] ?? '' ) ) : '';
+
+    if ( in_array( $key, array( 'ozon_url', 'ozon_host', 'ozon_icon', 'marketplace_2', 'marketplace_3' ), true ) ) {
+        return dv_store_settings_field_url( $key );
+    }
+
+    if ( 'header_button' === $key ) {
+        return dv_theme_options_search_url( 'Иконка Ozon', 'dv-options-header' );
+    }
+
+    if ( 'product_button' === $key ) {
+        return dv_theme_options_search_url( 'Ozon в карточке товара', 'dv-options-product' );
+    }
+
+    return dv_theme_diagnostics_load_url();
+}
+
 function dv_dashboard_status_tasks( $summary ) {
+    if ( empty( $summary ) ) {
+        return array();
+    }
     $tasks = array();
     $audit = isset( $summary['audit'] ) && is_array( $summary['audit'] ) ? $summary['audit'] : array();
 
@@ -1302,7 +1411,7 @@ function dv_dashboard_status_tasks( $summary ) {
                 wp_strip_all_tags( (string) ( $issue['label'] ?? '' ) ),
                 absint( $issue['count'] )
             ),
-            'url'   => ! empty( $issue['sample_url'] ) ? $issue['sample_url'] : admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'url'   => ! empty( $issue['sample_url'] ) ? $issue['sample_url'] : dv_theme_diagnostics_load_url(),
             'priority' => absint( $issue['count'] ?? 0 ) >= 10 ? 90 : 70,
             'severity' => absint( $issue['count'] ?? 0 ) >= 10 ? 'critical' : 'warning',
             'source'   => dv_theme_options_label( '&#1058;&#1086;&#1074;&#1072;&#1088;&#1099;' ),
@@ -1331,7 +1440,7 @@ function dv_dashboard_status_tasks( $summary ) {
                 dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;: &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; %d' ),
                 absint( $profile['issue_count'] )
             ),
-            'url'   => admin_url( 'admin.php?page=dv-store-settings' ),
+            'url'   => dv_dashboard_profile_issue_url( $profile ),
             'priority' => 65,
             'severity' => 'warning',
             'source'   => dv_theme_options_label( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100;' ),
@@ -1353,7 +1462,7 @@ function dv_dashboard_status_tasks( $summary ) {
     if ( empty( $product_feed['status'] ) ) {
         $tasks[] = array(
             'label' => 'YML-фид: проверить выгрузку товаров',
-            'url'   => admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ),
+            'url'   => dv_theme_diagnostics_load_url(),
             'priority' => 74,
             'severity' => 'warning',
             'source'   => 'Feed',
@@ -1368,7 +1477,7 @@ function dv_dashboard_status_tasks( $summary ) {
                 'Ozon / marketplace: %d',
                 count( $marketplaces['issues'] ?? array() )
             ),
-            'url'   => admin_url( 'admin.php?page=dv-store-settings#dv-store-marketplaces' ),
+            'url'   => dv_dashboard_marketplace_issue_url( $marketplaces ),
             'priority' => 80,
             'severity' => 'warning',
             'source'   => 'Ozon',
@@ -1439,6 +1548,15 @@ function dv_render_dashboard_status_widget() {
     }
 
     $summary      = dv_dashboard_status_summary();
+    if ( empty( $summary ) ) {
+        ?>
+        <div class="dv-dashboard-widget">
+            <p>Сохранённой сводки пока нет.</p>
+            <a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=dv_dashboard_status_refresh' ), 'dv_dashboard_status_refresh' ) ); ?>">Обновить сводку</a>
+        </div>
+        <?php
+        return;
+    }
     $audit        = $summary['audit'];
     $analytics    = isset( $summary['analytics'] ) && is_array( $summary['analytics'] ) ? $summary['analytics'] : array();
     $product_feed = isset( $summary['product_feed'] ) && is_array( $summary['product_feed'] ) ? $summary['product_feed'] : array();
@@ -1459,13 +1577,13 @@ function dv_render_dashboard_status_widget() {
             <div>
                 <strong><?php echo esc_html( dv_theme_options_label( '&#1057;&#1086;&#1089;&#1090;&#1086;&#1103;&#1085;&#1080;&#1077; &#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;' ) ); ?></strong>
                 <p><?php echo esc_html( dv_theme_options_label( '&#1050;&#1086;&#1088;&#1086;&#1090;&#1082;&#1080;&#1081; &#1089;&#1088;&#1077;&#1079; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;, SEO, &#1087;&#1088;&#1086;&#1092;&#1080;&#1083;&#1103; &#1080; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;&#1072;.' ) ); ?></p>
-                <small><?php echo esc_html( dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1086;: ' ) . ( $summary['generated_at_display'] ?? '' ) ); ?></small>
+                <small><?php echo esc_html( ( ! empty( $summary['snapshot_stale'] ) ? 'Сохранённый снимок: ' : dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1086;: ' ) ) . ( $summary['generated_at_display'] ?? '' ) ); ?></small>
             </div>
             <div class="dv-dashboard-widget-actions">
                 <a class="button" href="<?php echo esc_url( $refresh_url ); ?>">
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;' ) ); ?>
                 </a>
-                <a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+                <a class="button button-primary" href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
                     <?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?>
                 </a>
             </div>
@@ -1588,7 +1706,7 @@ function dv_render_dashboard_status_widget() {
         <div class="dv-dashboard-release">
             <div class="dv-dashboard-history-head">
                 <strong><?php echo esc_html( dv_theme_options_label( '&#1056;&#1077;&#1083;&#1080;&#1079; &#1080; &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1080;' ) ); ?></strong>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+                <a href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1090;&#1095;&#1077;&#1090;' ) ); ?>
                 </a>
             </div>
@@ -1669,7 +1787,7 @@ function dv_render_dashboard_status_widget() {
         <div class="dv-dashboard-history">
             <div class="dv-dashboard-history-head">
                 <strong><?php echo esc_html( dv_theme_options_label( '&#1057;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;' ) ); ?></strong>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options#dv-options-diagnostics' ) ); ?>">
+                <a href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
                     <?php echo esc_html( dv_theme_options_label( '&#1054;&#1090;&#1082;&#1088;&#1099;&#1090;&#1100;' ) ); ?>
                 </a>
             </div>
@@ -2257,6 +2375,7 @@ function dv_theme_options_reset_groups() {
             'keys'        => array(
                 'product_gallery_hint_enabled',
                 'product_meta_sku_enabled',
+                'product_part_number_enabled',
                 'product_actions_enabled',
                 'product_wishlist_enabled',
                 'product_compare_enabled',
@@ -4941,6 +5060,18 @@ function dv_render_theme_options_visual_preview( $options ) {
     );
     ?>
     <div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>">
+        <div class="dv-visual-recipe-menu">
+            <label for="dv-visual-recipe-select">Готовый набор</label>
+            <select id="dv-visual-recipe-select">
+                <option value="">Выберите набор</option>
+                <?php foreach ( $recipes as $recipe_key => $recipe ) : ?>
+                    <option value="<?php echo esc_attr( $recipe_key ); ?>" data-dv-visual-recipe="<?php echo esc_attr( wp_json_encode( $recipe['settings'] ) ); ?>"><?php echo esc_html( dv_theme_options_label( $recipe['label'] ) ); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="button" class="button" data-dv-apply-recipe>Применить набор</button>
+        </div>
+        <details class="dv-visual-preview-details">
+        <summary>Предпросмотр</summary>
         <div class="dv-visual-preview-head">
             <div>
                 <h3><?php echo esc_html( dv_theme_options_label( '&#1055;&#1088;&#1077;&#1076;&#1087;&#1088;&#1086;&#1089;&#1084;&#1086;&#1090;&#1088;' ) ); ?></h3>
@@ -4960,26 +5091,6 @@ function dv_render_theme_options_visual_preview( $options ) {
                         <?php echo esc_html( dv_theme_options_label( 'Mobile' ) ); ?>
                     </button>
                 </div>
-            </div>
-        </div>
-        <div class="dv-visual-recipes" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Готовые наборы' ) ); ?>">
-            <div class="dv-visual-recipes-copy">
-                <strong><?php echo esc_html( dv_theme_options_label( 'Готовые наборы' ) ); ?></strong>
-                <small><?php echo esc_html( dv_theme_options_label( 'Быстро выставляют несколько параметров сразу. После выбора можно точечно поправить любой селект ниже.' ) ); ?></small>
-            </div>
-            <div class="dv-visual-recipes-list">
-                <?php foreach ( $recipes as $recipe_key => $recipe ) : ?>
-                    <button
-                        type="button"
-                        class="dv-visual-recipe"
-                        data-dv-visual-recipe-key="<?php echo esc_attr( $recipe_key ); ?>"
-                        data-dv-visual-recipe="<?php echo esc_attr( wp_json_encode( $recipe['settings'] ) ); ?>"
-                        aria-pressed="false"
-                    >
-                        <span><?php echo esc_html( dv_theme_options_label( $recipe['label'] ) ); ?></span>
-                        <small><?php echo esc_html( dv_theme_options_label( $recipe['description'] ) ); ?></small>
-                    </button>
-                <?php endforeach; ?>
             </div>
         </div>
         <div class="dv-visual-preview-stage">
@@ -5010,20 +5121,21 @@ function dv_render_theme_options_visual_preview( $options ) {
                 <div class="dv-visual-preview-footer"><span></span><span></span><span></span></div>
             </div>
         </div>
+        </details>
     </div>
     <?php
 }
 
 function dv_render_theme_options_order_grid( $options, $items ) {
     ?>
-    <div class="dv-admin-order-grid">
-        <div class="dv-admin-order-grid-head">
+    <details class="dv-admin-order-grid">
+        <summary class="dv-admin-order-grid-head">
             <h3><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1088;&#1103;&#1076;&#1086;&#1082; &#1073;&#1083;&#1086;&#1082;&#1086;&#1074;' ) ); ?></h3>
             <p><?php echo esc_html( dv_theme_options_label( '&#1063;&#1077;&#1084; &#1084;&#1077;&#1085;&#1100;&#1096;&#1077; &#1095;&#1080;&#1089;&#1083;&#1086;, &#1090;&#1077;&#1084; &#1074;&#1099;&#1096;&#1077; &#1073;&#1083;&#1086;&#1082; &#1085;&#1072; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1077;.' ) ); ?></p>
-        </div>
+        </summary>
         <div class="dv-admin-order-grid-body">
             <?php foreach ( $items as $item ) : ?>
-                <label class="dv-admin-order-item">
+                <label class="dv-admin-order-item" data-dv-option-key="<?php echo esc_attr( $item['key'] ); ?>">
                     <span><?php echo esc_html( $item['label'] ); ?></span>
                     <input
                         type="number"
@@ -5039,7 +5151,7 @@ function dv_render_theme_options_order_grid( $options, $items ) {
                 </label>
             <?php endforeach; ?>
         </div>
-    </div>
+    </details>
     <?php
 }
 
@@ -5104,14 +5216,146 @@ function dv_render_theme_options_overview( $options ) {
         ),
     );
     ?>
-    <section class="dv-options-overview" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1057;&#1074;&#1086;&#1076;&#1082;&#1072; &#1085;&#1072;&#1089;&#1090;&#1088;&#1086;&#1077;&#1082; &#1090;&#1077;&#1084;&#1099;' ) ); ?>">
-        <?php foreach ( $cards as $card ) : ?>
-            <article class="dv-options-overview-card">
-                <span><?php echo esc_html( $card['label'] ); ?></span>
-                <strong><?php echo esc_html( $card['value'] ); ?></strong>
-                <small><?php echo esc_html( $card['hint'] ); ?></small>
-            </article>
-        <?php endforeach; ?>
+    <details class="dv-options-overview-shell">
+        <summary>
+            <span><?php echo esc_html( dv_theme_options_label( 'Сводка настроек' ) ); ?></span>
+            <small><?php echo esc_html( dv_theme_options_label( 'Ключевые параметры витрины' ) ); ?></small>
+        </summary>
+        <section class="dv-options-overview" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1057;&#1074;&#1086;&#1076;&#1082;&#1072; &#1085;&#1072;&#1089;&#1090;&#1088;&#1086;&#1077;&#1082; &#1090;&#1077;&#1084;&#1099;' ) ); ?>">
+            <?php foreach ( $cards as $card ) : ?>
+                <article class="dv-options-overview-card">
+                    <span><?php echo esc_html( $card['label'] ); ?></span>
+                    <strong><?php echo esc_html( $card['value'] ); ?></strong>
+                    <small><?php echo esc_html( $card['hint'] ); ?></small>
+                </article>
+            <?php endforeach; ?>
+        </section>
+    </details>
+    <?php
+}
+
+function dv_theme_options_workflow_status( $label, $value, $tone = 'neutral' ) {
+    return array(
+        'label' => $label,
+        'value' => $value,
+        'tone'  => in_array( $tone, array( 'success', 'warning', 'neutral' ), true ) ? $tone : 'neutral',
+    );
+}
+
+function dv_theme_options_workflows( $options ) {
+    $options       = is_array( $options ) ? $options : array();
+    $profile       = function_exists( 'dv_get_store_profile' ) ? dv_get_store_profile() : array();
+    $diagnostics   = function_exists( 'dv_theme_diagnostics_snapshot_get' ) ? dv_theme_diagnostics_snapshot_get() : array();
+    $dashboard     = function_exists( 'dv_dashboard_status_summary' ) ? dv_dashboard_status_summary() : array();
+    $seo_health    = is_array( $dashboard ) ? ( $dashboard['seo_health'] ?? null ) : null;
+    $ozon_url      = trim( (string) ( $profile['ozon_url'] ?? '' ) );
+    $ozon_enabled  = ! empty( $options['header_ozon_enabled'] ) && ! empty( $options['product_ozon_enabled'] );
+    $checkout_count = dv_theme_options_enabled_count(
+        $options,
+        array( 'checkout_coupon_enabled', 'checkout_login_enabled', 'checkout_order_notes_enabled' )
+    );
+    $diagnostics_date = ! empty( $diagnostics['generated_at'] )
+        ? wp_date( 'd.m.Y H:i', absint( $diagnostics['generated_at'] ) )
+        : dv_theme_options_label( 'ещё не запускалась' );
+    $seo_score = is_array( $seo_health ) && isset( $seo_health['score'] ) ? absint( $seo_health['score'] ) : null;
+
+    return array(
+        array(
+            'label'       => dv_theme_options_label( 'Оформление витрины' ),
+            'description' => dv_theme_options_label( 'Пресет, палитра и предпросмотр' ),
+            'url'         => '#dv-options-visual',
+            'target'      => '#dv-options-visual',
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Стиль' ),
+                sanitize_key( $options['theme_visual_preset'] ?? 'default' )
+            ),
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Поиск' ),
+            'description' => dv_theme_options_label( 'Live-search, выдача и страница 404' ),
+            'url'         => '#dv-options-search',
+            'target'      => '#dv-options-search',
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Лимиты' ),
+                absint( $options['search_live_limit'] ?? 0 ) . ' / ' . absint( $options['search_page_per_page'] ?? 0 ),
+                absint( $options['search_live_limit'] ?? 0 ) > 0 ? 'success' : 'warning'
+            ),
+        ),
+        array(
+            'label'       => 'Checkout',
+            'description' => dv_theme_options_label( 'Оформление заказа и штатные блоки' ),
+            'url'         => '#dv-options-checkout',
+            'target'      => '#dv-options-checkout',
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Включено' ),
+                $checkout_count . ' / 3'
+            ),
+        ),
+        array(
+            'label'       => 'Ozon',
+            'description' => dv_theme_options_label( 'Ссылка и все переключатели показа' ),
+            'url'         => '#dv-options-header',
+            'target'      => '#dv-options-header',
+            'search'      => 'Ozon',
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Состояние' ),
+                $ozon_url && $ozon_enabled ? dv_theme_options_label( 'готово' ) : dv_theme_options_label( 'проверить' ),
+                $ozon_url && $ozon_enabled ? 'success' : 'warning'
+            ),
+        ),
+        array(
+            'label'       => 'SEO',
+            'description' => dv_theme_options_label( 'Очередь задач, sitemap и метаданные' ),
+            'url'         => admin_url( 'admin.php?page=dv-seo-tools#dv-seo-actions' ),
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Health score' ),
+                null === $seo_score ? dv_theme_options_label( 'открыть' ) : $seo_score . ' / 100',
+                null !== $seo_score && $seo_score >= 80 ? 'success' : ( null === $seo_score ? 'neutral' : 'warning' )
+            ),
+        ),
+        array(
+            'label'       => dv_theme_options_label( 'Обслуживание' ),
+            'description' => dv_theme_options_label( 'Диагностика, YML и аудит товаров' ),
+            'url'         => function_exists( 'dv_theme_diagnostics_load_url' ) ? dv_theme_diagnostics_load_url() : '#dv-options-diagnostics',
+            'status'      => dv_theme_options_workflow_status(
+                dv_theme_options_label( 'Последняя проверка' ),
+                $diagnostics_date,
+                ! empty( $diagnostics ) && empty( $diagnostics['failed_count'] ) ? 'success' : ( empty( $diagnostics ) ? 'neutral' : 'warning' )
+            ),
+        ),
+    );
+}
+
+function dv_render_theme_options_workflows( $options ) {
+    $workflows = dv_theme_options_workflows( $options );
+    ?>
+    <section class="dv-admin-workflows" aria-labelledby="dv-admin-workflows-title">
+        <div class="dv-admin-workflows-head">
+            <strong id="dv-admin-workflows-title"><?php echo esc_html( dv_theme_options_label( 'Частые задачи' ) ); ?></strong>
+            <span><?php echo esc_html( dv_theme_options_label( 'Быстрый переход к связанным настройкам' ) ); ?></span>
+        </div>
+        <div class="dv-admin-workflows-list">
+            <?php foreach ( $workflows as $workflow ) : ?>
+                <?php $status = isset( $workflow['status'] ) && is_array( $workflow['status'] ) ? $workflow['status'] : array(); ?>
+                <a
+                    class="dv-admin-workflow is-<?php echo esc_attr( $status['tone'] ?? 'neutral' ); ?>"
+                    href="<?php echo esc_url( $workflow['url'] ); ?>"
+                    <?php if ( ! empty( $workflow['target'] ) ) : ?>
+                        data-dv-options-target="<?php echo esc_attr( $workflow['target'] ); ?>"
+                    <?php endif; ?>
+                    <?php if ( ! empty( $workflow['search'] ) ) : ?>
+                        data-dv-options-search="<?php echo esc_attr( $workflow['search'] ); ?>"
+                    <?php endif; ?>
+                >
+                    <span><?php echo esc_html( $workflow['label'] ); ?></span>
+                    <small><?php echo esc_html( $workflow['description'] ); ?></small>
+                    <em>
+                        <?php echo esc_html( (string) ( $status['label'] ?? '' ) ); ?>:
+                        <strong><?php echo esc_html( (string) ( $status['value'] ?? '' ) ); ?></strong>
+                    </em>
+                </a>
+            <?php endforeach; ?>
+        </div>
     </section>
     <?php
 }
@@ -5153,18 +5397,69 @@ function dv_theme_reset_notice_text( $status ) {
     );
 }
 
-function dv_render_admin_action_log_card() {
-    $action_log = dv_admin_action_log_get();
+function dv_theme_admin_pagination_url( $query_key, $page_number, $anchor ) {
+    return add_query_arg(
+        array(
+            'page'       => 'dv-theme-options',
+            $query_key   => max( 1, absint( $page_number ) ),
+        ),
+        admin_url( 'admin.php' )
+    ) . '#' . sanitize_html_class( $anchor );
+}
+
+function dv_render_theme_admin_pagination( $query_key, $current_page, $total_pages, $anchor ) {
+    $current_page = max( 1, absint( $current_page ) );
+    $total_pages  = max( 1, absint( $total_pages ) );
+
+    if ( $total_pages < 2 ) {
+        return;
+    }
     ?>
-    <div class="dv-admin-settings-history dv-admin-action-log" id="dv-options-action-log">
+    <nav class="dv-admin-list-pagination" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Навигация по записям' ) ); ?>">
+        <a
+            class="button"
+            href="<?php echo esc_url( dv_theme_admin_pagination_url( $query_key, $current_page - 1, $anchor ) ); ?>"
+            <?php echo 1 === $current_page ? 'aria-disabled="true" tabindex="-1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+        ><?php echo esc_html( dv_theme_options_label( 'Назад' ) ); ?></a>
+        <span>
+            <?php
+            echo esc_html(
+                sprintf(
+                    /* translators: 1: current page, 2: total pages. */
+                    dv_theme_options_label( 'Страница %1$d из %2$d' ),
+                    $current_page,
+                    $total_pages
+                )
+            );
+            ?>
+        </span>
+        <a
+            class="button"
+            href="<?php echo esc_url( dv_theme_admin_pagination_url( $query_key, $current_page + 1, $anchor ) ); ?>"
+            <?php echo $current_page === $total_pages ? 'aria-disabled="true" tabindex="-1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+        ><?php echo esc_html( dv_theme_options_label( 'Далее' ) ); ?></a>
+    </nav>
+    <?php
+}
+
+function dv_render_admin_action_log_card() {
+    $all_entries  = dv_admin_action_log_get();
+    $per_page     = 6;
+    $total_items  = count( $all_entries );
+    $total_pages  = max( 1, (int) ceil( $total_items / $per_page ) );
+    $current_page = isset( $_GET['dv_action_log_page'] ) ? absint( $_GET['dv_action_log_page'] ) : 1;
+    $current_page = min( max( 1, $current_page ), $total_pages );
+    $action_log   = array_slice( $all_entries, ( $current_page - 1 ) * $per_page, $per_page );
+    ?>
+    <section class="dv-admin-card dv-admin-settings-history dv-admin-action-log" id="dv-options-action-log">
         <div class="dv-admin-settings-history-head">
             <div>
                 <h3><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1093; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1081;' ) ); ?></h3>
                 <p><?php echo esc_html( dv_theme_options_label( '&#1040;&#1091;&#1076;&#1080;&#1090;&#1099;, &#1086;&#1095;&#1080;&#1089;&#1090;&#1082;&#1080;, backup, &#1084;&#1072;&#1089;&#1089;&#1086;&#1074;&#1099;&#1077; &#1087;&#1088;&#1072;&#1074;&#1082;&#1080; &#1080; &#1086;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103; &#1082;&#1101;&#1096;&#1077;&#1081;.' ) ); ?></p>
             </div>
             <div class="dv-admin-settings-history-actions dv-suite-action-row">
-                <span><?php echo esc_html( count( $action_log ) ); ?></span>
-                <?php if ( ! empty( $action_log ) ) : ?>
+                <span><?php echo esc_html( $total_items ); ?></span>
+                <?php if ( $total_items ) : ?>
                     <button type="submit" class="button button-secondary" form="dv-admin-action-log-export">
                         <?php echo esc_html( dv_theme_options_label( '&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; CSV' ) ); ?>
                     </button>
@@ -5222,8 +5517,9 @@ function dv_render_admin_action_log_card() {
                     </article>
                 <?php endforeach; ?>
             </div>
+            <?php dv_render_theme_admin_pagination( 'dv_action_log_page', $current_page, $total_pages, 'dv-options-action-log' ); ?>
         <?php endif; ?>
-    </div>
+    </section>
     <?php
 }
 
@@ -5232,7 +5528,13 @@ function dv_render_theme_backup_card() {
     $last_backup  = get_option( dv_theme_backup_last_import_option_name(), array() );
     $has_restore  = dv_theme_backup_is_valid_payload( $last_backup );
     $restore_date = '';
-    $history      = array_slice( dv_theme_settings_history_get(), 0, 6 );
+    $history_all  = dv_theme_settings_history_get();
+    $history_per_page = 5;
+    $history_total = count( $history_all );
+    $history_pages = max( 1, (int) ceil( $history_total / $history_per_page ) );
+    $history_page = isset( $_GET['dv_history_page'] ) ? absint( $_GET['dv_history_page'] ) : 1;
+    $history_page = min( max( 1, $history_page ), $history_pages );
+    $history      = array_slice( $history_all, ( $history_page - 1 ) * $history_per_page, $history_per_page );
     $reset_groups = dv_theme_options_reset_groups();
     $auto_backup  = dv_theme_auto_backup_state();
     $rollback     = dv_theme_rollback_targets();
@@ -5492,8 +5794,8 @@ function dv_render_theme_backup_card() {
                     <p><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1080;&#1077; &#1089;&#1086;&#1093;&#1088;&#1072;&#1085;&#1077;&#1085;&#1080;&#1103;: &#1082;&#1090;&#1086;, &#1082;&#1086;&#1075;&#1076;&#1072; &#1080; &#1082;&#1072;&#1082;&#1080;&#1077; &#1075;&#1088;&#1091;&#1087;&#1087;&#1099; &#1079;&#1072;&#1090;&#1088;&#1086;&#1085;&#1091;&#1090;&#1099;.' ) ); ?></p>
                 </div>
                 <div class="dv-admin-settings-history-actions dv-suite-action-row">
-                    <span><?php echo esc_html( count( $history ) ); ?></span>
-                    <?php if ( ! empty( $history ) ) : ?>
+                    <span><?php echo esc_html( $history_total ); ?></span>
+                    <?php if ( $history_total ) : ?>
                         <button type="submit" class="button button-secondary" form="dv-theme-settings-history-export">
                             <?php echo esc_html( dv_theme_options_label( '&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; CSV' ) ); ?>
                         </button>
@@ -5561,10 +5863,9 @@ function dv_render_theme_backup_card() {
                         </article>
                     <?php endforeach; ?>
                 </div>
+                <?php dv_render_theme_admin_pagination( 'dv_history_page', $history_page, $history_pages, 'dv-options-backup' ); ?>
             <?php endif; ?>
         </div>
-
-        <?php dv_render_admin_action_log_card(); ?>
 
         <p class="description">
             <?php echo esc_html( dv_theme_options_label( '&#1042; &#1089;&#1085;&#1080;&#1084;&#1086;&#1082; &#1074;&#1093;&#1086;&#1076;&#1103;&#1090; &#1086;&#1087;&#1094;&#1080;&#1080;:' ) ); ?>
@@ -6401,7 +6702,120 @@ function dv_render_theme_environment_card( $environment ) {
     <?php
 }
 
+function dv_theme_diagnostics_snapshot_cache_key() {
+    return 'dv_theme_diagnostics_snapshot_v1';
+}
+
+function dv_theme_diagnostics_snapshot_get() {
+    $snapshot = get_transient( dv_theme_diagnostics_snapshot_cache_key() );
+
+    return is_array( $snapshot ) ? $snapshot : array();
+}
+
+function dv_theme_diagnostics_snapshot_store( $checks, $context, $duration ) {
+    $checks       = is_array( $checks ) ? $checks : array();
+    $context      = is_array( $context ) ? $context : array();
+    $audit        = isset( $context['audit'] ) && is_array( $context['audit'] ) ? $context['audit'] : array();
+    $failed_count = count(
+        array_filter(
+            $checks,
+            static function ( $check ) {
+                return empty( $check['status'] );
+            }
+        )
+    );
+    $snapshot = array(
+        'generated_at'        => time(),
+        'duration'            => max( 0, (float) $duration ),
+        'check_count'         => count( $checks ),
+        'failed_count'        => $failed_count,
+        'product_issue_count' => absint( $audit['issue_count'] ?? 0 ),
+    );
+
+    set_transient( dv_theme_diagnostics_snapshot_cache_key(), $snapshot, 7 * DAY_IN_SECONDS );
+
+    return $snapshot;
+}
+
+function dv_theme_options_should_load_diagnostics() {
+    $mode = isset( $_GET['dv-diagnostics'] ) ? sanitize_key( wp_unslash( $_GET['dv-diagnostics'] ) ) : '';
+
+    if ( in_array( $mode, array( 'load', 'refresh' ), true ) ) {
+        return true;
+    }
+
+    foreach ( array( 'product-audit', 'service-cache', 'product-feed', 'search-index' ) as $status_key ) {
+        if ( isset( $_GET[ $status_key ] ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function dv_theme_diagnostics_load_url() {
+    return add_query_arg(
+        array(
+            'page'           => 'dv-theme-options',
+            'dv-diagnostics' => 'load',
+        ),
+        admin_url( 'admin.php' )
+    ) . '#dv-options-diagnostics';
+}
+
+function dv_render_theme_options_diagnostics_placeholder() {
+    $snapshot = dv_theme_diagnostics_snapshot_get();
+    $date     = '';
+
+    if ( ! empty( $snapshot['generated_at'] ) ) {
+        $date = wp_date( 'd.m.Y H:i', absint( $snapshot['generated_at'] ) );
+    }
+    ?>
+    <section class="dv-admin-card dv-admin-diagnostics-card dv-admin-diagnostics-placeholder" id="dv-options-diagnostics">
+        <div class="dv-admin-diagnostics-placeholder-copy">
+            <span class="dv-admin-diagnostics-placeholder-label"><?php echo esc_html( dv_theme_options_label( 'По запросу' ) ); ?></span>
+            <h2><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></h2>
+            <p><?php echo esc_html( dv_theme_options_label( 'Тяжёлые проверки товаров, YML, WooCommerce и служебных данных не запускаются при обычном открытии настроек.' ) ); ?></p>
+        </div>
+
+        <?php if ( $snapshot ) : ?>
+            <div class="dv-admin-diagnostics-placeholder-summary" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Последний снимок диагностики' ) ); ?>">
+                <div>
+                    <span><?php echo esc_html( dv_theme_options_label( 'Последняя проверка' ) ); ?></span>
+                    <strong><?php echo esc_html( $date ? $date : dv_theme_options_label( 'дата неизвестна' ) ); ?></strong>
+                    <small><?php echo esc_html( number_format_i18n( (float) ( $snapshot['duration'] ?? 0 ), 2 ) . ' сек.' ); ?></small>
+                </div>
+                <div>
+                    <span><?php echo esc_html( dv_theme_options_label( 'Проверок' ) ); ?></span>
+                    <strong><?php echo esc_html( absint( $snapshot['check_count'] ?? 0 ) ); ?></strong>
+                    <small><?php echo esc_html( dv_theme_options_label( 'в последнем запуске' ) ); ?></small>
+                </div>
+                <div>
+                    <span><?php echo esc_html( dv_theme_options_label( 'Требуют внимания' ) ); ?></span>
+                    <strong><?php echo esc_html( absint( $snapshot['failed_count'] ?? 0 ) ); ?></strong>
+                    <small><?php echo esc_html( dv_theme_options_label( 'технических проверок' ) ); ?></small>
+                </div>
+                <div>
+                    <span><?php echo esc_html( dv_theme_options_label( 'Товары' ) ); ?></span>
+                    <strong><?php echo esc_html( absint( $snapshot['product_issue_count'] ?? 0 ) ); ?></strong>
+                    <small><?php echo esc_html( dv_theme_options_label( 'проблем в аудите' ) ); ?></small>
+                </div>
+            </div>
+        <?php else : ?>
+            <p class="dv-admin-diagnostics-placeholder-empty"><?php echo esc_html( dv_theme_options_label( 'Сохранённого снимка пока нет. Первый запуск создаст его автоматически.' ) ); ?></p>
+        <?php endif; ?>
+
+        <div class="dv-admin-diagnostics-actions dv-suite-action-row">
+            <a class="button button-primary" href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
+                <?php echo esc_html( dv_theme_options_label( 'Запустить диагностику' ) ); ?>
+            </a>
+        </div>
+    </section>
+    <?php
+}
+
 function dv_render_theme_options_diagnostics( $options ) {
+    $started_at = microtime( true );
     $context  = dv_theme_diagnostics_context( $options );
     $checks   = dv_theme_diagnostics_checks( $options, $context );
     $snapshot = dv_theme_diagnostics_settings_snapshot( $options );
@@ -6413,6 +6827,7 @@ function dv_render_theme_options_diagnostics( $options ) {
     $profile_health = $context['profile_health'];
     $maintenance = $context['maintenance'];
     $support_summary = dv_theme_diagnostics_support_summary( $options, $context, $checks );
+    $diagnostics_snapshot = dv_theme_diagnostics_snapshot_store( $checks, $context, microtime( true ) - $started_at );
     ?>
     <section class="dv-admin-card dv-admin-diagnostics-card" id="dv-options-diagnostics">
         <h2><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></h2>
@@ -6432,9 +6847,23 @@ function dv_render_theme_options_diagnostics( $options ) {
         </div>
 
         <div class="dv-admin-diagnostics-actions dv-suite-action-row">
+            <a class="button" href="<?php echo esc_url( dv_theme_diagnostics_load_url() ); ?>">
+                <?php echo esc_html( dv_theme_options_label( 'Повторить проверку' ) ); ?>
+            </a>
             <button type="submit" class="button button-primary" form="dv-theme-diagnostics-export">
                 <?php echo esc_html( dv_theme_options_label( '&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100; &#1086;&#1090;&#1095;&#1105;&#1090; &#1076;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1080;' ) ); ?>
             </button>
+            <span class="dv-admin-diagnostics-runtime">
+                <?php
+                echo esc_html(
+                    sprintf(
+                        /* translators: %s: diagnostics generation duration in seconds. */
+                        dv_theme_options_label( 'Собрано за %s сек.' ),
+                        number_format_i18n( (float) ( $diagnostics_snapshot['duration'] ?? 0 ), 2 )
+                    )
+                );
+                ?>
+            </span>
         </div>
 
         <?php dv_render_theme_environment_card( $environment ); ?>
@@ -6564,8 +6993,6 @@ function dv_render_theme_options_page() {
             </div>
         <?php endif; ?>
 
-        <?php dv_render_theme_options_overview( $options ); ?>
-
         <form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-options' ) ); ?>" data-dv-unsaved-form>
             <?php wp_nonce_field( 'dv_save_theme_options' ); ?>
             <input type="hidden" name="dv_theme_options_action" value="save">
@@ -6584,23 +7011,32 @@ function dv_render_theme_options_page() {
                         >
                         <button type="button" id="dv-theme-options-search-clear" aria-label="<?php echo esc_attr( dv_theme_options_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1087;&#1086;&#1080;&#1089;&#1082;' ) ); ?>">&times;</button>
                     </div>
-                    <p class="dv-admin-settings-search-count" id="dv-theme-options-search-count"></p>
+                    <p class="dv-admin-settings-search-count" id="dv-theme-options-search-count" role="status" aria-live="polite" aria-atomic="true"></p>
                 </div>
-                <div class="dv-admin-nav">
-                    <a href="#dv-options-visual"><?php echo esc_html( dv_theme_options_label( '&#1042;&#1080;&#1079;&#1091;&#1072;&#1083;&#1100;&#1085;&#1099;&#1081; &#1089;&#1090;&#1080;&#1083;&#1100;' ) ); ?></a>
-                    <a href="#dv-options-catalog"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;' ) ); ?></a>
-                    <a href="#dv-options-catalog-card"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1072; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;&#1077;' ) ); ?></a>
-                    <a href="#dv-options-home"><?php echo esc_html( dv_theme_options_label( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;' ) ); ?></a>
-                    <a href="#dv-options-search"><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1080;&#1089;&#1082; &#1080; 404' ) ); ?></a>
-                    <a href="#dv-options-analytics">Аналитика</a>
-                    <a href="#dv-options-footer"><?php echo esc_html( dv_theme_options_label( '&#1060;&#1091;&#1090;&#1077;&#1088;' ) ); ?></a>
-                    <a href="#dv-options-cart"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1086;&#1088;&#1079;&#1080;&#1085;&#1072;' ) ); ?></a>
-                    <a href="#dv-options-checkout">Checkout</a>
-                    <a href="#dv-options-product"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1072;' ) ); ?></a>
-                    <a href="#dv-options-service"><?php echo esc_html( dv_theme_options_label( '&#1057;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1077;' ) ); ?></a>
-                    <a href="#dv-options-diagnostics"><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></a>
-                    <a href="#dv-options-backup"><?php echo esc_html( dv_theme_options_label( '&#1056;&#1077;&#1079;&#1077;&#1088;&#1074;' ) ); ?></a>
-                    <a href="#dv-options-action-log"><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083;' ) ); ?></a>
+                <div class="dv-admin-navigation">
+                    <div class="dv-admin-mode-nav" role="group" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Группы настроек' ) ); ?>">
+                        <button type="button" data-dv-options-group="appearance" aria-pressed="false">Внешний вид</button>
+                        <button type="button" data-dv-options-group="catalog" aria-pressed="false">Каталог</button>
+                        <button type="button" data-dv-options-group="sales" aria-pressed="false">Продажи</button>
+                        <button type="button" data-dv-options-group="system" aria-pressed="false">Система</button>
+                    </div>
+                    <div class="dv-admin-nav" aria-label="<?php echo esc_attr( dv_theme_options_label( 'Подразделы настроек' ) ); ?>">
+                        <a href="#dv-options-visual" data-dv-options-group="appearance"><?php echo esc_html( dv_theme_options_label( '&#1042;&#1080;&#1079;&#1091;&#1072;&#1083;&#1100;&#1085;&#1099;&#1081; &#1089;&#1090;&#1080;&#1083;&#1100;' ) ); ?></a>
+                        <a href="#dv-options-header" data-dv-options-group="appearance">Шапка и меню</a>
+                        <a href="#dv-options-home" data-dv-options-group="appearance"><?php echo esc_html( dv_theme_options_label( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;' ) ); ?></a>
+                        <a href="#dv-options-footer" data-dv-options-group="appearance"><?php echo esc_html( dv_theme_options_label( '&#1060;&#1091;&#1090;&#1077;&#1088;' ) ); ?></a>
+                        <a href="#dv-options-catalog" data-dv-options-group="catalog"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;' ) ); ?></a>
+                        <a href="#dv-options-catalog-card" data-dv-options-group="catalog"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1072; &#1074; &#1082;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;&#1077;' ) ); ?></a>
+                        <a href="#dv-options-product" data-dv-options-group="catalog"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1072; &#1090;&#1086;&#1074;&#1072;&#1088;&#1072;' ) ); ?></a>
+                        <a href="#dv-options-search" data-dv-options-group="catalog"><?php echo esc_html( dv_theme_options_label( '&#1055;&#1086;&#1080;&#1089;&#1082; &#1080; 404' ) ); ?></a>
+                        <a href="#dv-options-cart" data-dv-options-group="sales"><?php echo esc_html( dv_theme_options_label( '&#1050;&#1086;&#1088;&#1079;&#1080;&#1085;&#1072;' ) ); ?></a>
+                        <a href="#dv-options-checkout" data-dv-options-group="sales">Checkout</a>
+                        <a href="#dv-options-analytics" data-dv-options-group="sales">Аналитика</a>
+                        <a href="#dv-options-service" data-dv-options-group="system"><?php echo esc_html( dv_theme_options_label( '&#1057;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1077;' ) ); ?></a>
+                        <a href="#dv-options-diagnostics" data-dv-options-group="system"><?php echo esc_html( dv_theme_options_label( '&#1044;&#1080;&#1072;&#1075;&#1085;&#1086;&#1089;&#1090;&#1080;&#1082;&#1072;' ) ); ?></a>
+                        <a href="#dv-options-backup" data-dv-options-group="system"><?php echo esc_html( dv_theme_options_label( '&#1056;&#1077;&#1079;&#1077;&#1088;&#1074;' ) ); ?></a>
+                        <a href="#dv-options-action-log" data-dv-options-group="system"><?php echo esc_html( dv_theme_options_label( '&#1046;&#1091;&#1088;&#1085;&#1072;&#1083;' ) ); ?></a>
+                    </div>
                 </div>
                 <div class="dv-admin-save-cluster">
                     <span class="dv-admin-unsaved-indicator" role="status" aria-live="polite" hidden>
@@ -6770,6 +7206,14 @@ function dv_render_theme_options_page() {
                     ?>
                     </div>
                     <?php dv_render_theme_options_visual_preview( $options ); ?>
+                </section>
+
+                <section class="dv-admin-card" id="dv-options-header">
+                    <h2>Шапка и меню</h2>
+                    <p class="dv-settings-related-links">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-content#dv-theme-header' ) ); ?>">Тексты и ссылки шапки</a>
+                        <a href="<?php echo esc_url( dv_store_settings_field_url( 'phone' ) ); ?>">Телефон и контакты</a>
+                    </p>
                 </section>
 
                 <section class="dv-admin-card" id="dv-options-catalog">
@@ -7139,6 +7583,10 @@ function dv_render_theme_options_page() {
 
                 <section class="dv-admin-card" id="dv-options-footer">
                     <h2><?php echo esc_html( dv_theme_options_label( '&#1060;&#1091;&#1090;&#1077;&#1088;' ) ); ?></h2>
+                    <p class="dv-settings-related-links">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-theme-content#dv-theme-footer' ) ); ?>">Тексты и ссылки футера</a>
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=dv-store-settings#dv-store-footer' ) ); ?>">Описание магазина</a>
+                    </p>
                     <?php
                     dv_render_theme_options_toggle_field(
                         $options,
@@ -7292,6 +7740,12 @@ function dv_render_theme_options_page() {
                         'product_meta_sku_enabled',
                         dv_theme_options_label( '&#1040;&#1088;&#1090;&#1080;&#1082;&#1091;&#1083; &#1087;&#1086;&#1076; H1' ),
                         dv_theme_options_label( '&#1052;&#1077;&#1090;&#1072;-&#1095;&#1080;&#1087; &#1089; &#1072;&#1088;&#1090;&#1080;&#1082;&#1091;&#1083;&#1086;&#1084; &#1074; &#1074;&#1077;&#1088;&#1093;&#1085;&#1077;&#1081; &#1095;&#1072;&#1089;&#1090;&#1080; &#1082;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1080; &#1090;&#1086;&#1074;&#1072;&#1088;&#1072;.' )
+                    );
+                    dv_render_theme_options_toggle_field(
+                        $options,
+                        'product_part_number_enabled',
+                        dv_theme_options_label( '&#1054;&#1088;&#1080;&#1075;&#1080;&#1085;&#1072;&#1083;&#1100;&#1085;&#1099;&#1081; &#1085;&#1086;&#1084;&#1077;&#1088; &#1080;&#1079; &#1072;&#1090;&#1088;&#1080;&#1073;&#1091;&#1090;&#1072; SKU' ),
+                        dv_theme_options_label( '&#1055;&#1086;&#1082;&#1072;&#1079;&#1099;&#1074;&#1072;&#1077;&#1090; &#1076;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;&#1081; &#1072;&#1090;&#1088;&#1080;&#1073;&#1091;&#1090; SKU &#1085;&#1072; &#1082;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1077; &#1090;&#1086;&#1074;&#1072;&#1088;&#1072; &#1082;&#1072;&#1082; &#1087;&#1072;&#1088;&#1090;-&#1085;&#1086;&#1084;&#1077;&#1088; &#1076;&#1077;&#1090;&#1072;&#1083;&#1080;.' )
                     );
                     dv_render_theme_options_toggle_field(
                         $options,
@@ -7483,9 +7937,15 @@ function dv_render_theme_options_page() {
                     ?>
                 </section>
 
-                <?php dv_render_theme_options_diagnostics( $options ); ?>
+                <?php if ( dv_theme_options_should_load_diagnostics() ) : ?>
+                    <?php dv_render_theme_options_diagnostics( $options ); ?>
+                <?php else : ?>
+                    <?php dv_render_theme_options_diagnostics_placeholder(); ?>
+                <?php endif; ?>
 
                 <?php dv_render_theme_backup_card(); ?>
+
+                <?php dv_render_admin_action_log_card(); ?>
             </div>
             </div>
 
@@ -7578,6 +8038,11 @@ function dv_render_theme_options_page() {
             <?php wp_nonce_field( 'dv_admin_action_log_clear' ); ?>
             <input type="hidden" name="action" value="dv_admin_action_log_clear">
         </form>
+        <?php dv_render_theme_options_overview( $options ); ?>
+        <details class="dv-options-overview-shell dv-admin-workflow-drawer">
+            <summary><span>Быстрые сценарии</span></summary>
+            <?php dv_render_theme_options_workflows( $options ); ?>
+        </details>
         <?php dv_render_admin_suite_footer( 'dv-theme-options' ); ?>
     </div>
     <?php

@@ -10,6 +10,8 @@ function dv_sanitize_theme_content( $input ) {
         'home_popular_enabled',
         'home_sale_enabled',
         'home_categories_enabled',
+        'home_categories_first',
+        'home_support_enabled',
     );
 
     for ( $i = 1; $i <= 5; $i++ ) {
@@ -41,6 +43,9 @@ function dv_sanitize_theme_content( $input ) {
         $value = $input[ $key ] ?? $default;
         if ( preg_match( '/^custom_page_\d+_slug$/', (string) $key ) ) {
             $result[ $key ] = sanitize_title( $value );
+        } elseif ( 'home_popular_manual_ids' === $key ) {
+            $manual_ids = array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', (string) $value ) ) ) ) );
+            $result[ $key ] = implode( ', ', $manual_ids );
         } elseif ( preg_match( '/^custom_page_\d+_card_\d+_icon$/', (string) $key ) ) {
             $icon_options   = dv_theme_content_card_icon_options();
             $clean_icon     = sanitize_key( $value );
@@ -132,7 +137,7 @@ function dv_theme_content_admin_labels() {
         'header_section' => html_entity_decode( '&#1064;&#1072;&#1087;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
         'footer_section' => html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;', ENT_QUOTES, 'UTF-8' ),
         'home_section'   => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1072;', ENT_QUOTES, 'UTF-8' ),
-        'cta_section'    => 'CTA / ' . html_entity_decode( '&#1082;&#1085;&#1086;&#1087;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' ),
+        'cta_section'    => 'Кнопки и ссылки',
         'service_section'=> html_entity_decode( '&#1057;&#1077;&#1088;&#1074;&#1080;&#1089;&#1085;&#1099;&#1077; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1099;', ENT_QUOTES, 'UTF-8' ),
     );
 }
@@ -158,7 +163,7 @@ function dv_theme_content_admin_enqueue_assets( $hook_suffix ) {
     wp_enqueue_script(
         'dv-theme-content-admin',
         DV_URI . '/assets/js/theme-content-admin.js',
-        array(),
+        array( 'dv-theme-admin' ),
         file_exists( $js_path ) ? DV_VERSION . '.' . filemtime( $js_path ) : DV_VERSION,
         true
     );
@@ -233,6 +238,11 @@ function dv_add_theme_content_settings_page() {
 add_action( 'admin_menu', 'dv_add_theme_content_settings_page' );
 
 function dv_theme_content_field_group_label( $key ) {
+    if ( in_array( $key, array( 'home_popular_enabled', 'home_sale_enabled', 'home_categories_enabled', 'home_support_enabled' ), true ) ) return 'Что показывать на главной';
+    if ( in_array( $key, array( 'home_popular_order', 'home_sale_order', 'home_categories_order', 'home_categories_first' ), true ) ) return 'Порядок блоков';
+    foreach ( array( 'home_popular' => 'Популярные товары', 'home_sale' => 'Товары со скидкой', 'home_categories' => 'Категории каталога' ) as $prefix => $home_group ) {
+        if ( 0 === strpos( $key, $prefix ) ) return $home_group;
+    }
     $map = array(
         'topbar_shop'        => html_entity_decode( '&#1050;&#1072;&#1090;&#1072;&#1083;&#1086;&#1075;', ENT_QUOTES, 'UTF-8' ),
         'topbar_delivery'    => html_entity_decode( '&#1044;&#1086;&#1089;&#1090;&#1072;&#1074;&#1082;&#1072;', ENT_QUOTES, 'UTF-8' ),
@@ -248,7 +258,7 @@ function dv_theme_content_field_group_label( $key ) {
         'home_popular'       => html_entity_decode( '&#1055;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1077;', ENT_QUOTES, 'UTF-8' ),
         'home_sale'          => html_entity_decode( '&#1057;&#1082;&#1080;&#1076;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' ),
         'home_categories'    => html_entity_decode( '&#1050;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
-        'cta'                => 'CTA',
+        'cta'                => 'Кнопки и ссылки',
         'about_intro'        => html_entity_decode( '&#1042;&#1074;&#1086;&#1076;&#1085;&#1099;&#1077; &#1090;&#1077;&#1082;&#1089;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ),
         'about_check'        => html_entity_decode( '&#1063;&#1077;&#1082;-&#1083;&#1080;&#1089;&#1090;', ENT_QUOTES, 'UTF-8' ),
         'about_why'          => html_entity_decode( '&#1055;&#1086;&#1095;&#1077;&#1084;&#1091; &#1074;&#1099;&#1073;&#1080;&#1088;&#1072;&#1102;&#1090;', ENT_QUOTES, 'UTF-8' ),
@@ -276,6 +286,17 @@ function dv_render_theme_content_fields( $settings, $fields ) {
         $type  = $field['type'] ?? 'text';
         $label = $field['label'] ?? $key;
         $group = $field['group'] ?? dv_theme_content_field_group_label( $key );
+        $home_labels = array(
+            'home_popular_enabled' => 'Популярные товары', 'home_sale_enabled' => 'Товары со скидкой',
+            'home_categories_enabled' => 'Категории каталога', 'home_support_enabled' => 'Полоса «Самовывоз, доставка и телефон»',
+            'home_popular_manual_ids' => 'Выбранные товары (ID)', 'home_categories_first' => 'Показывать категории перед товарами',
+            'home_popular_order' => 'Популярные товары: позиция', 'home_sale_order' => 'Товары со скидкой: позиция', 'home_categories_order' => 'Категории: позиция',
+        );
+        if ( isset( $home_labels[ $key ] ) ) $label = $home_labels[ $key ];
+        elseif ( preg_match( '/^home_(popular|sale|categories)_(title|link_text|link_url|limit)$/', $key, $home_field ) ) {
+            $short_labels = array( 'title' => 'Заголовок блока', 'link_text' => 'Текст ссылки', 'link_url' => 'Адрес ссылки', 'limit' => 'Количество элементов' );
+            $label = $short_labels[ $home_field[2] ];
+        }
         ?>
         <tr class="dv-theme-content-field" data-dv-content-key="<?php echo esc_attr( $key ); ?>" data-dv-content-type="<?php echo esc_attr( $type ); ?>" data-dv-content-group="<?php echo esc_attr( $group ); ?>">
           <th scope="row">
@@ -283,7 +304,7 @@ function dv_render_theme_content_fields( $settings, $fields ) {
           </th>
           <td>
             <?php if ( 'checkbox' === $type ) : ?>
-              <label>
+              <label class="dv-content-toggle">
                 <input
                   type="checkbox"
                   id="dv-theme-content-<?php echo esc_attr( $key ); ?>"
@@ -291,7 +312,7 @@ function dv_render_theme_content_fields( $settings, $fields ) {
                   value="1"
 					<?php checked( ! empty( $settings[ $key ] ) ); ?>
                 >
-                <?php echo esc_html( html_entity_decode( '&#1055;&#1086;&#1082;&#1072;&#1079;&#1099;&#1074;&#1072;&#1090;&#1100; &#1073;&#1083;&#1086;&#1082;', ENT_QUOTES, 'UTF-8' ) ); ?>
+                <span class="screen-reader-text"><?php echo esc_html( 0 === strpos( $key, 'home_' ) ? 'Включено' : html_entity_decode( '&#1055;&#1086;&#1082;&#1072;&#1079;&#1099;&#1074;&#1072;&#1090;&#1100; &#1073;&#1083;&#1086;&#1082;', ENT_QUOTES, 'UTF-8' ) ); ?></span>
               </label>
             <?php elseif ( 'select' === $type ) : ?>
               <select
@@ -381,8 +402,8 @@ function dv_render_theme_content_custom_pages( $settings ) {
     $footer_yes_label   = html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;: &#1076;&#1072;', ENT_QUOTES, 'UTF-8' );
     $footer_no_label    = html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;: &#1085;&#1077;&#1090;', ENT_QUOTES, 'UTF-8' );
     $cards_label        = html_entity_decode( '&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' );
-    $cta_ready_label    = html_entity_decode( 'CTA: &#1076;&#1072;', ENT_QUOTES, 'UTF-8' );
-    $cta_empty_label    = html_entity_decode( 'CTA: &#1085;&#1077;&#1090;', ENT_QUOTES, 'UTF-8' );
+    $cta_ready_label    = 'Кнопка: есть';
+    $cta_empty_label    = 'Кнопка: нет';
     $seo_ready_label    = html_entity_decode( 'SEO: &#1076;&#1072;', ENT_QUOTES, 'UTF-8' );
     $seo_empty_label    = html_entity_decode( 'SEO: &#1085;&#1077;&#1090;', ENT_QUOTES, 'UTF-8' );
     $readiness_label    = html_entity_decode( '&#1043;&#1086;&#1090;&#1086;&#1074;&#1085;&#1086;&#1089;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' );
@@ -757,8 +778,6 @@ function dv_render_theme_content_settings_page() {
         </div>
       <?php endif; ?>
 
-      <?php dv_render_theme_content_overview( $settings ); ?>
-
       <?php
       if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
           dv_render_admin_suite_local_nav(
@@ -769,7 +788,9 @@ function dv_render_theme_content_settings_page() {
                   array( 'href' => '#dv-theme-cta', 'label' => $labels['cta_section'], 'description' => html_entity_decode( '&#1050;&#1085;&#1086;&#1087;&#1082;&#1080;', ENT_QUOTES, 'UTF-8' ) ),
                   array( 'href' => '#dv-theme-service', 'label' => $labels['service_section'], 'description' => html_entity_decode( '&#1058;&#1077;&#1082;&#1089;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ) ),
                   array( 'href' => '#dv-theme-custom-service-pages', 'label' => html_entity_decode( '&#1057;&#1074;&#1086;&#1080; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1099;', ENT_QUOTES, 'UTF-8' ), 'description' => 'URL' ),
-              )
+              ),
+              '',
+              true
           );
       }
       ?>
@@ -791,6 +812,7 @@ function dv_render_theme_content_settings_page() {
                 <?php echo esc_html( html_entity_decode( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ) ); ?>
               </button>
             </div>
+            <details class="dv-content-tools"><summary>Заполненность полей</summary>
             <div class="dv-theme-content-filters" aria-label="<?php echo esc_attr( html_entity_decode( '&#1060;&#1080;&#1083;&#1100;&#1090;&#1088; &#1087;&#1086;&#1083;&#1077;&#1081;', ENT_QUOTES, 'UTF-8' ) ); ?>">
               <button type="button" class="is-active" data-dv-content-filter="all">
                 <?php echo esc_html( html_entity_decode( '&#1042;&#1089;&#1077;', ENT_QUOTES, 'UTF-8' ) ); ?>
@@ -811,27 +833,14 @@ function dv_render_theme_content_settings_page() {
               <i aria-hidden="true"><b id="dv-theme-content-progress-bar"></b></i>
             </div>
             <p class="dv-theme-search-note"><?php echo esc_html( html_entity_decode( '&#1042;&#1074;&#1086;&#1076;&#1080;&#1090;&#1077; &#1095;&#1072;&#1089;&#1090;&#1100; &#1085;&#1072;&#1079;&#1074;&#1072;&#1085;&#1080;&#1103; &#1087;&#1086;&#1083;&#1103; &#1080;&#1083;&#1080; &#1073;&#1083;&#1086;&#1082;&#1072;, &#1095;&#1090;&#1086;&#1073;&#1099; &#1086;&#1089;&#1090;&#1072;&#1074;&#1080;&#1090;&#1100; &#1085;&#1072; &#1101;&#1082;&#1088;&#1072;&#1085;&#1077; &#1090;&#1086;&#1083;&#1100;&#1082;&#1086; &#1085;&#1091;&#1078;&#1085;&#1086;&#1077;.', ENT_QUOTES, 'UTF-8' ) ); ?></p>
-            <p class="dv-theme-search-count" id="dv-theme-content-search-count"></p>
+            </details>
+            <p class="dv-theme-search-count" id="dv-theme-content-search-count" role="status" aria-live="polite"></p>
           </div>
 
           <div class="dv-theme-content-actions dv-suite-action-row">
-            <button type="button" class="button" id="dv-theme-content-expand">
-              <?php echo esc_html( html_entity_decode( '&#1056;&#1072;&#1089;&#1082;&#1088;&#1099;&#1090;&#1100; &#1074;&#1089;&#1105;', ENT_QUOTES, 'UTF-8' ) ); ?>
-            </button>
-            <button type="button" class="button" id="dv-theme-content-collapse">
-              <?php echo esc_html( html_entity_decode( '&#1057;&#1074;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100; &#1074;&#1089;&#1105;', ENT_QUOTES, 'UTF-8' ) ); ?>
-            </button>
             <?php submit_button( html_entity_decode( '&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1082;&#1086;&#1085;&#1090;&#1077;&#1085;&#1090;', ENT_QUOTES, 'UTF-8' ), 'primary', 'submit', false ); ?>
           </div>
         </div>
-
-        <nav class="dv-theme-nav" aria-label="<?php echo esc_attr( $labels['page_title'] ); ?>">
-          <a href="#dv-theme-header"><?php echo esc_html( $labels['header_section'] ); ?></a>
-          <a href="#dv-theme-footer"><?php echo esc_html( $labels['footer_section'] ); ?></a>
-          <a href="#dv-theme-home"><?php echo esc_html( $labels['home_section'] ); ?></a>
-          <a href="#dv-theme-cta"><?php echo esc_html( $labels['cta_section'] ); ?></a>
-          <a href="#dv-theme-service"><?php echo esc_html( $labels['service_section'] ); ?></a>
-        </nav>
 
         <details id="dv-theme-header" class="dv-theme-section" open>
         <summary><h2><?php echo esc_html( $labels['header_section'] ); ?></h2></summary>
@@ -918,6 +927,7 @@ function dv_render_theme_content_settings_page() {
                     'home_popular_title'        => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1047;&#1072;&#1075;&#1086;&#1083;&#1086;&#1074;&#1086;&#1082; &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ) ),
                     'home_popular_link_text'    => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1058;&#1077;&#1082;&#1089;&#1090; &#1089;&#1089;&#1099;&#1083;&#1082;&#1080; &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ) ),
                     'home_popular_link_url'     => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: URL &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ), 'type' => 'url' ),
+                    'home_popular_manual_ids'   => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: ID &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074; &#1074; &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ), 'type' => 'textarea' ),
                     'home_popular_limit'        => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1050;&#1086;&#1083;&#1080;&#1095;&#1077;&#1089;&#1090;&#1074;&#1086; &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ), 'type' => 'number' ),
                     'home_popular_order'        => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1055;&#1086;&#1088;&#1103;&#1076;&#1086;&#1082; &#1087;&#1086;&#1087;&#1091;&#1083;&#1103;&#1088;&#1085;&#1099;&#1093;', ENT_QUOTES, 'UTF-8' ), 'type' => 'number' ),
                     'home_sale_enabled'         => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1058;&#1086;&#1074;&#1072;&#1088;&#1099; &#1089;&#1086; &#1089;&#1082;&#1080;&#1076;&#1082;&#1086;&#1081;', ENT_QUOTES, 'UTF-8' ), 'type' => 'checkbox' ),
@@ -932,6 +942,8 @@ function dv_render_theme_content_settings_page() {
                     'home_categories_link_url'  => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: URL &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1081;', ENT_QUOTES, 'UTF-8' ), 'type' => 'url' ),
                     'home_categories_limit'     => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1050;&#1086;&#1083;&#1080;&#1095;&#1077;&#1089;&#1090;&#1074;&#1086; &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1081;', ENT_QUOTES, 'UTF-8' ), 'type' => 'number' ),
                     'home_categories_order'     => array( 'label' => html_entity_decode( '&#1043;&#1083;&#1072;&#1074;&#1085;&#1072;&#1103;: &#1055;&#1086;&#1088;&#1103;&#1076;&#1086;&#1082; &#1082;&#1072;&#1090;&#1077;&#1075;&#1086;&#1088;&#1080;&#1081;', ENT_QUOTES, 'UTF-8' ), 'type' => 'number' ),
+                    'home_categories_first'     => array( 'label' => 'Главная: Категории перед товарами (отключите для числового порядка)', 'type' => 'checkbox' ),
+                    'home_support_enabled'      => array( 'label' => 'Главная: Самовывоз, отправка и связь с магазином', 'type' => 'checkbox' ),
                 )
             );
             ?>
@@ -1066,6 +1078,10 @@ function dv_render_theme_content_settings_page() {
         </details>
 
       </form>
+      <details class="dv-options-overview-shell dv-content-overview-drawer">
+        <summary>Сводка заполнения</summary>
+        <?php dv_render_theme_content_overview( $settings ); ?>
+      </details>
       <?php
       if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
           dv_render_admin_suite_footer( 'dv-theme-content' );

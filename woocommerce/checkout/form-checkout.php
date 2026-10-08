@@ -44,7 +44,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
         <?php if ( $checkout->get_checkout_fields() ) : ?>
           <section class="checkout-section">
             <div class="checkout-section-head">
-              <div class="checkout-section-title"><span>1</span>&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1085;&#1099;&#1077; &#1076;&#1072;&#1085;&#1085;&#1099;&#1077;</div>
+              <div class="checkout-section-title"><span>1</span>Покупатель и адрес доставки</div>
             </div>
             <div class="checkout-section-body" id="customer_details">
               <?php do_action( 'woocommerce_checkout_billing' ); ?>
@@ -54,7 +54,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
           <?php if ( WC()->cart->needs_shipping() ) : ?>
             <section class="checkout-section">
               <div class="checkout-section-head">
-                <div class="checkout-section-title"><span>2</span>&#1044;&#1086;&#1089;&#1090;&#1072;&#1074;&#1082;&#1072;</div>
+                <div class="checkout-section-title"><span>2</span>Другой получатель и комментарий</div>
               </div>
               <div class="checkout-section-body">
                 <?php do_action( 'woocommerce_checkout_shipping' ); ?>

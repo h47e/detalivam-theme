@@ -345,6 +345,90 @@ function dv_get_marka_taxonomy() {
     return $resolved_taxonomy;
 }
 
+function dv_get_sku_attribute_taxonomy() {
+    static $resolved_taxonomy = null;
+
+    if ( null !== $resolved_taxonomy ) {
+        return $resolved_taxonomy;
+    }
+
+    $candidates = array(
+        'pa_sku',
+        'pa_artikul',
+        'pa_артикул',
+    );
+
+    foreach ( $candidates as $taxonomy ) {
+        if ( taxonomy_exists( $taxonomy ) ) {
+            $resolved_taxonomy = $taxonomy;
+
+            return $resolved_taxonomy;
+        }
+    }
+
+    if ( function_exists( 'wc_get_attribute_taxonomies' ) ) {
+        foreach ( wc_get_attribute_taxonomies() as $attribute ) {
+            $name  = mb_strtolower( (string) ( $attribute->attribute_name ?? '' ), 'UTF-8' );
+            $label = mb_strtolower( (string) ( $attribute->attribute_label ?? '' ), 'UTF-8' );
+
+            if (
+                'sku' === $name ||
+                false !== strpos( $name, 'sku' ) ||
+                false !== strpos( $label, 'sku' ) ||
+                false !== strpos( $label, 'артикул' )
+            ) {
+                $taxonomy = wc_attribute_taxonomy_name( $attribute->attribute_name );
+                if ( taxonomy_exists( $taxonomy ) ) {
+                    $resolved_taxonomy = $taxonomy;
+
+                    return $resolved_taxonomy;
+                }
+            }
+        }
+    }
+
+    $resolved_taxonomy = '';
+
+    return $resolved_taxonomy;
+}
+
+/**
+ * Список таксономий, которые генерик-поиск по терминам (product_cat/product_tag/марка/модель и т.д.)
+ * проверяет через LIKE по имени/slug термина. Атрибут sku добавляется сюда же, наравне с маркой и моделью,
+ * если он найден как отдельная таксономия (dv_get_sku_attribute_taxonomy()).
+ */
+function dv_search_term_taxonomies() {
+    static $taxonomies = null;
+
+    if ( null !== $taxonomies ) {
+        return $taxonomies;
+    }
+
+    $taxonomies = array(
+        'product_cat',
+        'product_tag',
+        'car_brand',
+        'pa_car_brand',
+        'pa_marka-tc',
+        'pa_marka_tc',
+        'pa_marka',
+        'pa_brand',
+        'pa_model',
+    );
+
+    $sku_taxonomy = dv_get_sku_attribute_taxonomy();
+
+    if ( $sku_taxonomy && ! in_array( $sku_taxonomy, $taxonomies, true ) ) {
+        $taxonomies[] = $sku_taxonomy;
+    }
+
+    return $taxonomies;
+}
+
+function dv_search_term_taxonomies_sql_list() {
+    return "'" . implode( "','", array_map( 'esc_sql', dv_search_term_taxonomies() ) ) . "'";
+}
+
 function dv_register_query_vars( $vars ) {
     $vars[] = 'dv_search_total';
     $vars[] = 'dv_search_ids';
@@ -475,8 +559,26 @@ function dv_search_normalize_index_text( $text ) {
     return trim( preg_replace( '/\s+/u', ' ', (string) $text ) );
 }
 
+/**
+ * Builds a separator-free representation for part number searches.
+ * Dots keep individual fields from forming accidental cross-field matches.
+ */
+function dv_search_compact_index_text( ...$fields ) {
+    $parts = array();
+
+    foreach ( $fields as $field ) {
+        $compact = str_replace( ' ', '', dv_search_normalize_index_text( (string) $field ) );
+
+        if ( '' !== $compact ) {
+            $parts[] = $compact;
+        }
+    }
+
+    return implode( '.', $parts );
+}
+
 function dv_search_index_cache_key() {
-    return 'dv_live_product_search_index_v3';
+    return 'dv_live_product_search_index_v4';
 }
 
 function dv_search_index_version() {
@@ -486,7 +588,7 @@ function dv_search_index_version() {
 }
 
 function dv_live_search_results_cache_key( $query, $limit ) {
-    return 'dv_live_product_search_results_v3_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $query ) . '|' . (int) $limit );
+    return 'dv_live_product_search_results_v4_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $query ) . '|' . (int) $limit );
 }
 
 function dv_flush_live_search_index() {
@@ -623,6 +725,19 @@ add_action( 'added_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
 add_action( 'updated_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
 add_action( 'deleted_post_meta', 'dv_flush_live_search_index_for_meta', 10, 3 );
 
+function dv_flush_live_search_index_for_terms( $object_id, $terms, $tt_ids, $taxonomy ) {
+    if ( 'product' !== get_post_type( $object_id ) ) {
+        return;
+    }
+
+    $watched_taxonomies = array_filter( array( dv_get_sku_attribute_taxonomy(), dv_get_marka_taxonomy() ) );
+
+    if ( in_array( $taxonomy, $watched_taxonomies, true ) ) {
+        dv_flush_live_search_index();
+    }
+}
+add_action( 'set_object_terms', 'dv_flush_live_search_index_for_terms', 10, 4 );
+
 function dv_get_live_search_index() {
     global $wpdb;
 
@@ -631,6 +746,36 @@ function dv_get_live_search_index() {
 
     if ( is_array( $cached ) ) {
         return $cached;
+    }
+
+    $sku_taxonomy            = dv_get_sku_attribute_taxonomy();
+    $sku_attr_select         = "'' AS sku_attr_terms";
+    $sku_attr_display_select = "'' AS sku_attr_display";
+
+    if ( $sku_taxonomy ) {
+        $sku_attr_select = $wpdb->prepare(
+            "(
+                SELECT GROUP_CONCAT(CONCAT_WS(' ', t_skuattr.name, t_skuattr.slug) ORDER BY t_skuattr.name SEPARATOR ' ')
+                FROM {$wpdb->term_relationships} tr_skuattr
+                INNER JOIN {$wpdb->term_taxonomy} tt_skuattr ON tt_skuattr.term_taxonomy_id = tr_skuattr.term_taxonomy_id
+                INNER JOIN {$wpdb->terms} t_skuattr ON t_skuattr.term_id = tt_skuattr.term_id
+                WHERE tr_skuattr.object_id = p.ID
+                  AND tt_skuattr.taxonomy = %s
+            ) AS sku_attr_terms",
+            $sku_taxonomy
+        );
+
+        $sku_attr_display_select = $wpdb->prepare(
+            "(
+                SELECT GROUP_CONCAT(t_skuattr2.name ORDER BY t_skuattr2.name SEPARATOR '||')
+                FROM {$wpdb->term_relationships} tr_skuattr2
+                INNER JOIN {$wpdb->term_taxonomy} tt_skuattr2 ON tt_skuattr2.term_taxonomy_id = tr_skuattr2.term_taxonomy_id
+                INNER JOIN {$wpdb->terms} t_skuattr2 ON t_skuattr2.term_id = tt_skuattr2.term_id
+                WHERE tr_skuattr2.object_id = p.ID
+                  AND tt_skuattr2.taxonomy = %s
+            ) AS sku_attr_display",
+            $sku_taxonomy
+        );
     }
 
     $rows = $wpdb->get_results(
@@ -647,6 +792,8 @@ function dv_get_live_search_index() {
             stock_qty.meta_value AS stock_quantity,
             thumb.meta_value AS thumbnail_id,
             compat.meta_value AS compatibility,
+            {$sku_attr_select},
+            {$sku_attr_display_select},
             (
                 SELECT GROUP_CONCAT(CONCAT_WS(' ', t_cat.name, t_cat.slug) ORDER BY t_cat.name SEPARATOR ' ')
                 FROM {$wpdb->term_relationships} tr_cat
@@ -689,13 +836,16 @@ function dv_get_live_search_index() {
     $labels    = dv_search_labels();
 
     foreach ( $rows as $row ) {
-        $product_id     = (int) ( $row['ID'] ?? 0 );
+        $product_id    = (int) ( $row['ID'] ?? 0 );
         $title         = (string) ( $row['post_title'] ?? '' );
         $slug          = (string) ( $row['post_name'] ?? '' );
         $sku           = (string) ( $row['sku'] ?? '' );
         $compatibility = (string) ( $row['compatibility'] ?? '' );
         $categories    = (string) ( $row['categories'] ?? '' );
-        $search_text   = dv_search_normalize_index_text( $title . ' ' . $slug . ' ' . $sku . ' ' . $compatibility );
+        $sku_attr      = (string) ( $row['sku_attr_terms'] ?? '' );
+        $sku_attr_display = (string) ( $row['sku_attr_display'] ?? '' );
+        $search_text   = dv_search_normalize_index_text( $title . ' ' . $slug . ' ' . $sku . ' ' . $compatibility . ' ' . $sku_attr );
+        $compact_text  = dv_search_compact_index_text( $title, $slug, $sku, $compatibility, $sku_attr );
         $price         = (string) ( $row['price'] ?? '' );
         $thumbnail_id  = (int) ( $row['thumbnail_id'] ?? 0 );
         $post_date_gmt = (string) ( $row['post_date_gmt'] ?? '' );
@@ -710,6 +860,11 @@ function dv_get_live_search_index() {
             'title_text'     => dv_search_normalize_index_text( $title ),
             'slug_text'      => dv_search_normalize_index_text( $slug ),
             'sku_text'       => dv_search_normalize_index_text( $sku ),
+            'sku_attr_text'  => dv_search_normalize_index_text( $sku_attr ),
+            'sku_attr'       => '' !== $sku_attr_display
+                ? array_values( array_filter( explode( '||', $sku_attr_display ) ) )
+                : array(),
+            'compact_text'   => $compact_text,
             'compat_text'    => dv_search_normalize_index_text( $compatibility ),
             'category_text'  => dv_search_normalize_index_text( $categories ),
             'search_text'    => $search_text,
@@ -727,7 +882,14 @@ function dv_get_live_search_index() {
 
         $index['rows'][ $product_id ] = $indexed_row;
 
-        foreach ( dv_search_index_token_map_keys( $search_text ) as $token_key ) {
+        $token_keys = array_unique(
+            array_merge(
+                dv_search_index_token_map_keys( $search_text ),
+                dv_search_index_token_map_keys( $compact_text )
+            )
+        );
+
+        foreach ( $token_keys as $token_key ) {
             if ( ! isset( $index['token_map'][ $token_key ] ) ) {
                 $index['token_map'][ $token_key ] = array();
             }
@@ -756,16 +918,22 @@ function dv_search_index_contains_number( $text, $number ) {
 }
 
 function dv_live_search_score_row( $row, $full_query, $required_tokens, $priority_terms ) {
-    $score       = 0;
-    $search_text = (string) ( $row['search_text'] ?? '' );
-    $title_text  = (string) ( $row['title_text'] ?? '' );
-    $slug_text   = (string) ( $row['slug_text'] ?? '' );
-    $sku_text    = (string) ( $row['sku_text'] ?? '' );
-    $compat_text = (string) ( $row['compat_text'] ?? '' );
+    $score         = 0;
+    $search_text   = (string) ( $row['search_text'] ?? '' );
+    $title_text    = (string) ( $row['title_text'] ?? '' );
+    $slug_text     = (string) ( $row['slug_text'] ?? '' );
+    $sku_text      = (string) ( $row['sku_text'] ?? '' );
+    $sku_attr_text = (string) ( $row['sku_attr_text'] ?? '' );
+    $compact_text  = (string) ( $row['compact_text'] ?? '' );
+    $compat_text   = (string) ( $row['compat_text'] ?? '' );
     $category_text = (string) ( $row['category_text'] ?? '' );
 
     foreach ( $required_tokens as $token ) {
-        if ( '' === $token || false === strpos( $search_text, $token ) ) {
+        if ( '' === $token ) {
+            return null;
+        }
+
+        if ( false === strpos( $search_text, $token ) && ( '' === $compact_text || false === strpos( $compact_text, $token ) ) ) {
             return null;
         }
     }
@@ -792,6 +960,31 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
         } elseif ( 0 === strpos( $sku_text, $full_query ) ) {
             $score += 900;
         }
+
+        if ( '' !== $sku_attr_text ) {
+            if ( $sku_attr_text === $full_query ) {
+                $score += 1100;
+            } elseif ( 0 === strpos( $sku_attr_text, $full_query ) ) {
+                $score += 900;
+            } elseif ( false !== strpos( $sku_attr_text, $full_query ) ) {
+                $score += 620;
+            }
+        }
+
+        $compact_query = str_replace( ' ', '', $full_query );
+
+        if ( '' !== $compact_text && mb_strlen( $compact_query, 'UTF-8' ) >= 4 && preg_match( '/\d/u', $compact_query ) ) {
+            $compact_pattern = '/(^|\.)' . preg_quote( $compact_query, '/' ) . '(\.|$)/u';
+            $prefix_pattern  = '/(^|\.)' . preg_quote( $compact_query, '/' ) . '/u';
+
+            if ( preg_match( $compact_pattern, $compact_text ) ) {
+                $score += 1100;
+            } elseif ( preg_match( $prefix_pattern, $compact_text ) ) {
+                $score += 900;
+            } elseif ( false !== strpos( $compact_text, $compact_query ) ) {
+                $score += 620;
+            }
+        }
     }
 
     $all_title_text_terms = true;
@@ -807,6 +1000,10 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
         }
 
         if ( false !== strpos( $sku_text, $text_term ) ) {
+            $score += 80;
+        }
+
+        if ( '' !== $sku_attr_text && false !== strpos( $sku_attr_text, $text_term ) ) {
             $score += 80;
         }
 
@@ -841,6 +1038,10 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
             $score += 180;
         }
 
+        if ( '' !== $sku_attr_text && false !== strpos( $sku_attr_text, (string) $number_term ) ) {
+            $score += 180;
+        }
+
         if ( false !== strpos( $compat_text, (string) $number_term ) ) {
             $score += 45;
         }
@@ -864,6 +1065,10 @@ function dv_live_search_score_row( $row, $full_query, $required_tokens, $priorit
         } elseif ( false !== strpos( $slug_text, $token ) ) {
             $score += 80;
         } elseif ( false !== strpos( $sku_text, $token ) ) {
+            $score += 70;
+        } elseif ( '' !== $sku_attr_text && false !== strpos( $sku_attr_text, $token ) ) {
+            $score += 70;
+        } elseif ( '' !== $compact_text && false !== strpos( $compact_text, $token ) ) {
             $score += 70;
         } elseif ( false !== strpos( $compat_text, $token ) ) {
             $score += 25;
@@ -916,7 +1121,7 @@ function dv_get_live_search_candidate_rows( $index, $required_tokens ) {
 }
 
 function dv_get_search_index_matches( $raw_query ) {
-    $cache_key = 'dv_product_search_index_matches_v1_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $raw_query ) );
+    $cache_key = 'dv_product_search_index_matches_v2_' . dv_search_index_version() . '_' . md5( dv_search_normalize_index_text( $raw_query ) );
     $cached    = get_transient( $cache_key );
 
     if ( is_array( $cached ) ) {
@@ -1054,6 +1259,8 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         return array( 'ids' => array(), 'total' => 0 );
     }
 
+    $search_term_taxonomies_sql = dv_search_term_taxonomies_sql_list();
+
     $full_query    = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $raw_query ) ) ), 'UTF-8' );
     $compact_query = preg_replace( '/[^\p{L}\p{N}]+/u', '', $full_query );
     $priority_terms = dv_search_title_priority_terms( $raw_query );
@@ -1123,7 +1330,7 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
                         INNER JOIN {$wpdb->term_taxonomy} tt_required ON tt_required.term_taxonomy_id = tr_required.term_taxonomy_id
                         INNER JOIN {$wpdb->terms} t_required ON t_required.term_id = tt_required.term_id
                         WHERE tr_required.object_id = p.ID
-                          AND tt_required.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model')
+                          AND tt_required.taxonomy IN ({$search_term_taxonomies_sql})
                           AND (LOWER(t_required.name) LIKE %s OR LOWER(t_required.slug) LIKE %s)
                     )
                 )",
@@ -1262,7 +1469,7 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
                         INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
                         INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
                         WHERE tr.object_id = p.ID
-                          AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model')
+                          AND tt.taxonomy IN ({$search_term_taxonomies_sql})
                           AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)
                     )
                 )",
@@ -1291,7 +1498,7 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
         if ( ! $fast_live ) {
             $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_excerpt) LIKE %s THEN 40 ELSE 0 END", $like );
             $score_parts[] = $wpdb->prepare( "CASE WHEN LOWER(p.post_content) LIKE %s THEN 25 ELSE 0 END", $like );
-            $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->term_relationships} tr INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE tr.object_id = p.ID AND tt.taxonomy IN ('product_cat','product_tag','car_brand','pa_car_brand','pa_marka-tc','pa_marka_tc','pa_marka','pa_brand','pa_model') AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)) THEN 70 ELSE 0 END", $like, $like );
+            $score_parts[] = $wpdb->prepare( "CASE WHEN EXISTS (SELECT 1 FROM {$wpdb->term_relationships} tr INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE tr.object_id = p.ID AND tt.taxonomy IN ({$search_term_taxonomies_sql}) AND (LOWER(t.name) LIKE %s OR LOWER(t.slug) LIKE %s)) THEN 70 ELSE 0 END", $like, $like );
         }
     }
 
@@ -1639,6 +1846,7 @@ function dv_ajax_live_search() {
             'sku'      => (string) ( $item['sku'] ?? '' ),
             'in_stock' => ! empty( $item['in_stock'] ),
             'stock_q'  => $item['stock_q'] ?? '',
+            'pa_sku'   => implode( ', ', $item['sku_attr'] ?? array() ),
         );
     }
 

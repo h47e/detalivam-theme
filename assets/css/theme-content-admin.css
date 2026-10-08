@@ -1201,3 +1201,30 @@ body.dv-suite-admin .dv-theme-content-page > form.dv-theme-content-form {
     margin-left: 0;
   }
 }
+.dv-theme-content-page .dv-content-field-state-label,
+.dv-theme-content-page .dv-content-field-group-label,
+.dv-theme-content-page .dv-content-field-group-count,
+.dv-theme-content-page .dv-content-field-group-empty,
+.dv-theme-content-page .dv-theme-section-empty,
+.dv-theme-content-page .dv-theme-section-meta,
+.dv-theme-content-page .dv-theme-nav-count,
+.dv-theme-content-page [data-dv-nav-empty-target] { display: none; }
+.dv-theme-content-page .dv-theme-section .form-table tbody { display: block; }
+.dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field {
+  display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); align-items: start;
+  padding: 12px 0; margin: 0; border: 0; border-bottom: 1px solid #d9e4f0;
+  border-radius: 0; box-shadow: none; background: transparent; transform: none; transition: background-color .15s ease;
+}
+.dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field.is-content-group-start { margin-top: 0; border-left: 0; box-shadow: none; }
+body.dv-suite-admin .dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field:is(:hover, :focus-within) { box-shadow: none; transform: none; background: #f7faff; }
+.dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field.is-content-field-target { background: #eef6ff; outline: 2px solid #0072e8; outline-offset: 2px; }
+.dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field th,
+.dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field td { padding: 0; width: auto; min-width: 0; }
+.dv-theme-content-page .dv-content-home-controls { margin-bottom: 20px; }
+.dv-theme-content-page .dv-content-home-controls > h3 { margin: 0 0 8px; font-size: 16px; }
+.dv-theme-content-page .dv-content-home-controls .form-table { margin: 0; }
+.dv-theme-content-page .dv-content-field-group-panel { background: #fff; border-radius: 6px; box-shadow: none; margin-bottom: 10px; }
+.dv-theme-content-page .dv-content-field-group-panel > summary { background: #f7faff; }
+@media (max-width: 782px) {
+  .dv-theme-content-page .dv-theme-section .form-table tr.dv-theme-content-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}

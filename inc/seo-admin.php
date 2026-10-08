@@ -4433,15 +4433,19 @@ function dv_render_seo_tools_page() {
         if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
             dv_render_admin_suite_local_nav(
                 array(
-                    array( 'href' => '#dv-seo-health', 'label' => 'Health score', 'description' => 'Оценка' ),
+                    array( 'href' => '#dv-seo-health', 'label' => 'Состояние SEO', 'description' => 'Оценка' ),
                     array( 'href' => '#dv-seo-actions', 'label' => 'Задачи', 'description' => 'Очередь' ),
                     array( 'href' => '#dv-seo-overview', 'label' => 'Сводка', 'description' => 'sitemap / robots' ),
                     array( 'href' => '#dv-seo-manual', 'label' => 'Ручные поля', 'description' => 'Title / Description' ),
                     array( 'href' => '#dv-seo-products', 'label' => 'Товары', 'description' => 'Аудит' ),
+                    array( 'href' => '#dv-seo-templates', 'label' => 'Шаблоны текстов' ),
+                    array( 'href' => '#dv-seo-duplicates', 'label' => 'Дубли' ),
+                    array( 'href' => '#dv-seo-progress', 'label' => 'Результаты' ),
                     array( 'href' => '#dv-seo-head', 'label' => 'Проверить URL', 'description' => 'head' ),
                     array( 'href' => '#dv-seo-preview', 'label' => 'Превью', 'description' => 'SEO' ),
                 ),
-                'Разделы SEO-проверки'
+                'Разделы SEO-проверки',
+                true
             );
         }
         ?>

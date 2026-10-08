@@ -117,6 +117,7 @@ function dv_get_theme_options_defaults() {
         'compare_limit'           => 4,
         'product_gallery_hint_enabled' => '1',
         'product_meta_sku_enabled' => '1',
+        'product_part_number_enabled' => '1',
         'product_actions_enabled'  => '1',
         'product_wishlist_enabled' => '1',
         'product_compare_enabled'  => '1',

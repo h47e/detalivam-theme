@@ -17,6 +17,7 @@ $product_id   = $product->get_id();
 $permalink    = $product->get_permalink();
 $display_name = function_exists( 'dv_get_product_display_name' ) ? dv_get_product_display_name( $product ) : $product->get_name();
 $img_id       = $product->get_image_id();
+$zoom_src     = $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '';
 $img_html     = '';
 $card_index   = isset( $GLOBALS['dv_product_card_render_index'] ) ? (int) $GLOBALS['dv_product_card_render_index'] : 0;
 $is_single_product_context = function_exists( 'is_product' ) && is_product();
@@ -67,6 +68,11 @@ $price        = (float) $product->get_price();
 $reg_price    = (float) $product->get_regular_price();
 $sale_price   = (float) $product->get_sale_price();
 $discount_pct = ( $is_sale && $reg_price > 0 ) ? round( ( $reg_price - $sale_price ) / $reg_price * 100 ) : 0;
+$customer_discount_active = function_exists( 'dv_customer_discount_is_active_context' ) && dv_customer_discount_is_active_context();
+$customer_discount_percent = $customer_discount_active && function_exists( 'dv_customer_discount_percent' ) ? dv_customer_discount_percent() : 0;
+$customer_base_price = $customer_discount_active && function_exists( 'dv_customer_discount_base_product_price' ) ? (float) dv_customer_discount_base_product_price( $product ) : 0;
+$customer_price = $customer_base_price > 0 && function_exists( 'dv_customer_discount_apply_to_price' ) ? (float) dv_customer_discount_apply_to_price( $customer_base_price, $customer_discount_percent ) : 0;
+$show_customer_price = $customer_discount_percent > 0 && $customer_base_price > 0 && $customer_price > 0 && $customer_price < $customer_base_price;
 $compat_tags  = $show_compat && function_exists( 'dv_get_compat_tags' ) ? dv_get_compat_tags( $product ) : array();
 $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product_card_labels() : array();
 ?>
@@ -110,7 +116,7 @@ $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product
       <div class="dv-card-cat"><?php echo esc_html( $cat->name ); ?></div>
       <?php endif; ?>
 
-      <a href="<?php echo esc_url( $permalink ); ?>" class="dv-card-name">
+      <a href="<?php echo esc_url( $permalink ); ?>" class="dv-card-name" title="<?php echo esc_attr( $display_name ); ?>">
         <?php echo esc_html( $display_name ); ?>
       </a>
 
@@ -144,7 +150,11 @@ $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product
 
     <div class="dv-card-footer">
       <div class="dv-card-price-block">
-        <?php if ( $is_sale && $reg_price > 0 ) : ?>
+        <?php if ( $show_customer_price ) : ?>
+          <span class="dv-price-note" title="Ваша цена с учетом скидки">Ваша цена</span>
+          <span class="dv-price-main dv-price-customer"><?php echo esc_html( number_format( $customer_price, 0, '.', ' ' ) ); ?> ₽</span>
+          <span class="dv-price-old"><?php echo esc_html( number_format( $customer_base_price, 0, '.', ' ' ) ); ?> ₽</span>
+        <?php elseif ( $is_sale && $reg_price > 0 ) : ?>
           <span class="dv-price-main"><?php echo esc_html( number_format( $sale_price, 0, '.', ' ' ) ); ?> ₽</span>
           <span class="dv-price-old"><?php echo esc_html( number_format( $reg_price, 0, '.', ' ' ) ); ?> ₽</span>
         <?php elseif ( $price > 0 ) : ?>
@@ -198,11 +208,15 @@ $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product
           <button class="dv-btn-cart dv-btn-cart--out" disabled><?php echo esc_html( $labels['out_of_stock'] ); ?></button>
         <?php endif; ?>
 
-        <a href="<?php echo esc_url( $permalink ); ?>" class="dv-btn-view" title="<?php echo esc_attr( $labels['details'] ); ?>" aria-label="<?php echo esc_attr( $labels['details'] . ': ' . $display_name ); ?>">
+        <?php if ( $zoom_src ) : ?>
+        <a href="<?php echo esc_url( $zoom_src ); ?>" class="dv-btn-view" data-dv-card-zoom title="Увеличить фото" aria-label="<?php echo esc_attr( 'Увеличить фото: ' . $display_name ); ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
             <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
           </svg>
         </a>
+        <?php else : ?>
+        <a href="<?php echo esc_url( $permalink ); ?>" class="dv-btn-view" title="<?php echo esc_attr( $labels['details'] ); ?>" aria-label="<?php echo esc_attr( $labels['details'] . ': ' . $display_name ); ?>"><span aria-hidden="true">&#8594;</span></a>
+        <?php endif; ?>
       </div>
     </div>
   </div>

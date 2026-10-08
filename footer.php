@@ -99,35 +99,35 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
           <div class="footer-col-title"><?php echo esc_html( $dv_content['footer_customers_title'] ?? '' ); ?></div>
           <div class="footer-links">
             <?php $dv_footer_rendered_customer_urls = array(); ?>
-            <?php if ( $dv_footer_customers_1_enabled && $dv_service_delivery_enabled ) : ?>
+            <?php if ( $dv_footer_customers_1_enabled && $dv_service_delivery_enabled && '' !== trim( (string) ( $dv_content['footer_customers_1_label'] ?? '' ) ) ) : ?>
             <?php
             $dv_footer_customer_url             = function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_customers_1_url'] ?? '', function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'delivery' ) : '/dostavka' ) : ( $dv_content['footer_customers_1_url'] ?? '/dostavka' );
             $dv_footer_rendered_customer_urls[] = untrailingslashit( $dv_footer_customer_url );
             ?>
             <a href="<?php echo esc_url( $dv_footer_customer_url ); ?>"><?php echo esc_html( $dv_content['footer_customers_1_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_customers_2_enabled && $dv_service_return_enabled ) : ?>
+            <?php if ( $dv_footer_customers_2_enabled && $dv_service_return_enabled && '' !== trim( (string) ( $dv_content['footer_customers_2_label'] ?? '' ) ) ) : ?>
             <?php
             $dv_footer_customer_url             = function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_customers_2_url'] ?? '', function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'return' ) : '/vozvrat' ) : ( $dv_content['footer_customers_2_url'] ?? '/vozvrat' );
             $dv_footer_rendered_customer_urls[] = untrailingslashit( $dv_footer_customer_url );
             ?>
             <a href="<?php echo esc_url( $dv_footer_customer_url ); ?>"><?php echo esc_html( $dv_content['footer_customers_2_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_customers_3_enabled ) : ?>
+            <?php if ( $dv_footer_customers_3_enabled && '' !== trim( (string) ( $dv_content['footer_customers_3_label'] ?? '' ) ) ) : ?>
             <?php
             $dv_footer_customer_url             = function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_customers_3_url'] ?? '', '/garantiya' ) : ( $dv_content['footer_customers_3_url'] ?? '/garantiya' );
             $dv_footer_rendered_customer_urls[] = untrailingslashit( $dv_footer_customer_url );
             ?>
             <a href="<?php echo esc_url( $dv_footer_customer_url ); ?>"><?php echo esc_html( $dv_content['footer_customers_3_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_customers_4_enabled ) : ?>
+            <?php if ( $dv_footer_customers_4_enabled && '' !== trim( (string) ( $dv_content['footer_customers_4_label'] ?? '' ) ) ) : ?>
             <?php
             $dv_footer_customer_url             = function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_customers_4_url'] ?? '', '/kak-zakazat' ) : ( $dv_content['footer_customers_4_url'] ?? '/kak-zakazat' );
             $dv_footer_rendered_customer_urls[] = untrailingslashit( $dv_footer_customer_url );
             ?>
             <a href="<?php echo esc_url( $dv_footer_customer_url ); ?>"><?php echo esc_html( $dv_content['footer_customers_4_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_customers_5_enabled ) : ?>
+            <?php if ( $dv_footer_customers_5_enabled && '' !== trim( (string) ( $dv_content['footer_customers_5_label'] ?? '' ) ) ) : ?>
             <?php
             $dv_footer_customer_url             = function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_customers_5_url'] ?? '', '/optovikam' ) : ( $dv_content['footer_customers_5_url'] ?? '/optovikam' );
             $dv_footer_rendered_customer_urls[] = untrailingslashit( $dv_footer_customer_url );
@@ -162,16 +162,16 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
         <div>
           <div class="footer-col-title"><?php echo esc_html( $dv_content['footer_company_title'] ?? '' ); ?></div>
           <div class="footer-links">
-            <?php if ( $dv_footer_company_1_enabled && $dv_service_about_enabled ) : ?>
+            <?php if ( $dv_footer_company_1_enabled && $dv_service_about_enabled && '' !== trim( (string) ( $dv_content['footer_company_1_label'] ?? '' ) ) ) : ?>
             <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_company_1_url'] ?? '', function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'about' ) : '/o-kompanii' ) : ( $dv_content['footer_company_1_url'] ?? '/o-kompanii' ) ); ?>"><?php echo esc_html( $dv_content['footer_company_1_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_company_2_enabled && $dv_service_contacts_enabled ) : ?>
+            <?php if ( $dv_footer_company_2_enabled && $dv_service_contacts_enabled && '' !== trim( (string) ( $dv_content['footer_company_2_label'] ?? '' ) ) ) : ?>
             <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_company_2_url'] ?? '', function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'contacts' ) : '/kontakty' ) : ( $dv_content['footer_company_2_url'] ?? '/kontakty' ) ); ?>"><?php echo esc_html( $dv_content['footer_company_2_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_company_3_enabled ) : ?>
+            <?php if ( $dv_footer_company_3_enabled && '' !== trim( (string) ( $dv_content['footer_company_3_label'] ?? '' ) ) ) : ?>
             <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_company_3_url'] ?? '', '/vakansii' ) : ( $dv_content['footer_company_3_url'] ?? '/vakansii' ) ); ?>"><?php echo esc_html( $dv_content['footer_company_3_label'] ?? '' ); ?></a>
             <?php endif; ?>
-            <?php if ( $dv_footer_company_4_enabled ) : ?>
+            <?php if ( $dv_footer_company_4_enabled && '' !== trim( (string) ( $dv_content['footer_company_4_label'] ?? '' ) ) ) : ?>
             <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_company_4_url'] ?? '', '/blog' ) : ( $dv_content['footer_company_4_url'] ?? '/blog' ) ); ?>"><?php echo esc_html( $dv_content['footer_company_4_label'] ?? '' ); ?></a>
             <?php endif; ?>
           </div>
@@ -195,10 +195,10 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
       <?php endif; ?>
       <?php if ( $dv_footer_legal_links_enabled && ( ( $dv_footer_privacy_enabled && $dv_service_privacy_enabled ) || ( $dv_footer_offer_enabled && $dv_service_agreement_enabled ) ) ) : ?>
       <div class="footer-bottom-links">
-        <?php if ( $dv_footer_privacy_enabled && $dv_service_privacy_enabled ) : ?>
+        <?php if ( $dv_footer_privacy_enabled && $dv_service_privacy_enabled && '' !== trim( (string) ( $dv_content['footer_privacy_label'] ?? '' ) ) ) : ?>
         <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_privacy_url'] ?? '', '/politika-konfidencialnosti' ) : ( $dv_content['footer_privacy_url'] ?? '/politika-konfidencialnosti' ) ); ?>"><?php echo esc_html( $dv_content['footer_privacy_label'] ?? '' ); ?></a>
         <?php endif; ?>
-        <?php if ( $dv_footer_offer_enabled && $dv_service_agreement_enabled ) : ?>
+        <?php if ( $dv_footer_offer_enabled && $dv_service_agreement_enabled && '' !== trim( (string) ( $dv_content['footer_offer_label'] ?? '' ) ) ) : ?>
         <a href="<?php echo esc_url( function_exists( 'dv_theme_content_url' ) ? dv_theme_content_url( $dv_content['footer_offer_url'] ?? '', function_exists( 'dv_service_page_url' ) ? dv_service_page_url( 'agreement' ) : '/polzovatelskoe-soglashenie' ) : ( $dv_content['footer_offer_url'] ?? '/polzovatelskoe-soglashenie' ) ); ?>"><?php echo esc_html( $dv_content['footer_offer_label'] ?? '' ); ?></a>
         <?php endif; ?>
       </div>
@@ -215,12 +215,14 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
 </div>
 
 <!-- Lightbox -->
+<?php if ( ! function_exists( 'is_product' ) || ! is_product() ) : ?>
 <div class="lightbox" id="dv-lightbox">
   <span class="lightbox-close" id="lb-close">&times;</span>
   <span class="lightbox-prev" id="lb-prev">&#8249;</span>
   <img class="lightbox-img" id="lb-img" src="" alt="">
   <span class="lightbox-next" id="lb-next">&#8250;</span>
 </div>
+<?php endif; ?>
 
 <?php wp_footer(); ?>
 </body>

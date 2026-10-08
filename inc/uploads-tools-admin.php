@@ -68,12 +68,169 @@ function dv_uploads_tools_background_audit_hook() {
 }
 
 function dv_uploads_tools_backup_dirs_cache_key() {
-    return 'dv_uploads_tools_backup_dirs_v1';
+    return 'dv_uploads_tools_backup_dirs_v2';
 }
 
 function dv_uploads_tools_clear_backup_dirs_cache() {
     delete_transient( dv_uploads_tools_backup_dirs_cache_key() );
 }
+
+function dv_uploads_tools_storage_layout_option_name() {
+    return 'dv_uploads_tools_storage_layout_version';
+}
+
+function dv_uploads_tools_replace_storage_paths( $value, $replacements ) {
+    if ( is_array( $value ) ) {
+        foreach ( $value as $key => $item ) {
+            $value[ $key ] = dv_uploads_tools_replace_storage_paths( $item, $replacements );
+        }
+
+        return $value;
+    }
+
+    if ( ! is_string( $value ) || '' === $value ) {
+        return $value;
+    }
+
+    $normalized = wp_normalize_path( $value );
+
+    foreach ( $replacements as $old_path => $new_path ) {
+        $old_path = untrailingslashit( wp_normalize_path( $old_path ) );
+        if ( $normalized === $old_path || 0 === strpos( $normalized, trailingslashit( $old_path ) ) ) {
+            return $new_path . substr( $normalized, strlen( $old_path ) );
+        }
+    }
+
+    return $value;
+}
+
+function dv_uploads_tools_legacy_storage_target( $legacy_dir ) {
+    if ( ! function_exists( 'dv_uploads_storage_section_dir' ) ) {
+        return '';
+    }
+
+    $basename = basename( $legacy_dir );
+    $section = '';
+    $type = '';
+
+    if ( 0 === strpos( $basename, 'detalivam-uploads-audit-' ) ) {
+        $section = 'audits';
+        $type = false !== strpos( $basename, '-admin-' ) ? 'manual' : 'wp-cli';
+    } elseif ( 0 === strpos( $basename, 'detalivam-uploads-trash-' ) ) {
+        $section = 'backups';
+        $type = 'legacy';
+
+        if ( false !== strpos( $basename, 'admin-unused-' ) ) {
+            $type = 'unused';
+        } elseif ( false !== strpos( $basename, 'admin-orphan-' ) ) {
+            $type = 'orphan';
+        } elseif ( false !== strpos( $basename, 'image-sizes-' ) ) {
+            $type = 'generated-image-sizes';
+        }
+    }
+
+    if ( '' === $section || '' === $type ) {
+        return '';
+    }
+
+    if ( preg_match( '/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/', $basename, $matches ) ) {
+        $date_name = $matches[1] . '-' . $matches[2] . '-' . $matches[3] . '_' . $matches[4] . '-' . $matches[5] . '-' . $matches[6];
+    } else {
+        $date_name = dv_uploads_storage_timestamp( is_dir( $legacy_dir ) ? (int) filemtime( $legacy_dir ) : time() );
+    }
+
+    $target_parent = trailingslashit( dv_uploads_storage_section_dir( $section ) ) . sanitize_key( $type );
+    $target = trailingslashit( $target_parent ) . $date_name;
+    $suffix = 2;
+
+    while ( file_exists( $target ) ) {
+        $target = trailingslashit( $target_parent ) . $date_name . '-' . $suffix;
+        ++$suffix;
+    }
+
+    return untrailingslashit( wp_normalize_path( $target ) );
+}
+
+function dv_uploads_tools_maybe_migrate_legacy_storage() {
+    if ( '2' === (string) get_option( dv_uploads_tools_storage_layout_option_name(), '' ) ) {
+        return;
+    }
+
+    $uploads = wp_get_upload_dir();
+    $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
+
+    if ( '' === $base_dir || ! is_dir( $base_dir ) || ! is_writable( $base_dir ) ) {
+        return;
+    }
+
+    if ( get_transient( 'dv_uploads_tools_storage_migration_lock' ) ) {
+        return;
+    }
+
+    set_transient( 'dv_uploads_tools_storage_migration_lock', '1', 5 * MINUTE_IN_SECONDS );
+
+    $legacy_dirs = array_merge(
+        (array) glob( trailingslashit( $base_dir ) . 'detalivam-uploads-audit-*', GLOB_ONLYDIR ),
+        (array) glob( trailingslashit( $base_dir ) . 'detalivam-uploads-trash-*', GLOB_ONLYDIR )
+    );
+    $replacements = array();
+    $migration_complete = true;
+    $media_state = function_exists( 'dv_media_cleanup_get_state' ) ? dv_media_cleanup_get_state() : array();
+    $active_media_backup = in_array( $media_state['status'] ?? '', array( 'scheduled', 'running' ), true )
+        ? untrailingslashit( wp_normalize_path( $media_state['backup_dir'] ?? '' ) )
+        : '';
+
+    foreach ( array_unique( $legacy_dirs ) as $legacy_dir ) {
+        $legacy_dir = untrailingslashit( wp_normalize_path( $legacy_dir ) );
+
+        if ( '' !== $active_media_backup && $legacy_dir === $active_media_backup ) {
+            $migration_complete = false;
+            continue;
+        }
+
+        $target = dv_uploads_tools_legacy_storage_target( $legacy_dir );
+        if ( '' === $target || ! wp_mkdir_p( dirname( $target ) ) ) {
+            $migration_complete = false;
+            continue;
+        }
+
+        if ( ! rename( $legacy_dir, $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
+            $migration_complete = false;
+            continue;
+        }
+
+        $replacements[ $legacy_dir ] = $target;
+    }
+
+    if ( ! empty( $replacements ) ) {
+        $option_names = array(
+            dv_uploads_tools_last_audit_option_name(),
+            dv_uploads_tools_last_delete_option_name(),
+            dv_uploads_tools_audit_history_option_name(),
+            dv_uploads_tools_last_backup_action_option_name(),
+        );
+
+        if ( function_exists( 'dv_media_cleanup_state_option_name' ) ) {
+            $option_names[] = dv_media_cleanup_state_option_name();
+        }
+
+        foreach ( array_unique( $option_names ) as $option_name ) {
+            $value = get_option( $option_name, null );
+            if ( null !== $value ) {
+                update_option( $option_name, dv_uploads_tools_replace_storage_paths( $value, $replacements ), false );
+            }
+        }
+
+        dv_uploads_tools_clear_backup_dirs_cache();
+    }
+
+    if ( $migration_complete ) {
+        update_option( dv_uploads_tools_storage_layout_option_name(), '2', false );
+    }
+
+    delete_transient( 'dv_uploads_tools_storage_migration_lock' );
+}
+add_action( 'admin_init', 'dv_uploads_tools_maybe_migrate_legacy_storage', 5 );
 
 function dv_uploads_tools_get_last_audit() {
     $audit = get_option( dv_uploads_tools_last_audit_option_name(), array() );
@@ -189,7 +346,10 @@ function dv_uploads_tools_create_audit_report( $source = 'admin' ) {
 
     $extensions = array( 'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'svg' );
     $uploads = wp_get_upload_dir();
-    $out_dir = trailingslashit( $uploads['basedir'] ) . 'detalivam-uploads-audit-admin-' . gmdate( 'Ymd-His' );
+    $audit_type = 'background' === sanitize_key( $source ) ? 'background' : 'manual';
+    $out_dir = function_exists( 'dv_uploads_storage_operation_dir' )
+        ? dv_uploads_storage_operation_dir( 'audits', $audit_type )
+        : trailingslashit( $uploads['basedir'] ) . 'detalivam-uploads-audit-admin-' . gmdate( 'Ymd-His' );
     $report = dv_uploads_audit_build_report( $extensions );
 
     dv_uploads_audit_write_reports( $report, $out_dir );
@@ -251,7 +411,9 @@ function dv_uploads_tools_process_delete_report( $confirm, $older_than_days, $re
     $uploads = wp_get_upload_dir();
     $uploads_base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
     $rows = dv_uploads_tools_read_csv_report( $report_path );
-    $backup_base_dir = trailingslashit( $uploads_base_dir ) . 'detalivam-uploads-trash-admin-' . $report_config['prefix'] . '-' . gmdate( 'Ymd-His' );
+    $backup_base_dir = function_exists( 'dv_uploads_storage_operation_dir' )
+        ? dv_uploads_storage_operation_dir( 'backups', $report_config['prefix'] )
+        : trailingslashit( $uploads_base_dir ) . 'detalivam-uploads-trash-admin-' . $report_config['prefix'] . '-' . gmdate( 'Ymd-His' );
     $protected_files = dv_uploads_audit_get_attachment_files_for_ids( dv_uploads_audit_get_service_attachment_ids() );
     $results = array();
     $summary = array(
@@ -407,6 +569,101 @@ function dv_uploads_tools_is_service_candidate( $original_relative, $current_rel
     return false;
 }
 
+function dv_uploads_tools_backup_operation_paths() {
+    $uploads = wp_get_upload_dir();
+    $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
+    $paths = array();
+
+    if ( '' === $base_dir || ! is_dir( $base_dir ) ) {
+        return $paths;
+    }
+
+    if ( function_exists( 'dv_uploads_storage_section_dir' ) ) {
+        $backup_root = dv_uploads_storage_section_dir( 'backups' );
+
+        if ( is_dir( $backup_root ) && is_readable( $backup_root ) ) {
+            try {
+                $type_dirs = new DirectoryIterator( $backup_root );
+
+                foreach ( $type_dirs as $type_dir ) {
+                    if ( ! $type_dir instanceof SplFileInfo || $type_dir->isDot() || ! $type_dir->isDir() ) {
+                        continue;
+                    }
+
+                    $type_path = wp_normalize_path( $type_dir->getPathname() );
+                    $date_dirs = new DirectoryIterator( $type_path );
+
+                    foreach ( $date_dirs as $date_dir ) {
+                        if ( ! $date_dir instanceof SplFileInfo || $date_dir->isDot() || ! $date_dir->isDir() ) {
+                            continue;
+                        }
+
+                        $operation_dir = untrailingslashit( wp_normalize_path( $date_dir->getPathname() ) );
+                        if ( dv_uploads_storage_is_backup_operation_dir( $operation_dir ) ) {
+                            $paths[] = $operation_dir;
+                        }
+                    }
+                }
+            } catch ( UnexpectedValueException $exception ) {
+                unset( $exception );
+            }
+        }
+    }
+
+    $legacy_dirs = glob( trailingslashit( $base_dir ) . 'detalivam-uploads-trash-*', GLOB_ONLYDIR );
+    if ( is_array( $legacy_dirs ) ) {
+        foreach ( $legacy_dirs as $legacy_dir ) {
+            $legacy_dir = untrailingslashit( wp_normalize_path( $legacy_dir ) );
+            if ( dv_uploads_tools_path_starts_with( $legacy_dir, $base_dir ) ) {
+                $paths[] = $legacy_dir;
+            }
+        }
+    }
+
+    return array_values( array_unique( $paths ) );
+}
+
+function dv_uploads_tools_backup_dir_details( $backup_dir ) {
+    $labels = array(
+        'unused'                => 'Неиспользуемые файлы',
+        'orphan'                => 'Orphan-файлы',
+        'generated-image-sizes' => 'Старые размеры изображений',
+        'wp-cli'               => 'WP-CLI',
+        'legacy'               => 'Старый резерв',
+    );
+    $type = 'legacy';
+    $date = '';
+
+    if ( function_exists( 'dv_uploads_storage_parse_operation_dir' ) ) {
+        $layout = dv_uploads_storage_parse_operation_dir( $backup_dir );
+        if ( ! empty( $layout ) && 'backups' === ( $layout['section'] ?? '' ) ) {
+            $type = sanitize_key( $layout['type'] ?? '' );
+            $date = (string) ( $layout['date'] ?? '' );
+        }
+    }
+
+    if ( 'legacy' === $type ) {
+        $basename = basename( $backup_dir );
+
+        foreach ( array( 'unused', 'orphan', 'image-sizes' ) as $legacy_type ) {
+            if ( false !== strpos( $basename, $legacy_type ) ) {
+                $type = 'image-sizes' === $legacy_type ? 'generated-image-sizes' : $legacy_type;
+                break;
+            }
+        }
+
+        if ( preg_match( '/(\d{8}-\d{6})$/', $basename, $matches ) ) {
+            $date = $matches[1];
+        }
+    }
+
+    return array(
+        'type'  => $type,
+        'label' => $labels[ $type ] ?? ucwords( str_replace( '-', ' ', $type ) ),
+        'date'  => $date,
+    );
+}
+
 function dv_uploads_tools_find_restore_candidates( $limit = 80 ) {
     $uploads = wp_get_upload_dir();
     $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
@@ -417,11 +674,7 @@ function dv_uploads_tools_find_restore_candidates( $limit = 80 ) {
         return $candidates;
     }
 
-    $trash_dirs = glob( trailingslashit( $base_dir ) . 'detalivam-uploads-trash-*', GLOB_ONLYDIR );
-
-    if ( ! is_array( $trash_dirs ) ) {
-        return $candidates;
-    }
+    $trash_dirs = dv_uploads_tools_backup_operation_paths();
 
     foreach ( $trash_dirs as $trash_dir ) {
         $trash_dir = untrailingslashit( wp_normalize_path( $trash_dir ) );
@@ -493,13 +746,7 @@ function dv_uploads_tools_backup_dirs( $force_refresh = false ) {
         return $dirs;
     }
 
-    $backup_dirs = glob( trailingslashit( $base_dir ) . 'detalivam-uploads-trash-*', GLOB_ONLYDIR );
-
-    if ( ! is_array( $backup_dirs ) ) {
-        set_transient( dv_uploads_tools_backup_dirs_cache_key(), $dirs, 5 * MINUTE_IN_SECONDS );
-
-        return $dirs;
-    }
+    $backup_dirs = dv_uploads_tools_backup_operation_paths();
 
     foreach ( $backup_dirs as $backup_dir ) {
         $backup_dir = untrailingslashit( wp_normalize_path( $backup_dir ) );
@@ -526,9 +773,12 @@ function dv_uploads_tools_backup_dirs( $force_refresh = false ) {
             $modified = max( $modified, (int) $file->getMTime() );
         }
 
+        $details = dv_uploads_tools_backup_dir_details( $backup_dir );
         $dirs[] = array(
             'path'       => $backup_dir,
-            'name'       => basename( $backup_dir ),
+            'name'       => $details['label'] . ( '' !== $details['date'] ? ' / ' . $details['date'] : '' ),
+            'type'       => $details['type'],
+            'date'       => $details['date'],
             'files'      => $files,
             'size_bytes' => $size_bytes,
             'modified'   => $modified,
@@ -552,16 +802,32 @@ function dv_uploads_tools_validate_backup_dir( $backup_dir ) {
     $base_dir = untrailingslashit( wp_normalize_path( $uploads['basedir'] ?? '' ) );
     $backup_dir = untrailingslashit( wp_normalize_path( (string) $backup_dir ) );
 
-    if (
-        '' === $backup_dir
-        || ! is_dir( $backup_dir )
-        || ! dv_uploads_tools_path_starts_with( $backup_dir, $base_dir )
-        || 0 !== strpos( basename( $backup_dir ), 'detalivam-uploads-trash-' )
-    ) {
+    $is_new_backup = function_exists( 'dv_uploads_storage_is_backup_operation_dir' )
+        && dv_uploads_storage_is_backup_operation_dir( $backup_dir );
+    $is_legacy_backup = dv_uploads_tools_path_starts_with( $backup_dir, $base_dir )
+        && 0 === strpos( basename( $backup_dir ), 'detalivam-uploads-trash-' );
+
+    if ( '' === $backup_dir || ! is_dir( $backup_dir ) || ( ! $is_new_backup && ! $is_legacy_backup ) ) {
         return '';
     }
 
     return $backup_dir;
+}
+
+function dv_uploads_tools_is_backup_file_path( $path ) {
+    $path = wp_normalize_path( (string) $path );
+
+    if ( '' === $path || ! is_file( $path ) ) {
+        return false;
+    }
+
+    foreach ( dv_uploads_tools_backup_operation_paths() as $backup_dir ) {
+        if ( dv_uploads_tools_path_starts_with( $path, $backup_dir ) ) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function dv_uploads_tools_restore_backup_dir( $backup_dir ) {
@@ -588,6 +854,10 @@ function dv_uploads_tools_restore_backup_dir( $backup_dir ) {
             continue;
         }
 
+        if ( function_exists( 'dv_media_cleanup_manifest_filename' ) && dv_media_cleanup_manifest_filename() === $file->getFilename() ) {
+            continue;
+        }
+
         $source = wp_normalize_path( $file->getPathname() );
         $relative = dv_uploads_tools_normalize_relative_path( substr( $source, strlen( $backup_dir ) ) );
         $destination = wp_normalize_path( trailingslashit( $base_dir ) . $relative );
@@ -609,6 +879,10 @@ function dv_uploads_tools_restore_backup_dir( $backup_dir ) {
         } else {
             ++$summary['failed'];
         }
+    }
+
+    if ( function_exists( 'dv_media_restore_cleanup_manifest' ) ) {
+        $summary = array_merge( $summary, dv_media_restore_cleanup_manifest( $backup_dir ) );
     }
 
     return $summary;
@@ -654,7 +928,7 @@ function dv_uploads_tools_run_audit() {
         wp_die( esc_html__( 'Sorry, you are not allowed to manage these settings.', 'default' ) );
     }
 
-    check_admin_referer( 'dv_uploads_run_audit' );
+    check_admin_referer( 'dv_uploads_run_audit', isset( $_REQUEST['dv_audit_nonce'] ) ? 'dv_audit_nonce' : '_wpnonce' );
 
     $redirect = admin_url( 'admin.php?page=dv-uploads-tools' );
     $result = dv_uploads_tools_create_audit_report( 'admin' );
@@ -676,7 +950,7 @@ function dv_uploads_tools_schedule_background_audit() {
         wp_die( esc_html__( 'Sorry, you are not allowed to manage these settings.', 'default' ) );
     }
 
-    check_admin_referer( 'dv_uploads_schedule_audit' );
+    check_admin_referer( 'dv_uploads_schedule_audit', isset( $_REQUEST['dv_audit_background_nonce'] ) ? 'dv_audit_background_nonce' : '_wpnonce' );
 
     update_option(
         dv_uploads_tools_background_audit_option_name(),
@@ -906,9 +1180,7 @@ function dv_uploads_tools_restore_candidate() {
         '' === $source
         || '' === $relative
         || false !== strpos( $relative, '../' )
-        || ! is_file( $source )
-        || ! dv_uploads_tools_path_starts_with( $source, $base_dir )
-        || false === strpos( $source, '/detalivam-uploads-trash-' )
+        || ! dv_uploads_tools_is_backup_file_path( $source )
         || ! dv_uploads_tools_path_starts_with( $destination, $base_dir )
     ) {
         wp_safe_redirect( add_query_arg( 'dv_restore', 'invalid', $redirect ) );
@@ -995,6 +1267,7 @@ function dv_uploads_tools_render_page() {
     $last_backup_action = dv_uploads_tools_get_last_backup_action();
     $background_audit = get_option( dv_uploads_tools_background_audit_option_name(), array() );
     $background_audit = is_array( $background_audit ) ? $background_audit : array();
+    $image_cleanup = function_exists( 'dv_media_cleanup_get_state' ) ? dv_media_cleanup_get_state() : array();
     $audit_summary = isset( $last_audit['summary'] ) && is_array( $last_audit['summary'] ) ? $last_audit['summary'] : array();
     $delete_summary = isset( $last_delete['summary'] ) && is_array( $last_delete['summary'] ) ? $last_delete['summary'] : array();
     $preview_filter = isset( $_GET['dv_uploads_filter'] ) ? sanitize_text_field( wp_unslash( $_GET['dv_uploads_filter'] ) ) : '';
@@ -1018,9 +1291,9 @@ function dv_uploads_tools_render_page() {
 
         <?php
         $uploads_nav = array(
-            array( 'href' => '#dv-uploads-audit', 'label' => dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;' ), 'description' => 'CSV' ),
+            array( 'href' => '#dv-uploads-audit', 'label' => 'Проверка', 'description' => 'CSV' ),
             array( 'href' => '#dv-uploads-cleanup', 'label' => dv_uploads_tools_label( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1082;&#1072;' ), 'description' => 'Unused / Orphan' ),
-            array( 'href' => '#dv-uploads-backups', 'label' => 'Backup', 'description' => dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077;' ) ),
+            array( 'href' => '#dv-uploads-backups', 'label' => 'Восстановление', 'description' => 'Резервные копии' ),
             array( 'href' => '#dv-uploads-history', 'label' => dv_uploads_tools_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103;' ), 'description' => dv_uploads_tools_label( '&#1040;&#1091;&#1076;&#1080;&#1090;&#1099;' ) ),
             array( 'href' => '#dv-uploads-favicon', 'label' => 'Favicon', 'description' => 'site_icon' ),
         );
@@ -1030,7 +1303,7 @@ function dv_uploads_tools_render_page() {
         }
 
         if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
-            dv_render_admin_suite_local_nav( $uploads_nav, dv_uploads_tools_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1092;&#1072;&#1081;&#1083;&#1072;&#1084;' ) );
+            dv_render_admin_suite_local_nav( $uploads_nav, dv_uploads_tools_label( '&#1053;&#1072;&#1074;&#1080;&#1075;&#1072;&#1094;&#1080;&#1103; &#1087;&#1086; &#1092;&#1072;&#1081;&#1083;&#1072;&#1084;' ), true );
         }
         ?>
 
@@ -1042,14 +1315,14 @@ function dv_uploads_tools_render_page() {
                 </div>
 
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                    <?php wp_nonce_field( 'dv_uploads_run_audit' ); ?>
-                    <input type="hidden" name="action" value="dv_uploads_run_audit">
-                    <button type="submit" class="button button-primary"><?php echo esc_html( dv_uploads_tools_label( '&#1047;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100; &#1072;&#1091;&#1076;&#1080;&#1090;' ) ); ?></button>
-                </form>
-                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                    <?php wp_nonce_field( 'dv_uploads_schedule_audit' ); ?>
-                    <input type="hidden" name="action" value="dv_uploads_schedule_audit">
-                    <button type="submit" class="button"><?php echo esc_html( dv_uploads_tools_label( '&#1047;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100; &#1074; &#1092;&#1086;&#1085;&#1077;' ) ); ?></button>
+                    <?php wp_nonce_field( 'dv_uploads_run_audit', 'dv_audit_nonce' ); ?>
+                    <?php wp_nonce_field( 'dv_uploads_schedule_audit', 'dv_audit_background_nonce' ); ?>
+                    <label for="dv-audit-mode">Режим проверки</label>
+                    <select id="dv-audit-mode" name="action">
+                        <option value="dv_uploads_schedule_audit">В фоне</option>
+                        <option value="dv_uploads_run_audit">На этой странице</option>
+                    </select>
+                    <button type="submit" class="button button-primary">Запустить проверку</button>
                 </form>
             </div>
 
@@ -1058,6 +1331,14 @@ function dv_uploads_tools_render_page() {
                     <?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1086;&#1085;&#1086;&#1074;&#1099;&#1081; &#1072;&#1091;&#1076;&#1080;&#1090;:' ) ); ?>
                     <strong><?php echo esc_html( (string) ( $background_audit['status'] ?? '' ) ); ?></strong>
                     <?php echo esc_html( (string) ( $background_audit['updated_at'] ?? '' ) ); ?>
+                </p>
+            <?php endif; ?>
+
+            <?php if ( ! empty( $image_cleanup ) ) : ?>
+                <p class="dv-uploads-status">
+                    <strong><?php echo esc_html( dv_uploads_tools_label( '&#1054;&#1087;&#1090;&#1080;&#1084;&#1080;&#1079;&#1072;&#1094;&#1080;&#1103; &#1088;&#1072;&#1079;&#1084;&#1077;&#1088;&#1086;&#1074;:' ) ); ?></strong>
+                    <?php echo esc_html( (string) ( $image_cleanup['status'] ?? '' ) ); ?>,
+                    <?php echo esc_html( sprintf( dv_uploads_tools_label( '&#1086;&#1073;&#1088;&#1072;&#1073;&#1086;&#1090;&#1072;&#1085;&#1086; %1$d, &#1087;&#1077;&#1088;&#1077;&#1085;&#1077;&#1089;&#1077;&#1085;&#1086; %2$d (%3$s)' ), absint( $image_cleanup['processed'] ?? 0 ), absint( $image_cleanup['files_moved'] ?? 0 ), size_format( absint( $image_cleanup['bytes_moved'] ?? 0 ) ) ) ); ?>
                 </p>
             <?php endif; ?>
 
@@ -1085,6 +1366,7 @@ function dv_uploads_tools_render_page() {
                         <a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=dv-uploads-tools' ) ); ?>"><?php echo esc_html( dv_uploads_tools_label( '&#1057;&#1073;&#1088;&#1086;&#1089;&#1080;&#1090;&#1100;' ) ); ?></a>
                     <?php endif; ?>
                 </form>
+                <details class="dv-uploads-reports"><summary>Скачать отчёты</summary>
                 <p class="dv-uploads-actions">
                     <?php foreach ( array( 'used_path' => 'used-files.csv', 'unused_path' => 'unused-files.csv', 'orphan_path' => 'orphan-files.csv', 'missing_path' => 'missing-files.csv' ) as $key => $label ) : ?>
                         <?php $url = dv_uploads_tools_file_url( $last_audit[ $key ] ?? '' ); ?>
@@ -1093,8 +1375,12 @@ function dv_uploads_tools_render_page() {
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </p>
-                <?php dv_uploads_tools_render_preview_table( $unused_preview, dv_uploads_tools_label( 'Unused: &#1085;&#1077;&#1090; &#1089;&#1089;&#1099;&#1083;&#1086;&#1082; &#1085;&#1072; &#1092;&#1072;&#1081;&#1083;' ), true ); ?>
-                <?php dv_uploads_tools_render_preview_table( $orphan_preview, dv_uploads_tools_label( 'Orphan: &#1092;&#1072;&#1081;&#1083; &#1085;&#1077; &#1074; &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1077;' ), false ); ?>
+                </details>
+                <details class="dv-uploads-candidates" <?php echo '' !== $preview_filter ? 'open' : ''; ?>>
+                    <summary>Кандидаты из последней проверки</summary>
+                    <?php dv_uploads_tools_render_preview_table( $unused_preview, 'Без ссылок на файл (Unused)', true ); ?>
+                    <?php dv_uploads_tools_render_preview_table( $orphan_preview, 'Вне медиабиблиотеки (Orphan)', false ); ?>
+                </details>
             <?php endif; ?>
         </div>
 
@@ -1103,7 +1389,7 @@ function dv_uploads_tools_render_page() {
             <p><?php echo esc_html( dv_uploads_tools_label( '&#1040;&#1076;&#1084;&#1080;&#1085;&#1082;&#1072; &#1085;&#1077; &#1091;&#1076;&#1072;&#1083;&#1103;&#1077;&#1090; &#1092;&#1072;&#1081;&#1083;&#1099; &#1085;&#1072;&#1074;&#1089;&#1077;&#1075;&#1076;&#1072;: &#1086;&#1085;&#1080; &#1087;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089;&#1103;&#1090;&#1089;&#1103; &#1074; backup-&#1087;&#1072;&#1087;&#1082;&#1091; &#1074; uploads. Favicon &#1080; site icon &#1079;&#1072;&#1097;&#1080;&#1097;&#1077;&#1085;&#1099;.' ) ); ?></p>
 
             <div class="dv-uploads-cleanup-panel">
-                <h3>Unused</h3>
+                <h3>Без ссылок на файл <small>(Unused)</small></h3>
                 <p><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083;&#1099; &#1080;&#1079; unused-files.csv: &#1077;&#1089;&#1090;&#1100; &#1074; uploads, &#1085;&#1086; &#1072;&#1091;&#1076;&#1080;&#1090; &#1085;&#1077; &#1085;&#1072;&#1096;&#1077;&#1083; &#1080;&#1093; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1085;&#1080;&#1077;.' ) ); ?></p>
             <form class="dv-uploads-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <?php wp_nonce_field( 'dv_uploads_delete_plan' ); ?>
@@ -1139,7 +1425,7 @@ function dv_uploads_tools_render_page() {
             </div>
 
             <div class="dv-uploads-cleanup-panel">
-                <h3>Orphan</h3>
+                <h3>Вне медиабиблиотеки <small>(Orphan)</small></h3>
                 <p><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083;&#1099; &#1080;&#1079; orphan-files.csv: &#1085;&#1077; &#1087;&#1088;&#1080;&#1074;&#1103;&#1079;&#1072;&#1085;&#1099; &#1082; &#1084;&#1077;&#1076;&#1080;&#1072;&#1073;&#1080;&#1073;&#1083;&#1080;&#1086;&#1090;&#1077;&#1082;&#1077;. &#1057;&#1090;&#1088;&#1086;&#1082;&#1080; used=yes &#1073;&#1091;&#1076;&#1091;&#1090; &#1087;&#1088;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1099;.' ) ); ?></p>
                 <form class="dv-uploads-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <?php wp_nonce_field( 'dv_uploads_delete_plan' ); ?>
@@ -1189,7 +1475,7 @@ function dv_uploads_tools_render_page() {
                 </p>
                 <?php $delete_url = dv_uploads_tools_file_url( $last_delete['report_path'] ?? '' ); ?>
                 <?php if ( $delete_url ) : ?>
-                    <p><a class="button" href="<?php echo esc_url( $delete_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( basename( (string) $last_delete['report_path'] ) ); ?></a></p>
+                    <p><a class="button dv-uploads-report-download" href="<?php echo esc_url( $delete_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( basename( (string) $last_delete['report_path'] ) ); ?></a></p>
                 <?php endif; ?>
                 <?php if ( ! empty( $last_delete['backup_dir'] ) && ! empty( $last_delete['confirm'] ) ) : ?>
                     <p><code><?php echo esc_html( (string) $last_delete['backup_dir'] ); ?></code></p>
@@ -1200,6 +1486,9 @@ function dv_uploads_tools_render_page() {
         <div class="dv-admin-card dv-uploads-card" id="dv-uploads-backups">
             <h2>Backup</h2>
             <p><?php echo esc_html( dv_uploads_tools_label( '&#1055;&#1072;&#1087;&#1082;&#1080;, &#1082;&#1091;&#1076;&#1072; &#1072;&#1076;&#1084;&#1080;&#1085;&#1082;&#1072; &#1080; WP-CLI &#1087;&#1077;&#1088;&#1077;&#1085;&#1086;&#1089;&#1103;&#1090; &#1092;&#1072;&#1081;&#1083;&#1099; &#1087;&#1077;&#1088;&#1077;&#1076; &#1091;&#1076;&#1072;&#1083;&#1077;&#1085;&#1080;&#1077;&#1084;.' ) ); ?></p>
+            <?php if ( function_exists( 'dv_uploads_storage_root_dir' ) ) : ?>
+                <p><strong><?php echo esc_html( dv_uploads_tools_label( '&#1045;&#1076;&#1080;&#1085;&#1072;&#1103; &#1087;&#1072;&#1087;&#1082;&#1072;:' ) ); ?></strong> <code><?php echo esc_html( dv_uploads_storage_root_dir() ); ?></code></p>
+            <?php endif; ?>
 
             <?php if ( ! empty( $last_backup_action ) ) : ?>
                 <p class="dv-uploads-status">
@@ -1236,6 +1525,7 @@ function dv_uploads_tools_render_page() {
             <?php if ( empty( $backup_dirs ) ) : ?>
                 <p><strong><?php echo esc_html( dv_uploads_tools_label( 'Backup-&#1087;&#1072;&#1087;&#1082;&#1080; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1099;.' ) ); ?></strong></p>
             <?php else : ?>
+                <div class="dv-uploads-table-scroll" tabindex="0" role="region" aria-label="Резервные копии файлов">
                 <table class="widefat striped dv-uploads-backup-table">
                     <thead>
                         <tr>
@@ -1249,7 +1539,10 @@ function dv_uploads_tools_render_page() {
                     <tbody>
                         <?php foreach ( array_slice( $backup_dirs, 0, 8 ) as $backup ) : ?>
                             <tr>
-                                <td><code><?php echo esc_html( $backup['path'] ); ?></code></td>
+                                <td>
+                                    <strong><?php echo esc_html( $backup['name'] ); ?></strong><br>
+                                    <code><?php echo esc_html( $backup['path'] ); ?></code>
+                                </td>
                                 <td><?php echo esc_html( (string) $backup['files'] ); ?></td>
                                 <td><?php echo esc_html( size_format( absint( $backup['size_bytes'] ) ) ); ?></td>
                                 <td><?php echo esc_html( $backup['modified'] ? date_i18n( 'Y-m-d H:i', (int) $backup['modified'] ) : '-' ); ?></td>
@@ -1271,6 +1564,7 @@ function dv_uploads_tools_render_page() {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
 
@@ -1279,6 +1573,7 @@ function dv_uploads_tools_render_page() {
             <?php if ( empty( $audit_history ) ) : ?>
                 <p><?php echo esc_html( dv_uploads_tools_label( '&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103; &#1087;&#1086;&#1082;&#1072; &#1087;&#1091;&#1089;&#1090;&#1072;.' ) ); ?></p>
             <?php else : ?>
+                <div class="dv-uploads-table-scroll" tabindex="0" role="region" aria-label="История аудитов файлов">
                 <table class="widefat striped">
                     <thead>
                         <tr>
@@ -1305,6 +1600,7 @@ function dv_uploads_tools_render_page() {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
 
@@ -1347,11 +1643,15 @@ function dv_uploads_tools_render_page() {
         <?php if ( ! $state['file_exists'] ) : ?>
             <div class="dv-admin-card dv-uploads-card" id="dv-uploads-restore">
                 <h2><?php echo esc_html( dv_uploads_tools_label( '&#1042;&#1086;&#1089;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; favicon' ) ); ?></h2>
-                <p><?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083; site_icon &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085; &#1085;&#1072; &#1084;&#1077;&#1089;&#1090;&#1077;. &#1048;&#1097;&#1077;&#1084; &#1087;&#1086;&#1076;&#1093;&#1086;&#1076;&#1103;&#1097;&#1080;&#1081; &#1092;&#1072;&#1081;&#1083; &#1074; wp-content/uploads/detalivam-uploads-trash-*.' ) ); ?></p>
+                <p>
+                    <?php echo esc_html( dv_uploads_tools_label( '&#1060;&#1072;&#1081;&#1083; site_icon &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085; &#1085;&#1072; &#1084;&#1077;&#1089;&#1090;&#1077;. &#1048;&#1097;&#1077;&#1084; &#1087;&#1086;&#1076;&#1093;&#1086;&#1076;&#1103;&#1097;&#1077;&#1077; &#1080;&#1079;&#1086;&#1073;&#1088;&#1072;&#1078;&#1077;&#1085;&#1080;&#1077; &#1074; &#1088;&#1077;&#1079;&#1077;&#1088;&#1074;&#1085;&#1099;&#1093; &#1082;&#1086;&#1087;&#1080;&#1103;&#1093;:' ) ); ?>
+                    <code><?php echo esc_html( function_exists( 'dv_uploads_storage_section_dir' ) ? dv_uploads_storage_section_dir( 'backups' ) : 'wp-content/uploads' ); ?></code>
+                </p>
 
                 <?php if ( empty( $candidates ) ) : ?>
                     <p><strong><?php echo esc_html( dv_uploads_tools_label( '&#1050;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099; &#1085;&#1077; &#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1099;.' ) ); ?></strong></p>
                 <?php else : ?>
+                    <div class="dv-uploads-table-scroll" tabindex="0" role="region" aria-label="Файлы для восстановления">
                     <table class="widefat striped">
                         <thead>
                             <tr>
@@ -1396,6 +1696,7 @@ function dv_uploads_tools_render_page() {
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

@@ -32,6 +32,7 @@ function dv_uploads_audit_excluded_dir_prefixes() {
     return array(
         'detalivam-uploads-trash-',
         'detalivam-uploads-audit-',
+        function_exists( 'dv_uploads_storage_root_name' ) ? dv_uploads_storage_root_name() : 'detalivam-file-manager',
     );
 }
 
@@ -679,7 +680,9 @@ function dv_uploads_audit_cli_command( $args, $assoc_args ) {
         : $default_extensions;
 
     $uploads = wp_get_upload_dir();
-    $default_out = trailingslashit( $uploads['basedir'] ) . 'detalivam-uploads-audit-' . gmdate( 'Ymd-His' );
+    $default_out = function_exists( 'dv_uploads_storage_operation_dir' )
+        ? dv_uploads_storage_operation_dir( 'audits', 'wp-cli' )
+        : trailingslashit( $uploads['basedir'] ) . 'detalivam-uploads-audit-' . gmdate( 'Ymd-His' );
     $out_dir = isset( $assoc_args['out'] ) ? (string) $assoc_args['out'] : $default_out;
     $out_dir = untrailingslashit( wp_normalize_path( $out_dir ) );
 
@@ -886,7 +889,9 @@ function dv_uploads_audit_delete_cli_command( $args, $assoc_args ) {
     $confirm = isset( $assoc_args['confirm'] );
     $use_backup = ! isset( $assoc_args['no-backup'] );
     $older_than_days = isset( $assoc_args['older-than'] ) ? max( 0, absint( $assoc_args['older-than'] ) ) : 30;
-    $default_backup_dir = trailingslashit( $uploads_base_dir ) . 'detalivam-uploads-trash-' . gmdate( 'Ymd-His' );
+    $default_backup_dir = function_exists( 'dv_uploads_storage_operation_dir' )
+        ? dv_uploads_storage_operation_dir( 'backups', 'wp-cli' )
+        : trailingslashit( $uploads_base_dir ) . 'detalivam-uploads-trash-' . gmdate( 'Ymd-His' );
     $backup_base_dir = isset( $assoc_args['backup-dir'] )
         ? untrailingslashit( wp_normalize_path( (string) $assoc_args['backup-dir'] ) )
         : untrailingslashit( wp_normalize_path( $default_backup_dir ) );

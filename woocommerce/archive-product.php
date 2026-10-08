@@ -220,7 +220,7 @@ if ( empty( $marka_terms ) && function_exists( 'wc_get_product' ) && $wp_query i
     usort(
         $marka_terms,
         static function ( $a, $b ) {
-            return strnatcasecmp( $a->name, $b->name );
+            return ( $b->count <=> $a->count ) ?: strnatcasecmp( $a->name, $b->name );
         }
     );
 }
@@ -385,6 +385,9 @@ if ( $current_cat ) {
   <?php endif; ?>
 
   <div class="catalog-layout">
+    <div class="catalog-mobile-controls" hidden>
+      <button type="button" class="catalog-filter-open" aria-haspopup="dialog" aria-controls="dv-catalog-filters" aria-expanded="false">&#1060;&#1080;&#1083;&#1100;&#1090;&#1088;&#1099;<?php if ( $active_count ) : ?> <span><?php echo esc_html( $active_count ); ?></span><?php endif; ?></button>
+    </div>
     <aside class="catalog-sidebar">
       <?php
       $sidebar_blocks = array();
@@ -428,8 +431,8 @@ if ( $current_cat ) {
         <div class="filter-widget-body" data-filter-body<?php echo '' !== $selected_marka ? '' : ' hidden'; ?>>
         <?php if ( $marka_terms && ! is_wp_error( $marka_terms ) ) : ?>
           <div class="filter-list">
-            <?php foreach ( $marka_terms as $term ) : ?>
-              <div class="filter-item filter-item--check<?php echo $selected_marka === $term->slug ? ' is-selected' : ''; ?>">
+            <?php foreach ( $marka_terms as $marka_index => $term ) : ?>
+              <div class="filter-item filter-item--check<?php echo $selected_marka === $term->slug ? ' is-selected' : ''; ?>"<?php echo $marka_index >= 3 && $selected_marka !== $term->slug ? ' data-dv-extra-brand' : ''; ?>>
                 <label class="filter-checkbox-label">
                   <input type="checkbox" class="filter-checkbox-input js-filter-marka" value="<?php echo esc_attr( $term->slug ); ?>" <?php checked( $selected_marka === $term->slug ); ?>>
                   <?php echo esc_html( $term->name ); ?>
@@ -437,6 +440,9 @@ if ( $current_cat ) {
               </div>
             <?php endforeach; ?>
           </div>
+          <?php if ( count( $marka_terms ) > 3 ) : ?>
+            <button type="button" class="dv-brand-more" data-dv-brand-more hidden aria-expanded="false">Все марки</button>
+          <?php endif; ?>
         <?php else : ?>
           <p class="filter-empty-note"><?php echo esc_html( $labels['marka_empty'] ); ?></p>
         <?php endif; ?>
@@ -488,8 +494,8 @@ if ( $current_cat ) {
         </button>
         <div class="filter-widget-body" data-filter-body<?php echo ( '' !== $selected_min || '' !== $selected_max ) ? '' : ' hidden'; ?>>
         <div class="price-range-inputs">
-          <input type="number" placeholder="<?php echo esc_attr( $labels['from'] ); ?>" id="price-min" value="<?php echo esc_attr( $selected_min ); ?>">
-          <input type="number" placeholder="<?php echo esc_attr( $labels['to'] ); ?>" id="price-max" value="<?php echo esc_attr( $selected_max ); ?>">
+          <input type="number" min="0" step="any" aria-label="Цена от, рублей" placeholder="<?php echo esc_attr( $labels['from'] ); ?>" id="price-min" value="<?php echo esc_attr( $selected_min ); ?>">
+          <input type="number" min="0" step="any" aria-label="Цена до, рублей" placeholder="<?php echo esc_attr( $labels['to'] ); ?>" id="price-max" value="<?php echo esc_attr( $selected_max ); ?>">
         </div>
         <button class="filter-apply js-filter-price" type="button"><?php echo esc_html( $labels['apply'] ); ?></button>
         </div>
@@ -537,7 +543,7 @@ if ( $current_cat ) {
         </button>
         <div class="filter-widget-body" data-filter-body hidden>
         <?php foreach ( $recs as $rec ) : ?>
-          <?php $img = wp_get_attachment_image_url( $rec->get_image_id(), 'dv-product-sm' ); ?>
+          <?php $img = wp_get_attachment_image_url( $rec->get_image_id(), 'medium' ); ?>
           <a href="<?php echo esc_url( $rec->get_permalink() ); ?>" class="filter-reco-link">
             <?php if ( $img ) : ?>
               <img src="<?php echo esc_url( $img ); ?>" alt="" class="filter-reco-thumb">

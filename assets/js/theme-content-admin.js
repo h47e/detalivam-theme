@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var label = (term || activeContentFilter !== 'all') ? (config.countFoundLabel || '') : (config.countAllLabel || '');
-    countNode.textContent = label + count;
+    countNode.textContent = (term || activeContentFilter !== 'all') ? label + count : '';
   }
 
   function rowMatchesContentFilter(row) {
@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     restoreAccordionState();
     updateCount('', getAllFieldCount());
+    document.querySelector('.dv-theme-content-page').dispatchEvent(new CustomEvent('dv-section-filter', { detail: { active: false } }));
   }
 
   function applyCurrentFilters() {
@@ -243,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return !row.hidden;
       });
       var summary = subsection.querySelector('summary');
-      var summaryMatch = ((summary ? summary.textContent : '') || '').toLowerCase().indexOf(term) !== -1;
+      var summaryMatch = Boolean(term && ((summary ? summary.textContent : '') || '').toLowerCase().indexOf(term) !== -1);
 
       subsection.hidden = !(hasMatches || summaryMatch);
 
@@ -266,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     sections.forEach(function (section) {
-      var sectionRows = Array.prototype.slice.call(section.querySelectorAll(':scope > .dv-theme-section-body > .form-table tr'));
+      var sectionRows = Array.prototype.slice.call(section.querySelectorAll('.form-table tr'));
       var ownRowMatches = sectionRows.some(function (row) {
         return !row.hidden;
       });
@@ -274,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return !subsection.hidden;
       });
       var summary = section.querySelector(':scope > summary');
-      var summaryMatch = ((summary ? summary.textContent : '') || '').toLowerCase().indexOf(term) !== -1;
+      var summaryMatch = Boolean(term && ((summary ? summary.textContent : '') || '').toLowerCase().indexOf(term) !== -1);
 
       section.hidden = !(ownRowMatches || visibleSubsections || summaryMatch);
 
@@ -284,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     updateCount(term, matchedRows);
+    document.querySelector('.dv-theme-content-page').dispatchEvent(new CustomEvent('dv-section-filter', { detail: { active: true } }));
   }
 
   function clearSearch() {
@@ -369,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function setupNavCounters() {
-    var links = Array.prototype.slice.call(document.querySelectorAll('.dv-theme-nav a[href^="#"]'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.dv-suite-section-nav a[href^="#"]'));
 
     links.forEach(function (link) {
       var targetId = (link.getAttribute('href') || '').replace('#', '');
@@ -551,6 +553,27 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function setupFieldGroups() {
+    var homeBody = document.querySelector('#dv-theme-home > .dv-theme-section-body > .form-table > tbody');
+    if (homeBody) {
+      var homeRows = Array.prototype.slice.call(homeBody.children);
+      var controls = ['home_popular_enabled', 'home_sale_enabled', 'home_categories_enabled', 'home_support_enabled'];
+      var orders = ['home_popular_order', 'home_sale_order', 'home_categories_order', 'home_categories_first'];
+      controls.forEach(function (key) {
+        var row = homeRows.find(function (item) { return item.getAttribute('data-dv-content-key') === key; });
+        if (row) homeBody.appendChild(row);
+      });
+      var homeGroups = new Map();
+      homeRows.filter(function (row) { var key = row.getAttribute('data-dv-content-key'); return controls.indexOf(key) === -1 && orders.indexOf(key) === -1; }).forEach(function (row) {
+        var group = row.getAttribute('data-dv-content-group');
+        if (!homeGroups.has(group)) homeGroups.set(group, []);
+        homeGroups.get(group).push(row);
+      });
+      homeGroups.forEach(function (groupRows) { groupRows.forEach(function (row) { homeBody.appendChild(row); }); });
+      orders.forEach(function (key) {
+        var row = homeRows.find(function (item) { return item.getAttribute('data-dv-content-key') === key; });
+        if (row) homeBody.appendChild(row);
+      });
+    }
     sections.concat(subsections).forEach(function (container) {
       var fieldRows = Array.prototype.slice.call(container.querySelectorAll(':scope > .dv-theme-section-body > .form-table tr, :scope > .dv-theme-subsection-body > .form-table tr, :scope > .dv-theme-section-body > .dv-content-field-group-panel .form-table tr, :scope > .dv-theme-subsection-body > .dv-content-field-group-panel .form-table tr'));
       var previousGroup = '';
@@ -618,6 +641,20 @@ document.addEventListener('DOMContentLoaded', function () {
       table.remove();
 
       chunks.forEach(function (chunk, index) {
+        if (container.id === 'dv-theme-home' && chunk.name === 'Что показывать на главной') {
+          var controlsPanel = document.createElement('section');
+          controlsPanel.className = 'dv-content-home-controls';
+          var heading = document.createElement('h3');
+          heading.textContent = chunk.name;
+          controlsPanel.appendChild(heading);
+          var controlsTable = table.cloneNode(false);
+          var controlsBody = document.createElement('tbody');
+          chunk.rows.forEach(function (row) { controlsBody.appendChild(row); });
+          controlsTable.appendChild(controlsBody);
+          controlsPanel.appendChild(controlsTable);
+          body.appendChild(controlsPanel);
+          return;
+        }
         var details = document.createElement('details');
         var summary = document.createElement('summary');
         var title = document.createElement('strong');
@@ -1443,6 +1480,12 @@ document.addEventListener('DOMContentLoaded', function () {
   setupCustomPageReadinessPreview();
   initMediaFields();
   updateFilterButtons();
+  document.querySelector('.dv-theme-content-page').addEventListener('dv-section-select', function () {
+    input.value = '';
+    activeContentFilter = 'all';
+    updateFilterButtons();
+    applyCurrentFilters();
+  });
   applyCurrentFilters();
   input.addEventListener('input', applySearch);
   input.addEventListener('keydown', function (event) {

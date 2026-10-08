@@ -2,6 +2,118 @@
     'use strict';
 
     const STORAGE_KEY = 'dvThemeOptionsActivePanel';
+    const VIEW_MODE_STORAGE_KEY = 'dvThemeOptionsViewMode';
+
+    function updateSaveVisibility(page) {
+        const cluster = page.querySelector('.dv-admin-save-cluster');
+        const panel = page.querySelector('.dv-admin-card.is-active');
+        if (cluster) {
+            cluster.hidden = !page.classList.contains('has-unsaved-changes')
+                && !page.classList.contains('is-searching-options')
+                && !(panel && panel.querySelector('[name^="dv_theme_options["]'));
+        }
+    }
+
+    function refreshGroupToggle(panel) {
+        if (!panel) return;
+        const button = panel.querySelector('[data-dv-groups-toggle]');
+        if (!button) return;
+        const groups = Array.from(panel.querySelectorAll('.dv-admin-field-group')).filter(group => !group.hidden);
+        button.hidden = groups.length < 2;
+        button.textContent = groups.some(group => group.classList.contains('is-collapsed')) ? 'Раскрыть группы' : 'Свернуть группы';
+    }
+
+    function readOptionViewMode() {
+        try {
+            return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'all' ? 'all' : 'basic';
+        } catch (error) {
+            return 'basic';
+        }
+    }
+
+    function writeOptionViewMode(mode) {
+        try {
+            window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode === 'all' ? 'all' : 'basic');
+        } catch (error) {}
+    }
+
+    function applyOptionViewMode(page, mode) {
+        const nextMode = mode === 'all' ? 'all' : 'basic';
+        const isSearching = page.classList.contains('is-searching-options');
+
+        page.dataset.dvOptionsViewMode = nextMode;
+
+        page.querySelectorAll('.dv-admin-field-group[data-dv-advanced="1"]').forEach((group) => {
+            group.hidden = !isSearching && nextMode === 'basic';
+        });
+
+        page.querySelectorAll('[data-dv-options-view-mode]').forEach((button) => {
+            const isActive = button.dataset.dvOptionsViewMode === nextMode;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        page.querySelectorAll('.dv-admin-card').forEach(refreshGroupToggle);
+    }
+
+    function setActiveGroup(page, groupId) {
+        const groupButtons = Array.from(page.querySelectorAll('.dv-admin-mode-nav [data-dv-options-group]'));
+        const links = Array.from(page.querySelectorAll('.dv-admin-nav a[data-dv-options-group]'));
+        const nextGroup = groupId || (links[0] ? links[0].dataset.dvOptionsGroup : '');
+
+        if (!nextGroup || page.classList.contains('is-searching-options')) {
+            return;
+        }
+
+        groupButtons.forEach((button) => {
+            const isActive = button.dataset.dvOptionsGroup === nextGroup;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            button.tabIndex = isActive ? 0 : -1;
+        });
+
+        links.forEach((link) => {
+            link.hidden = link.dataset.dvOptionsGroup !== nextGroup;
+        });
+
+        page.dataset.dvActiveOptionsGroup = nextGroup;
+    }
+
+    function setupGroupNavigation(page, activateTarget) {
+        const groupButtons = Array.from(page.querySelectorAll('.dv-admin-mode-nav [data-dv-options-group]'));
+        const links = Array.from(page.querySelectorAll('.dv-admin-nav a[data-dv-options-group]'));
+
+        groupButtons.forEach((button, buttonIndex) => {
+            button.addEventListener('click', () => {
+                const groupId = button.dataset.dvOptionsGroup || '';
+                const firstLink = links.find((link) => link.dataset.dvOptionsGroup === groupId);
+
+                if (firstLink) {
+                    activateTarget(firstLink.getAttribute('href'));
+                }
+            });
+
+            button.addEventListener('keydown', (event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                let nextIndex = buttonIndex;
+                if (event.key === 'Home') {
+                    nextIndex = 0;
+                } else if (event.key === 'End') {
+                    nextIndex = groupButtons.length - 1;
+                } else {
+                    const direction = event.key === 'ArrowRight' ? 1 : -1;
+                    nextIndex = (buttonIndex + direction + groupButtons.length) % groupButtons.length;
+                }
+
+                groupButtons[nextIndex].focus();
+                groupButtons[nextIndex].click();
+            });
+        });
+    }
 
     function readActiveTarget() {
         try {
@@ -35,6 +147,7 @@
         if (toggleText) {
             toggleText.textContent = isExpanded ? 'Свернуть' : 'Раскрыть';
         }
+        refreshGroupToggle(group.closest('.dv-admin-card'));
     }
 
     function formatOptionCount(count) {
@@ -81,6 +194,7 @@
             page.classList.toggle('has-unsaved-changes', hasChanges);
             indicator.hidden = !hasChanges;
             submitButton.classList.toggle('is-attention-needed', hasChanges);
+            updateSaveVisibility(page);
         }
 
         form.addEventListener('input', updateState);
@@ -110,11 +224,14 @@
 
         const links = page.querySelectorAll('.dv-admin-nav a[href^="#dv-options-"]');
         const panels = page.querySelectorAll('.dv-admin-card[id^="dv-options-"]');
-        const nextPanel = page.querySelector(targetId);
+        const nextPanel = document.getElementById((targetId || '').replace(/^#/, ''));
 
-        if (!nextPanel) {
+        if (!nextPanel || !page.contains(nextPanel) || !nextPanel.matches('.dv-admin-card[id^="dv-options-"]')) {
             return;
         }
+
+        const activeLink = Array.from(links).find((link) => link.getAttribute('href') === targetId);
+        setActiveGroup(page, activeLink ? activeLink.dataset.dvOptionsGroup : '');
 
         links.forEach((link) => {
             const isActive = link.getAttribute('href') === targetId;
@@ -133,13 +250,15 @@
         }
 
         writeActiveTarget(targetId);
+        updateSaveVisibility(page);
     }
 
     function setupSettingsSearch(page, getActiveTarget, setActiveTarget) {
         const search = page.querySelector('#dv-theme-options-search');
         const clearButton = page.querySelector('#dv-theme-options-search-clear');
         const counter = page.querySelector('#dv-theme-options-search-count');
-        const fields = Array.from(page.querySelectorAll('.dv-admin-field, .dv-admin-check'));
+        const fields = Array.from(page.querySelectorAll('.dv-admin-field, .dv-admin-check, .dv-admin-order-item'));
+        const orderDetails = Array.from(page.querySelectorAll('details.dv-admin-order-grid'));
         const groups = Array.from(page.querySelectorAll('.dv-admin-field-group'));
         const panels = Array.from(page.querySelectorAll('.dv-admin-card[id^="dv-options-"]'));
         const links = Array.from(page.querySelectorAll('.dv-admin-nav a[href^="#dv-options-"]'));
@@ -156,6 +275,13 @@
         }
 
         function clearSearchState(targetId) {
+            orderDetails.forEach((details) => {
+                details.hidden = false;
+                if (details.dataset.dvSearchOpened === '1') {
+                    details.open = false;
+                    delete details.dataset.dvSearchOpened;
+                }
+            });
             fields.forEach((field) => {
                 field.hidden = false;
                 field.classList.remove('is-options-search-match');
@@ -176,6 +302,7 @@
             });
 
             page.classList.remove('is-searching-options');
+            applyOptionViewMode(page, readOptionViewMode());
             if (counter) {
                 counter.textContent = '';
             }
@@ -207,6 +334,15 @@
                 }
             });
 
+            orderDetails.forEach((details) => {
+                const hasMatches = Boolean(details.querySelector('.is-options-search-match'));
+                details.hidden = !hasMatches;
+                if (hasMatches && !details.open) {
+                    details.dataset.dvSearchOpened = '1';
+                    details.open = true;
+                }
+            });
+
             groups.forEach((group) => {
                 const hasGroupMatch = Boolean(group.querySelector('.is-options-search-match'));
 
@@ -234,6 +370,7 @@
             if (counter) {
                 counter.textContent = matchedCount ? `${countLabel}: ${matchedCount}` : emptyText;
             }
+            updateSaveVisibility(page);
         }
 
         search.addEventListener('input', applySearch);
@@ -270,6 +407,15 @@
                 setActiveTarget(targetId);
             });
         });
+
+        const requestedSearch = new URLSearchParams(window.location.search).get('dv-settings-search');
+
+        if (requestedSearch) {
+            search.value = requestedSearch;
+            applySearch();
+            search.focus({ preventScroll: true });
+            search.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     function setupNavCounters(page) {
@@ -283,7 +429,7 @@
                 return;
             }
 
-            const count = panel.querySelectorAll('.dv-admin-field, .dv-admin-check').length;
+            const count = panel.querySelectorAll('.dv-admin-field, .dv-admin-check, .dv-admin-order-item').length;
 
             if (!count) {
                 return;
@@ -296,12 +442,67 @@
         });
     }
 
+    function setupQuickWorkflows(page, activateTarget) {
+        const search = page.querySelector('#dv-theme-options-search');
+        const workflows = Array.from(page.querySelectorAll('[data-dv-options-target]'));
+
+        workflows.forEach((workflow) => {
+            workflow.addEventListener('click', (event) => {
+                const targetId = workflow.dataset.dvOptionsTarget || '';
+                const searchQuery = workflow.dataset.dvOptionsSearch || '';
+
+                if (!targetId || !page.querySelector(targetId)) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const drawer = workflow.closest('.dv-admin-workflow-drawer');
+                if (drawer) {
+                    drawer.open = false;
+                }
+
+                if (search) {
+                    search.value = '';
+                    search.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                activateTarget(targetId);
+
+                if (search && searchQuery) {
+                    search.value = searchQuery;
+                    search.dispatchEvent(new Event('input', { bubbles: true }));
+                    search.focus();
+                }
+
+                const toolbar = page.querySelector('.dv-admin-toolbar');
+                if (toolbar && !searchQuery) {
+                    toolbar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
     function setupOptionGroups(page) {
+        const headerPanel = page.querySelector('#dv-options-header');
+        const catalogPanel = page.querySelector('#dv-options-catalog');
+        const footerPanel = page.querySelector('#dv-options-footer');
+
+        if (headerPanel && catalogPanel) {
+            catalogPanel.querySelectorAll('[data-dv-option-key]').forEach((field) => {
+                const key = field.dataset.dvOptionKey || '';
+                if (key.startsWith('header_') || key.startsWith('topbar_')) {
+                    headerPanel.appendChild(field);
+                } else if (key === 'footer_categories_limit' && footerPanel) {
+                    footerPanel.appendChild(field);
+                }
+            });
+        }
         const definitions = {
             'dv-options-visual': [
                 {
                     title: 'Пресеты и палитра',
-                    description: 'Быстрый выбор общего вида и отдельная цветовая схема поверх выбранной раскладки.',
+                    description: 'Общий вид и цветовая схема.',
                     keys: [
                         'theme_visual_preset',
                         'theme_color_scheme',
@@ -309,7 +510,7 @@
                 },
                 {
                     title: 'Габариты интерфейса',
-                    description: 'Ширина, скругления, плотность и глубина теней для витрины.',
+                    description: 'Ширина, скругления, отступы и тени.',
                     keys: [
                         'theme_radius_style',
                         'theme_layout_width',
@@ -319,7 +520,7 @@
                 },
                 {
                     title: 'Шапка, футер и карточки',
-                    description: 'Вид основных зон сайта, пропорции фото и поведение карточек товаров.',
+                    description: 'Основные блоки, фото и карточки товаров.',
                     keys: [
                         'theme_header_style',
                         'theme_footer_style',
@@ -331,10 +532,10 @@
                     ],
                 },
             ],
-            'dv-options-catalog': [
+            'dv-options-header': [
                 {
-                    title: 'Шапка и topbar',
-                    description: 'Город, телефон, быстрые ссылки, поиск и иконки в верхней части сайта.',
+                    title: 'Контакты и кнопки',
+                    description: 'Город, телефон, поиск и быстрые действия.',
                     keys: [
                         'header_topbar_enabled',
                         'topbar_city_enabled',
@@ -353,20 +554,26 @@
                     ],
                 },
                 {
-                    title: 'Меню и выдача каталога',
-                    description: 'Кнопка категорий, ссылки меню, количество товаров и колонок.',
+                    title: 'Меню категорий',
+                    description: 'Категории и ссылки верхнего меню.',
+                    advanced: false,
                     keys: [
                         'header_catalog_dropdown_enabled',
                         'header_nav_links_enabled',
-                        'catalog_per_page',
-                        'catalog_columns',
                         'header_categories_limit',
-                        'footer_categories_limit',
                     ],
                 },
+            ],
+            'dv-options-catalog': [
                 {
-                    title: 'Sidebar и фильтры',
-                    description: 'Блоки подбора, лимиты, цена, наличие и рекомендации в боковой колонке.',
+                    title: 'Сетка товаров',
+                    description: 'Количество товаров и колонок.',
+                    keys: ['catalog_per_page', 'catalog_columns'],
+                },
+                {
+                    title: 'Фильтры каталога',
+                    advanced: false,
+                    description: 'Подбор, цена, наличие и рекомендации.',
                     keys: [
                         'catalog_marka_limit',
                         'catalog_category_limit',
@@ -383,7 +590,7 @@
             'dv-options-catalog-card': [
                 {
                     title: 'Состав карточки',
-                    description: 'Видимые элементы товарной карточки в каталоге и на главной.',
+                    description: 'Элементы карточки в списке товаров.',
                     keys: [
                         'catalog_card_badges_enabled',
                         'catalog_card_actions_enabled',
@@ -426,19 +633,20 @@
             'dv-options-footer': [
                 {
                     title: 'Основные колонки',
-                    description: 'Бренд, контакты, каталог и сервисные колонки в футере.',
+                    description: 'Бренд, контакты и ссылки.',
                     keys: [
                         'footer_brand_enabled',
                         'footer_description_enabled',
                         'footer_contacts_enabled',
                         'footer_catalog_enabled',
+                        'footer_categories_limit',
                         'footer_customers_enabled',
                         'footer_company_enabled',
                     ],
                 },
                 {
                     title: 'Нижняя строка',
-                    description: 'Копирайт, платежные бейджи и юридические ссылки.',
+                    description: 'Копирайт, способы оплаты и документы.',
                     keys: [
                         'footer_bottom_enabled',
                         'footer_payment_icons_enabled',
@@ -500,12 +708,14 @@
                     keys: [
                         'product_gallery_hint_enabled',
                         'product_meta_sku_enabled',
+                        'product_part_number_enabled',
                         'product_summary_description_enabled',
                     ],
                 },
                 {
                     title: 'Покупка и действия',
                     description: 'Избранное, сравнение и ссылка на маркетплейс в товаре.',
+                    advanced: false,
                     keys: [
                         'product_actions_enabled',
                         'product_wishlist_enabled',
@@ -563,36 +773,48 @@
             const visibleGroups = groups.filter((group) => {
                 return group.keys.some((key) => panel.querySelector(`[data-dv-option-key="${key}"]`));
             });
-            let insertAfter = heading;
+            let insertAfter = panel.querySelector('.dv-settings-related-links') || heading;
 
             if (heading && visibleGroups.length > 1) {
                 const panelTools = document.createElement('div');
                 panelTools.className = 'dv-admin-panel-tools';
 
+                const viewMode = document.createElement('div');
+                viewMode.className = 'dv-admin-view-mode';
+                viewMode.setAttribute('role', 'group');
+                viewMode.setAttribute('aria-label', 'Объём настроек');
+
+                [
+                    ['basic', 'Основные'],
+                    ['all', 'Все настройки'],
+                ].forEach(([mode, label]) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.dataset.dvOptionsViewMode = mode;
+                    button.setAttribute('aria-pressed', 'false');
+                    button.textContent = label;
+                    button.addEventListener('click', () => {
+                        writeOptionViewMode(mode);
+                        applyOptionViewMode(page, mode);
+                    });
+                    viewMode.appendChild(button);
+                });
+
                 const expandAll = document.createElement('button');
                 expandAll.type = 'button';
                 expandAll.className = 'dv-admin-panel-tool';
-                expandAll.textContent = 'Раскрыть все';
-
-                const collapseAll = document.createElement('button');
-                collapseAll.type = 'button';
-                collapseAll.className = 'dv-admin-panel-tool';
-                collapseAll.textContent = 'Свернуть';
+                expandAll.dataset.dvGroupsToggle = '1';
+                expandAll.textContent = 'Раскрыть группы';
 
                 expandAll.addEventListener('click', () => {
-                    panel.querySelectorAll('.dv-admin-field-group').forEach((group) => {
-                        setFieldGroupExpanded(group, true);
-                    });
+                    const visible = Array.from(panel.querySelectorAll('.dv-admin-field-group')).filter(group => !group.hidden);
+                    const open = visible.some(group => group.classList.contains('is-collapsed'));
+                    visible.forEach(group => setFieldGroupExpanded(group, open));
+                    refreshGroupToggle(panel);
                 });
 
-                collapseAll.addEventListener('click', () => {
-                    panel.querySelectorAll('.dv-admin-field-group').forEach((group, index) => {
-                        setFieldGroupExpanded(group, index === 0);
-                    });
-                });
-
-                panelTools.append(expandAll, collapseAll);
-                heading.insertAdjacentElement('afterend', panelTools);
+                panelTools.append(viewMode, expandAll);
+                insertAfter.insertAdjacentElement('afterend', panelTools);
                 insertAfter = panelTools;
             }
 
@@ -607,6 +829,11 @@
 
                 const wrapper = document.createElement('section');
                 wrapper.className = 'dv-admin-field-group';
+                const isAdvanced = typeof group.advanced === 'boolean'
+                    ? group.advanced
+                    : groups.length > 1 && groupIndex > 0;
+
+                wrapper.dataset.dvAdvanced = isAdvanced ? '1' : '0';
 
                 const head = document.createElement('div');
                 head.className = 'dv-admin-field-group-head';
@@ -663,6 +890,8 @@
 
             panel.dataset.dvOptionGroupsReady = '1';
         });
+
+        applyOptionViewMode(page, readOptionViewMode());
     }
 
     function setupVisualPreview(page) {
@@ -764,13 +993,15 @@
             })
             .filter(Boolean);
         const controlsByKey = new Map(controls.map((binding) => [binding.key, binding]));
-        const recipeButtons = Array.from(preview.querySelectorAll('[data-dv-visual-recipe]'))
-            .map((button) => {
+        const recipeSelect = preview.querySelector('#dv-visual-recipe-select');
+        const recipeApply = preview.querySelector('[data-dv-apply-recipe]');
+        const recipeOptions = Array.from(preview.querySelectorAll('option[data-dv-visual-recipe]'))
+            .map((option) => {
                 try {
-                    const recipe = JSON.parse(button.dataset.dvVisualRecipe || '{}');
+                    const recipe = JSON.parse(option.dataset.dvVisualRecipe || '{}');
 
                     return recipe && typeof recipe === 'object'
-                        ? { button, recipe }
+                        ? { option, recipe }
                         : null;
                 } catch (error) {
                     return null;
@@ -819,12 +1050,11 @@
                     : state.dataset.savedLabel || state.textContent;
             }
 
-            recipeButtons.forEach(({ button, recipe }) => {
-                const isActive = recipeMatches(recipe);
-
-                button.classList.toggle('is-active', isActive);
-                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-            });
+            if (recipeSelect) {
+                const matching = recipeOptions.find(({ recipe }) => recipeMatches(recipe));
+                recipeSelect.value = matching ? matching.option.value : '';
+                if (recipeApply) recipeApply.disabled = !recipeSelect.value;
+            }
         }
 
         function setPreviewDevice(device) {
@@ -851,8 +1081,12 @@
             });
         });
 
-        recipeButtons.forEach(({ button, recipe }) => {
-            button.addEventListener('click', () => {
+        if (recipeApply && recipeSelect) {
+            recipeSelect.addEventListener('change', () => { recipeApply.disabled = !recipeSelect.value; });
+            recipeApply.addEventListener('click', () => {
+                const chosen = recipeOptions.find(({ option }) => option.value === recipeSelect.value);
+                if (!chosen) return;
+                const recipe = chosen.recipe;
                 Object.entries(recipe).forEach(([key, value]) => {
                     const binding = controlsByKey.get(key);
 
@@ -866,7 +1100,7 @@
 
                 syncPreview();
             });
-        });
+        }
 
         syncPreview();
         setPreviewDevice('desktop');
@@ -952,10 +1186,11 @@
         const hashId = window.location.hash ? window.location.hash.slice(1) : '';
         const hashPanel = hashId ? document.getElementById(hashId) : null;
         const storedTarget = readActiveTarget();
-        const storedPanel = storedTarget ? page.querySelector(storedTarget) : null;
-        const initialHash = hashPanel && page.contains(hashPanel)
+        const storedPanel = storedTarget ? document.getElementById(storedTarget.replace(/^#/, '')) : null;
+        const isOptionsPanel = (panel) => panel && page.contains(panel) && panel.matches('.dv-admin-card[id^="dv-options-"]');
+        const initialHash = isOptionsPanel(hashPanel)
             ? window.location.hash
-            : storedPanel
+            : isOptionsPanel(storedPanel)
                 ? storedTarget
             : firstLink ? firstLink.getAttribute('href') : '';
         let activeTarget = initialHash;
@@ -966,6 +1201,10 @@
 
         page.classList.add('dv-admin-tabs-ready');
         activateTab(page, initialHash, false);
+        setupGroupNavigation(page, (targetId) => {
+            activeTarget = targetId || activeTarget;
+            activateTab(page, activeTarget, true);
+        });
         setupOptionGroups(page);
         setupNavCounters(page);
 
@@ -984,6 +1223,27 @@
                 activeTarget = nextTarget || activeTarget;
             }
         );
+        window.addEventListener('hashchange', () => {
+            const targetId = window.location.hash;
+            const panel = document.getElementById(targetId.slice(1));
+
+            if (!isOptionsPanel(panel)) {
+                return;
+            }
+
+            const search = page.querySelector('#dv-theme-options-search');
+            if (search && search.value) {
+                search.value = '';
+                search.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            activeTarget = targetId;
+            activateTab(page, activeTarget, false);
+        });
+        setupQuickWorkflows(page, (targetId) => {
+            activeTarget = targetId || activeTarget;
+            activateTab(page, activeTarget, true);
+        });
 
         setupUnsavedState(page);
         setupVisualPreview(page);

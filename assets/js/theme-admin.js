@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
   setupSuiteHeader();
+  setupSectionNavigation();
   setupBackToTop();
   setupLocalSearchShortcut();
   setupCommandPalette();
@@ -8,10 +9,82 @@ document.addEventListener('DOMContentLoaded', function () {
   setupSaveFeedback();
   setupUnsavedForms();
 
+  function setupSectionNavigation() {
+    var page = document.querySelector('.dv-suite-page');
+    var nav = page ? page.querySelector('[data-dv-section-nav]') : null;
+    if (!nav) return;
+
+    var custom = page.querySelector('#dv-theme-custom-service-pages');
+    if (custom && custom.closest('.dv-theme-section')) {
+      custom.closest('form').appendChild(custom);
+      custom.classList.remove('dv-theme-subsection');
+      custom.classList.add('dv-theme-section');
+      var customBody = custom.querySelector('.dv-theme-subsection-body');
+      if (customBody) customBody.classList.add('dv-theme-section-body');
+    }
+
+    var links = Array.prototype.slice.call(nav.querySelectorAll('a[href^="#"]'));
+    var panels = links.map(function (link) { return document.getElementById(link.hash.slice(1)); }).filter(Boolean);
+    panels.forEach(function (panel) { panel.dataset.dvSectionPanel = '1'; });
+    var active = panels[0];
+    var filtering = false;
+    var storageKey = 'dvSection:' + new URLSearchParams(location.search).get('page');
+
+    function targetFromHash(hash) {
+      var target;
+      try { target = document.getElementById(decodeURIComponent(hash.replace(/^#/, ''))); } catch (error) { return null; }
+      return panels.find(function (panel) { return panel === target || panel.contains(target); }) || null;
+    }
+
+    function render() {
+      if (filtering || !active) return;
+      panels.forEach(function (panel) {
+        panel.hidden = panel !== active;
+        if (panel === active && panel.tagName === 'DETAILS') panel.open = true;
+      });
+      links.forEach(function (link) {
+        var selected = link.hash === '#' + active.id;
+        link.classList.toggle('is-active', selected);
+        link.setAttribute('aria-current', selected ? 'page' : 'false');
+      });
+      page.dataset.dvActiveSection = active.id;
+    }
+
+    function select(panel, updateUrl) {
+      if (!panel) return;
+      active = panel;
+      filtering = false;
+      try { localStorage.setItem(storageKey, panel.id); } catch (error) {}
+      if (updateUrl) history.replaceState(null, '', '#' + panel.id);
+      page.dispatchEvent(new CustomEvent('dv-section-select', { detail: { id: panel.id } }));
+      render();
+    }
+
+    try { active = targetFromHash('#' + localStorage.getItem(storageKey)) || active; } catch (error) {}
+    active = targetFromHash(location.hash) || active;
+    if (!location.hash && new URLSearchParams(location.search).get('dv_seo_check_url')) {
+      active = targetFromHash('#dv-seo-head') || active;
+    }
+    links.forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        select(targetFromHash(link.hash), true);
+      });
+    });
+    window.addEventListener('hashchange', function () { select(targetFromHash(location.hash), false); });
+    page.addEventListener('dv-section-filter', function (event) {
+      filtering = !!(event.detail && event.detail.active);
+      if (filtering) {
+        links.forEach(function (link) { link.classList.remove('is-active'); link.setAttribute('aria-current', 'false'); });
+      } else render();
+    });
+    render();
+  }
+
   function setupSuiteHeader() {
     var header = document.querySelector('.dv-suite-header');
 
-    if (!header) {
+    if (!header || header.classList.contains('dv-suite-header-simple')) {
       return;
     }
 

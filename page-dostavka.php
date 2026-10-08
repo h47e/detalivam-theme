@@ -64,6 +64,7 @@ function dv_delivery_icon( $name ) {
 
 <div class="container page-shell page-shell--wide service-page-shell">
   <h1><?php echo esc_html( $page_title ); ?></h1>
+  <?php if ( function_exists( 'dv_render_pickup_locations' ) ) { dv_render_pickup_locations(); } ?>
 
   <section class="service-card service-delivery-intro">
     <div class="service-section-head service-section-head--left">

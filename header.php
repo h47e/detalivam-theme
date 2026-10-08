@@ -150,7 +150,7 @@ if ( function_exists( 'wc_get_page_id' ) ) {
           <?php endif; ?>
           <?php if ( $dv_header_cart_enabled ) : ?>
           <div class="header-action-wrap" data-header-preview="cart">
-            <a href="<?php echo esc_url( wc_get_cart_url() ); ?>" class="header-icon-btn">
+            <a href="<?php echo esc_url( wc_get_cart_url() ); ?>" class="header-icon-btn" aria-label="&#1050;&#1086;&#1088;&#1079;&#1080;&#1085;&#1072;<?php echo $dv_cart_count > 0 ? ': ' . esc_attr( $dv_cart_count ) : ''; ?>">
               <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
               <?php if ( $dv_cart_count > 0 ) : ?>
                 <span class="cart-badge" id="dv-cart-badge"><?php echo esc_html( $dv_cart_count ); ?></span>

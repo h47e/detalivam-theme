@@ -103,7 +103,7 @@ add_action( 'created_term', 'dv_convert_product_category_slug', 10, 3 );
 add_action( 'edited_term', 'dv_convert_product_category_slug', 10, 3 );
 
 function dv_slug_tools_report_cache_key() {
-    return 'dv_slug_tools_report_v1';
+    return 'dv_slug_tools_report_v2';
 }
 
 function dv_slug_tools_clear_report_cache( ...$unused ) {
@@ -115,12 +115,11 @@ add_action( 'edited_product_cat', 'dv_slug_tools_clear_report_cache' );
 add_action( 'delete_product_cat', 'dv_slug_tools_clear_report_cache' );
 
 function dv_existing_product_slug_candidates() {
-    $ids = get_posts(
+    $posts = get_posts(
         array(
             'post_type'              => 'product',
             'post_status'            => array( 'publish', 'draft', 'pending', 'private', 'future' ),
             'posts_per_page'         => -1,
-            'fields'                 => 'ids',
             'no_found_rows'          => true,
             'update_post_meta_cache' => false,
             'update_post_term_cache' => false,
@@ -128,8 +127,7 @@ function dv_existing_product_slug_candidates() {
     );
 
     $candidates = array();
-    foreach ( $ids as $post_id ) {
-        $post = get_post( $post_id );
+    foreach ( $posts as $post ) {
         if ( ! $post instanceof WP_Post ) {
             continue;
         }
@@ -336,8 +334,8 @@ function dv_slug_tools_preview_items( $products, $categories, $limit = 8 ) {
 function dv_register_slug_tools_page() {
     add_submenu_page(
         'dv-theme-options',
-        'Slug',
-        'Slug',
+        'Адреса страниц',
+        'Адреса страниц',
         'manage_options',
         'dv-slug-tools',
         'dv_render_slug_tools_page'
@@ -391,26 +389,16 @@ function dv_render_slug_tools_page() {
     $last_run   = get_transient( 'dv_slug_tools_last_run' );
     $action_url = admin_url( 'admin-post.php' );
     ?>
-    <div class="wrap dv-suite dv-suite-page">
+    <div class="wrap dv-suite dv-suite-page dv-slug-tools-page">
         <?php
         if ( function_exists( 'dv_render_admin_suite_header' ) ) {
             dv_render_admin_suite_header(
                 'dv-slug-tools',
-                'Slug товаров и категорий',
+                'Адреса товаров и категорий',
                 'Проверка старых URL: кириллические slug можно безопасно перевести в латиницу.'
             );
         } else {
-            echo '<h1>Slug товаров и категорий</h1>';
-        }
-        ?>
-
-        <?php
-        if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
-            dv_render_admin_suite_local_nav(
-                array(
-                    array( 'href' => '#dv-slug-check', 'label' => 'Проверка slug', 'description' => 'Товары / категории' ),
-                )
-            );
+            echo '<h1>Адреса товаров и категорий</h1>';
         }
         ?>
 
@@ -430,7 +418,7 @@ function dv_render_slug_tools_page() {
         <?php endif; ?>
 
         <section class="dv-suite-card dv-slug-tools-card" id="dv-slug-check">
-            <h2>Проверка существующих slug</h2>
+            <h2>Проверка адресов</h2>
             <p>Новые товары и категории уже конвертируются автоматически. Этот инструмент нужен для старых позиций, где URL остался на кириллице или в виде `%d0...`.</p>
 
             <div class="dv-slug-tools-stats">
@@ -475,8 +463,8 @@ function dv_render_slug_tools_page() {
             <form method="post" action="<?php echo esc_url( $action_url ); ?>">
                 <?php wp_nonce_field( 'dv_convert_existing_slugs' ); ?>
                 <input type="hidden" name="action" value="dv_convert_existing_slugs">
-                <button type="submit" class="button button-primary" <?php disabled( 0, $report['total'] ); ?>>
-                    Проверить и перевести старые slug
+                <button type="submit" class="button button-primary" data-dv-confirm="Перевести старые адреса товаров и категорий в латиницу? Будут изменены URL найденных позиций." <?php disabled( 0, $report['total'] ); ?>>
+                    Перевести адреса в латиницу
                 </button>
             </form>
         </section>

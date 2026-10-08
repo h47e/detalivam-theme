@@ -12,6 +12,7 @@ $dv_sale_limit       = max( 1, absint( $dv_content['home_sale_limit'] ?? 4 ) );
 $dv_categories_limit = max( 1, absint( $dv_content['home_categories_limit'] ?? 8 ) );
 $dv_home_columns     = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'home_product_columns', 4, 2, 6 ) : 4;
 $dv_products_label   = html_entity_decode( '&#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;', ENT_QUOTES, 'UTF-8' );
+$dv_categories_first = '1' === (string) ( $dv_content['home_categories_first'] ?? '1' );
 
 $dv_home_sections = array(
     'popular'    => array(
@@ -42,6 +43,7 @@ $dv_home_sections = array(
     ),
     'categories' => array(
         'index'     => 3,
+        'is_categories' => true,
         'enabled'   => ! empty( $dv_content['home_categories_enabled'] ),
         'order'     => max( 1, absint( $dv_content['home_categories_order'] ?? 30 ) ),
         'title'     => $dv_content['home_categories_title'] ?? '',
@@ -49,13 +51,16 @@ $dv_home_sections = array(
         'link_url'  => function_exists( 'dv_theme_content_url' )
             ? dv_theme_content_url( $dv_content['home_categories_link_url'] ?? '', $dv_shop_url )
             : ( $dv_content['home_categories_link_url'] ?? $dv_shop_url ),
-        'classes'   => array( 'home-section' ),
+        'classes'   => array( 'home-section', 'home-section--categories' ),
     ),
 );
 
 uasort(
     $dv_home_sections,
-    static function ( $a, $b ) {
+    static function ( $a, $b ) use ( $dv_categories_first ) {
+        if ( $dv_categories_first && ( ! empty( $a['is_categories'] ) ) !== ( ! empty( $b['is_categories'] ) ) ) {
+            return ! empty( $a['is_categories'] ) ? -1 : 1;
+        }
         if ( (int) $a['order'] === (int) $b['order'] ) {
             return (int) $a['index'] <=> (int) $b['index'];
         }
@@ -65,6 +70,7 @@ uasort(
 );
 
 $dv_visible_section_number = 0;
+$dv_support_rendered = false;
 ?>
 
 <?php foreach ( $dv_home_sections as $dv_section_key => $dv_section ) : ?>
@@ -147,6 +153,10 @@ $dv_visible_section_number = 0;
         <?php endif; ?>
       </div>
     </div>
+    <?php if ( 'categories' === $dv_section_key ) : ?>
+      <?php get_template_part( 'template-parts/home-support' ); $dv_support_rendered = true; ?>
+    <?php endif; ?>
 <?php endforeach; ?>
 
+<?php if ( ! $dv_support_rendered ) { get_template_part( 'template-parts/home-support' ); } ?>
 <?php get_footer(); ?>

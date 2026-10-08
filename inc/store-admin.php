@@ -3,8 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 function dv_store_admin_labels() {
     return array(
-        'page_title'         => html_entity_decode( '&#1053;&#1072;&#1089;&#1090;&#1088;&#1086;&#1081;&#1082;&#1080; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ),
-        'menu_title'         => html_entity_decode( '&#1044;&#1077;&#1090;&#1072;&#1083;&#1080;&#1042;&#1072;&#1084;: &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;', ENT_QUOTES, 'UTF-8' ),
+        'page_title'         => 'Контакты и реквизиты магазина',
+        'menu_title'         => 'Контакты магазина',
         'section_title'      => html_entity_decode( '&#1055;&#1088;&#1086;&#1092;&#1080;&#1083;&#1100; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ),
         'section_desc'       => html_entity_decode( '&#1069;&#1090;&#1080; &#1076;&#1072;&#1085;&#1085;&#1099;&#1077; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1102;&#1090;&#1089;&#1103; &#1074; &#1096;&#1072;&#1087;&#1082;&#1077;, &#1092;&#1091;&#1090;&#1077;&#1088;&#1077;, SEO, schema &#1080; &#1083;&#1086;&#1082;&#1072;&#1083;&#1100;&#1085;&#1099;&#1093; &#1089;&#1080;&#1075;&#1085;&#1072;&#1083;&#1072;&#1093; &#1089;&#1072;&#1081;&#1090;&#1072;.', ENT_QUOTES, 'UTF-8' ),
         'name'               => html_entity_decode( '&#1053;&#1072;&#1079;&#1074;&#1072;&#1085;&#1080;&#1077; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ),
@@ -64,6 +64,7 @@ function dv_sanitize_store_profile( $input ) {
 
 function dv_register_store_settings() {
     register_setting( 'dv_store_profile_group', 'dv_store_profile', 'dv_sanitize_store_profile' );
+    register_setting( 'dv_store_profile_group', 'dv_pickup_locations', array( 'type' => 'array', 'sanitize_callback' => 'dv_sanitize_pickup_locations', 'default' => array() ) );
 }
 add_action( 'admin_init', 'dv_register_store_settings' );
 
@@ -376,21 +377,6 @@ function dv_render_store_settings_page() {
     ?>
     <div class="wrap dv-suite-page dv-store-settings-page">
       <?php dv_render_admin_suite_header( 'dv-store-settings', $labels['page_title'], $labels['section_desc'] ); ?>
-      <?php dv_render_store_profile_overview( $profile ); ?>
-      <?php dv_render_store_profile_preview( $profile, $theme_options ); ?>
-
-      <?php
-      if ( function_exists( 'dv_render_admin_suite_local_nav' ) ) {
-          dv_render_admin_suite_local_nav(
-              array(
-                  array( 'href' => '#dv-store-brand', 'label' => html_entity_decode( '&#1041;&#1088;&#1077;&#1085;&#1076;', ENT_QUOTES, 'UTF-8' ), 'description' => html_entity_decode( '&#1051;&#1086;&#1075;&#1086;&#1090;&#1080;&#1087;', ENT_QUOTES, 'UTF-8' ) ),
-                  array( 'href' => '#dv-store-contacts', 'label' => html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ), 'description' => 'SEO' ),
-                  array( 'href' => '#dv-store-marketplaces', 'label' => $labels['marketplaces'], 'description' => 'Ozon' ),
-                  array( 'href' => '#dv-store-footer', 'label' => html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;', ENT_QUOTES, 'UTF-8' ), 'description' => html_entity_decode( '&#1058;&#1077;&#1082;&#1089;&#1090;', ENT_QUOTES, 'UTF-8' ) ),
-              )
-          );
-      }
-      ?>
 
       <form class="dv-suite-card dv-store-settings-form" method="post" action="options.php" data-dv-unsaved-form>
         <?php settings_fields( 'dv_store_profile_group' ); ?>
@@ -453,6 +439,7 @@ function dv_render_store_settings_page() {
               <button type="button" id="dv-store-settings-search-clear" aria-label="<?php echo esc_attr( html_entity_decode( '&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1087;&#1086;&#1080;&#1089;&#1082;', ENT_QUOTES, 'UTF-8' ) ); ?>">&times;</button>
             </div>
             <p class="dv-store-settings-search-count" id="dv-store-settings-search-count"></p>
+            <details class="dv-store-filters-drawer"><summary>Фильтр заполненности</summary>
             <div class="dv-store-settings-filters" aria-label="<?php echo esc_attr( html_entity_decode( '&#1060;&#1080;&#1083;&#1100;&#1090;&#1088; &#1087;&#1086;&#1083;&#1077;&#1081; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ) ); ?>">
               <button type="button" class="is-active" data-dv-store-filter="all">
                 <?php echo esc_html( html_entity_decode( '&#1042;&#1089;&#1077;', ENT_QUOTES, 'UTF-8' ) ); ?>
@@ -468,10 +455,12 @@ function dv_render_store_settings_page() {
                 <?php echo esc_html( html_entity_decode( '&#1050; &#1087;&#1077;&#1088;&#1074;&#1086;&#1084;&#1091; &#1087;&#1091;&#1089;&#1090;&#1086;&#1084;&#1091;', ENT_QUOTES, 'UTF-8' ) ); ?>
               </button>
             </div>
+            </details>
           </div>
           <nav aria-label="<?php echo esc_attr( html_entity_decode( '&#1056;&#1072;&#1079;&#1076;&#1077;&#1083;&#1099; &#1087;&#1088;&#1086;&#1092;&#1080;&#1083;&#1103; &#1084;&#1072;&#1075;&#1072;&#1079;&#1080;&#1085;&#1072;', ENT_QUOTES, 'UTF-8' ) ); ?>">
             <a href="#dv-store-main"><?php echo esc_html( html_entity_decode( '&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1086;&#1077;', ENT_QUOTES, 'UTF-8' ) ); ?></a>
             <a href="#dv-store-contacts"><?php echo esc_html( html_entity_decode( '&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;&#1099;', ENT_QUOTES, 'UTF-8' ) ); ?></a>
+            <a href="#dv-store-pickup">Пункты самовывоза</a>
             <a href="#dv-store-marketplaces"><?php echo esc_html( $labels['marketplaces'] ); ?></a>
             <a href="#dv-store-footer"><?php echo esc_html( html_entity_decode( '&#1060;&#1091;&#1090;&#1077;&#1088;', ENT_QUOTES, 'UTF-8' ) ); ?></a>
           </nav>
@@ -548,10 +537,15 @@ function dv_render_store_settings_page() {
                   array( 'footer_description', 'textarea' ),
               )
           );
+          dv_render_pickup_admin_editor();
           ?>
         </div>
 
       </form>
+      <details class="dv-store-technical-overview"><summary>Предпросмотр и проверка данных</summary>
+        <?php dv_render_store_profile_overview( $profile ); ?>
+        <?php dv_render_store_profile_preview( $profile, $theme_options ); ?>
+      </details>
       <?php
       if ( function_exists( 'dv_render_admin_suite_footer' ) ) {
           dv_render_admin_suite_footer( 'dv-store-settings' );

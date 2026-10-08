@@ -513,3 +513,9 @@ body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+/* Pickup location editor shares the existing store form and save action. */
+.dv-pickup-editor-row { padding: 16px 0; border-bottom: 1px solid #d9e4f0; margin-bottom: 12px; }
+.dv-pickup-editor-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.dv-pickup-editor-fields label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dv-pickup-editor-fields input, .dv-pickup-editor-fields textarea { width: 100%; min-width: 0; }
+@media (max-width: 782px) { .dv-pickup-editor-fields { grid-template-columns: 1fr; } }

@@ -1090,7 +1090,7 @@ function dv_enhance_woocommerce_product_schema( $markup, $product = null ) {
 
     $images = array();
     foreach ( array_unique( array_map( 'intval', $image_ids ) ) as $image_id ) {
-        $image_url = wp_get_attachment_image_url( $image_id, 'dv-product-lg' );
+        $image_url = wp_get_attachment_image_url( $image_id, 'large' );
         if ( $image_url ) {
             $images[] = $image_url;
         }
@@ -1156,9 +1156,13 @@ add_filter( 'woocommerce_structured_data_product', 'dv_enhance_woocommerce_produ
 function dv_normalize_product_spec_label( $label ) {
     $label = trim( wp_strip_all_tags( (string) $label ) );
     $label = preg_replace( '/\s+/u', ' ', $label );
-    $label = trim( $label, " \t\n\r\0\x0B:-—" );
+    $label = preg_replace( '/^[\s:—-]+|[\s:—-]+$/u', '', $label );
 
-    return function_exists( 'dv_seo_mb_strtolower' ) ? dv_seo_mb_strtolower( $label ) : strtolower( $label );
+    $normalized = function_exists( 'dv_seo_mb_strtolower' ) ? dv_seo_mb_strtolower( $label ) : strtolower( $label );
+    foreach ( array_keys( dv_product_description_spec_labels() ) as $known ) {
+        if ( preg_match( '/^' . preg_quote( $known, '/' ) . '$/iu', $normalized ) ) return $known;
+    }
+    return $normalized;
 }
 
 function dv_product_description_spec_labels() {
@@ -1196,29 +1200,47 @@ function dv_product_description_spec_labels() {
 
 function dv_extract_product_spec_from_html_node( $html, &$rows ) {
     $known = dv_product_description_spec_labels();
-    $text  = trim( preg_replace( '/\s+/u', ' ', html_entity_decode( wp_strip_all_tags( (string) $html ), ENT_QUOTES, 'UTF-8' ) ) );
-
-    if ( ! preg_match( '/^(.{2,80}?):\s*(.+)$/u', $text, $matches ) ) {
-        return false;
+    $html = (string) $html;
+    if ( class_exists( 'DOMDocument' ) ) {
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors( true );
+        try {
+            $document->loadHTML( '<!doctype html><html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>', LIBXML_NONET );
+            foreach ( iterator_to_array( $document->getElementsByTagName( 'br' ) ) as $break ) {
+                $break->parentNode->replaceChild( $document->createTextNode( "\n" ), $break );
+            }
+            foreach ( array( 'div', 'p' ) as $tag ) {
+                foreach ( $document->getElementsByTagName( $tag ) as $block ) {
+                    $block->appendChild( $document->createTextNode( "\n" ) );
+                }
+            }
+            $html = $document->saveHTML();
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors( $previous );
+        }
+    } else {
+        $html = preg_replace( '/<br\b[^>]*>/i', "\n", $html );
     }
-
-    $key = dv_normalize_product_spec_label( $matches[1] );
-    if ( ! isset( $known[ $key ] ) ) {
-        return false;
+    $text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' );
+    $pending = array();
+    foreach ( preg_split( '/\R/u', $text ) as $line ) {
+        $line = trim( preg_replace( '/\s+/u', ' ', $line ) );
+        if ( '' === $line ) continue;
+        if ( ! preg_match( '/^(.{2,80}?):\s*(.+)$/u', $line, $matches ) ) return false;
+        $key = dv_normalize_product_spec_label( $matches[1] );
+        if ( ! isset( $known[ $key ] ) ) return false;
+        $value = trim( $matches[2] );
+        // Ambiguous run-on input stays in the description instead of becoming a guessed value.
+        foreach ( $known as $label ) {
+            if ( preg_match( '/(?:' . preg_quote( $label, '/' ) . ')\s*:/iu', $value ) ) return false;
+        }
+        $pending[ $key ] = array( 'label' => $known[ $key ], 'value' => $value );
     }
-
-    $value = trim( $matches[2] );
-    if ( '' === $value ) {
-        return false;
+    if ( empty( $pending ) ) return false;
+    foreach ( $pending as $key => $row ) {
+        if ( ! isset( $rows[ $key ] ) ) $rows[ $key ] = $row;
     }
-
-    if ( ! isset( $rows[ $key ] ) ) {
-        $rows[ $key ] = array(
-            'label' => $known[ $key ],
-            'value' => $value,
-        );
-    }
-
     return true;
 }
 
@@ -1260,6 +1282,9 @@ function dv_add_product_spec_row( &$rows, $label, $value ) {
     }
 
     $key = dv_normalize_product_spec_label( $label );
+    if ( '0' === $value && in_array( $key, array( 'модель', 'применяемость' ), true ) ) {
+        return;
+    }
     if ( isset( $rows[ $key ] ) ) {
         return;
     }
@@ -1445,7 +1470,56 @@ function dv_split_product_description_dash_points( $text ) {
     );
 }
 
-function dv_format_product_description_html( $description_html, $context = 'full' ) {
+function dv_product_description_fact_items( $label, $value ) {
+    if ( ! preg_match( '/^(Конструктивные особенности|Инженерные преимущества)$/ui', trim( $label ) ) ) {
+        return array();
+    }
+
+    $items = array();
+    $buffer = '';
+    $depth = 0;
+    $tokens = preg_split( '/([(),;])/u', $value, -1, PREG_SPLIT_DELIM_CAPTURE );
+    foreach ( $tokens as $index => $token ) {
+        if ( '(' === $token ) {
+            ++$depth;
+        } elseif ( ')' === $token ) {
+            $depth = max( 0, $depth - 1 );
+        }
+        // Split only explicit clauses, never material lists or welding details.
+        $next = $tokens[ $index + 1 ] ?? '';
+        if ( 0 === $depth && in_array( $token, array( ',', ';' ), true ) && preg_match( '/^\s*(устанавлива|служит|монтаж|ремонт|предотвраща|сохраня|оптимиз|обеспеч|восстанавлива)/ui', $next ) ) {
+            $items[] = trim( $buffer );
+            $buffer = '';
+        } else {
+            $buffer .= $token;
+        }
+    }
+    $items[] = trim( $buffer );
+    return count( $items ) > 1 ? $items : array();
+}
+
+function dv_description_without_product_heading( $text, $product_name ) {
+    if ( '' === trim( $product_name ) || ! preg_match( '/\A([^\n]{3,300}?)\s+Назначение:\s*/ui', $text, $matches ) ) {
+        return $text;
+    }
+    $words = preg_split( '/[^\p{L}\p{N}]+/u', trim( $matches[1] ), -1, PREG_SPLIT_NO_EMPTY );
+    if ( count( $words ) < 3 ) {
+        return $text;
+    }
+    // Imported headings may omit "для автомобилей", but must identify the same item.
+    $start = '/\A\s*' . preg_quote( $words[0], '/' ) . '\s+' . preg_quote( $words[1], '/' ) . '\b/ui';
+    if ( ! preg_match( $start, $product_name ) ) {
+        return $text;
+    }
+    foreach ( $words as $word ) {
+        if ( ! preg_match( '/(?<![\p{L}\p{N}])' . preg_quote( $word, '/' ) . '(?![\p{L}\p{N}])/ui', $product_name ) ) {
+            return $text;
+        }
+    }
+    return 'Назначение: ' . substr( $text, strlen( $matches[0] ) );
+}
+
+function dv_format_product_description_html( $description_html, $context = 'full', $product_name = '' ) {
     $description_html = (string) $description_html;
 
     if ( '' === trim( wp_strip_all_tags( $description_html ) ) ) {
@@ -1462,6 +1536,9 @@ function dv_format_product_description_html( $description_html, $context = 'full
 
     if ( '' === $text ) {
         return $description_html;
+    }
+    if ( 'full' === $context ) {
+        $text = dv_description_without_product_heading( $text, $product_name );
     }
 
     $important = '';
@@ -1543,9 +1620,20 @@ function dv_format_product_description_html( $description_html, $context = 'full
         <?php if ( ! empty( $facts ) ) : ?>
             <dl class="dv-formatted-facts">
                 <?php foreach ( $facts as $fact ) : ?>
-                    <div>
+                    <div<?php echo preg_match( '/^Назначение$/ui', trim( $fact['label'] ) ) ? ' class="dv-description-purpose"' : ''; ?>>
                         <dt><?php echo esc_html( $fact['label'] ); ?></dt>
-                        <dd><?php echo esc_html( $fact['value'] ); ?></dd>
+                        <dd>
+                            <?php $fact_items = 'full' === $context ? dv_product_description_fact_items( $fact['label'], $fact['value'] ) : array(); ?>
+                            <?php if ( $fact_items ) : ?>
+                                <ul class="dv-description-fact-list">
+                                    <?php foreach ( $fact_items as $fact_item ) : ?>
+                                        <li><?php echo esc_html( $fact_item ); ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else : ?>
+                                <?php echo esc_html( $fact['value'] ); ?>
+                            <?php endif; ?>
+                        </dd>
                     </div>
                 <?php endforeach; ?>
             </dl>
@@ -1793,7 +1881,11 @@ function dv_get_home_product_ids( $type = 'popular', $limit = 8 ) {
 
     $type  = 'sale' === $type ? 'sale' : 'popular';
     $limit = max( 1, (int) $limit );
-    $cache_key = dv_product_section_cache_key( 'home_products|' . $type . '|' . $limit );
+    $content = function_exists( 'dv_get_theme_content_settings' ) ? dv_get_theme_content_settings() : array();
+    $manual_popular_ids = 'popular' === $type
+        ? array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', (string) ( $content['home_popular_manual_ids'] ?? '' ) ) ) ) ) )
+        : array();
+    $cache_key = dv_product_section_cache_key( 'home_products_v3|' . $type . '|' . $limit . '|' . implode( ',', $manual_popular_ids ) );
     $ids = get_transient( $cache_key );
 
     if ( is_array( $ids ) ) {
@@ -1801,7 +1893,7 @@ function dv_get_home_product_ids( $type = 'popular', $limit = 8 ) {
     }
 
     $args = array(
-        'limit'      => $limit,
+        'limit'      => 'popular' === $type ? max( $limit, $limit * 4 ) : $limit,
         'status'     => 'publish',
         'visibility' => 'catalog',
         'return'     => 'ids',
@@ -1820,15 +1912,51 @@ function dv_get_home_product_ids( $type = 'popular', $limit = 8 ) {
         $args['orderby'] = 'date';
         $args['order']   = 'DESC';
     } else {
-        $args['orderby'] = 'popularity';
-        $args['order']   = 'DESC';
+        $args['meta_key']   = 'total_sales';
+        $args['orderby']    = 'meta_value_num';
+        $args['order']      = 'DESC';
+        $args['meta_query'] = array(
+            'relation' => 'AND',
+            array(
+                'key'     => '_thumbnail_id',
+                'compare' => 'EXISTS',
+            ),
+            array(
+                'key'     => 'total_sales',
+                'value'   => 0,
+                'compare' => '>',
+                'type'    => 'NUMERIC',
+            ),
+        );
     }
 
     $ids = wc_get_products( $args );
     $ids = array_values( array_filter( array_map( 'absint', (array) $ids ) ) );
+
+    if ( 'popular' === $type ) {
+        $ids = array_values( array_unique( array_merge( $manual_popular_ids, $ids ) ) );
+        $ids = array_values(
+            array_filter(
+                $ids,
+                static function ( $product_id ) {
+                    $thumbnail_id = get_post_thumbnail_id( $product_id );
+
+                    if ( ! $thumbnail_id || ! wp_get_attachment_image_url( $thumbnail_id, 'medium' ) ) {
+                        return false;
+                    }
+
+                    $product = function_exists( 'dv_get_product_cached' ) ? dv_get_product_cached( $product_id ) : wc_get_product( $product_id );
+
+                    return $product && $product->is_visible();
+                }
+            )
+        );
+    }
+
+    $ids = array_slice( $ids, 0, $limit );
     set_transient( $cache_key, $ids, 6 * HOUR_IN_SECONDS );
 
-    return array_slice( $ids, 0, $limit );
+    return $ids;
 }
 
 function dv_render_product_loop( $product_ids, $columns = 4 ) {
@@ -1940,6 +2068,30 @@ function dv_track_recently_viewed_product() {
     }
 }
 add_action( 'template_redirect', 'dv_track_recently_viewed_product' );
+
+function dv_get_cross_sell_product_ids( $product, $limit = 4 ) {
+    $limit = max( 0, (int) $limit );
+    if ( ! $product instanceof WC_Product || ! $limit ) {
+        return array();
+    }
+
+    $ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $product->get_cross_sell_ids() ) ) ) );
+    $result = array();
+    foreach ( $ids as $id ) {
+        if ( $id === $product->get_id() ) {
+            continue;
+        }
+        $candidate = dv_get_product_cached( $id );
+        if ( ! $candidate || ! $candidate->is_visible() ) {
+            continue;
+        }
+        $result[] = $id;
+        if ( count( $result ) >= $limit ) {
+            break;
+        }
+    }
+    return $result;
+}
 
 function dv_get_similar_product_ids( $product_id, $exclude_ids = array(), $limit = 4 ) {
     $product_id   = absint( $product_id );

@@ -15,6 +15,28 @@ document.addEventListener('DOMContentLoaded', function () {
     return;
   }
 
+  page.querySelectorAll('[data-pickup-editor]').forEach(function (editor) {
+    var nextIndex = Number(editor.dataset.nextIndex || 0);
+    editor.addEventListener('click', function (event) {
+      if (event.target.closest('[data-pickup-add]')) {
+        if (editor.querySelectorAll('[data-pickup-row]').length >= 100) return;
+        var template = editor.querySelector('[data-pickup-template]');
+        var fragment = template.content.cloneNode(true);
+        fragment.querySelectorAll('[name]').forEach(function (field) { field.name = field.name.replace('__INDEX__', String(nextIndex)); });
+        nextIndex++;
+        var first = fragment.querySelector('input[type="text"]');
+        editor.querySelector('[data-pickup-rows]').appendChild(fragment);
+        editor.dispatchEvent(new Event('change', { bubbles: true }));
+        if (first) first.focus();
+      }
+      if (event.target.closest('[data-pickup-remove]')) {
+        event.target.closest('[data-pickup-row]').remove();
+        editor.dispatchEvent(new Event('change', { bubbles: true }));
+        editor.querySelector('[data-pickup-add]').focus();
+      }
+    });
+  });
+
   var sections = Array.prototype.slice.call(page.querySelectorAll('[data-dv-store-section]'));
   var rows = Array.prototype.slice.call(page.querySelectorAll('.dv-store-settings-section .form-table tr'));
   var mediaFields = Array.prototype.slice.call(page.querySelectorAll('[data-dv-store-media-field]'));
@@ -48,6 +70,11 @@ document.addEventListener('DOMContentLoaded', function () {
         ? (toggle.getAttribute('data-closed-label') || 'Open')
         : (toggle.getAttribute('data-open-label') || 'Close');
     }
+    updateGroupToggleLabel();
+  }
+
+  function updateGroupToggleLabel() {
+    if (expandButton) expandButton.textContent = sections.some(function (section) { return !section.hidden && !section.classList.contains('is-collapsed'); }) ? 'Свернуть группы' : 'Раскрыть группы';
   }
 
   function restoreState() {
@@ -404,6 +431,60 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 1800);
   }
 
+  function focusHashTarget() {
+    var targetId;
+    try {
+      targetId = window.location.hash ? decodeURIComponent(window.location.hash.slice(1)) : '';
+    } catch (error) {
+      return;
+    }
+    var target = targetId ? document.getElementById(targetId) : null;
+    var row;
+    var section;
+    var focusTarget;
+
+    if (!target || !page.contains(target)) {
+      return;
+    }
+
+    row = target.closest('.dv-store-profile-field');
+    section = target.matches('[data-dv-store-section]') ? target : target.closest('[data-dv-store-section]');
+
+    if (search) {
+      search.value = '';
+    }
+
+    activeStoreFilter = 'all';
+    updateFilterButtons();
+    clearSearch();
+
+    if (section) {
+      section.hidden = false;
+      setSectionCollapsed(section, false);
+      persistState();
+    }
+
+    if (row) {
+      row.hidden = false;
+      row.classList.add('is-store-field-target');
+    }
+
+    focusTarget = row || section || target;
+    window.setTimeout(function () {
+      focusTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      if (row && target.matches('input, textarea, select, button')) {
+        target.focus({ preventScroll: true });
+      }
+    }, 80);
+
+    if (row) {
+      window.setTimeout(function () {
+        row.classList.remove('is-store-field-target');
+      }, 3000);
+    }
+  }
+
   function setAllSectionsCollapsed(isCollapsed) {
     sections.forEach(function (section) {
       setSectionCollapsed(section, isCollapsed);
@@ -479,6 +560,9 @@ document.addEventListener('DOMContentLoaded', function () {
   updateFilterButtons();
   updateStoreCounters();
   restoreState();
+  focusHashTarget();
+
+  window.addEventListener('hashchange', focusHashTarget);
 
   sections.forEach(function (section) {
     var toggle = section.querySelector('.dv-store-section-toggle');
@@ -495,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (expandButton) {
     expandButton.addEventListener('click', function () {
-      setAllSectionsCollapsed(false);
+      setAllSectionsCollapsed(sections.some(function (section) { return !section.hidden && !section.classList.contains('is-collapsed'); }));
     });
   }
 
@@ -506,6 +590,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   if (search) {
+    updateGroupToggleLabel();
     search.addEventListener('input', applySearch);
     search.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {

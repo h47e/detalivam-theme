@@ -4,6 +4,37 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+function dv_account_task_menu_labels( $items ) {
+    if ( isset( $items['dashboard'] ) ) {
+        $items['dashboard'] = 'Обзор';
+    }
+    if ( isset( $items['edit-account'] ) ) {
+        $items['edit-account'] = 'Мои данные';
+    }
+    return $items;
+}
+add_filter( 'woocommerce_account_menu_items', 'dv_account_task_menu_labels', 20 );
+
+function dv_checkout_other_address_default( $checked ) {
+    if ( isset( $_POST['ship_to_different_address'] ) ) {
+        return ! empty( $_POST['ship_to_different_address'] ) ? 1 : 0;
+    }
+    if ( isset( $_POST['post_data'] ) && is_string( $_POST['post_data'] ) ) {
+        $posted = array();
+        parse_str( wp_unslash( $_POST['post_data'] ), $posted );
+        return ! empty( $posted['ship_to_different_address'] ) ? 1 : 0;
+    }
+    return 0;
+}
+add_filter( 'woocommerce_ship_to_different_address_checked', 'dv_checkout_other_address_default', 20 );
+
+function dv_compact_review_form_args( $args ) {
+    $args['title_reply'] = html_entity_decode( '&#1054;&#1089;&#1090;&#1072;&#1074;&#1080;&#1090;&#1100; &#1086;&#1090;&#1079;&#1099;&#1074;', ENT_QUOTES, 'UTF-8' );
+    $args['label_submit'] = html_entity_decode( '&#1054;&#1090;&#1087;&#1088;&#1072;&#1074;&#1080;&#1090;&#1100; &#1086;&#1090;&#1079;&#1099;&#1074;', ENT_QUOTES, 'UTF-8' );
+    return $args;
+}
+add_filter( 'woocommerce_product_review_comment_form_args', 'dv_compact_review_form_args', 30 );
+
 function dv_woocommerce_labels() {
     static $labels_cache = null;
 
@@ -172,7 +203,15 @@ function dv_is_order_pay_request() {
         return true;
     }
 
-    return ! empty( $_GET['pay_for_order'] ) || false !== get_query_var( 'order-pay', false );
+    if ( ! empty( $_GET['pay_for_order'] ) || false !== get_query_var( 'order-pay', false ) ) {
+        return true;
+    }
+
+    if ( ! empty( $_REQUEST['woocommerce_pay'] ) ) {
+        return true;
+    }
+
+    return ! empty( $_REQUEST['key'] ) && ( ! empty( $_REQUEST['order_id'] ) || ! empty( $_REQUEST['order-pay'] ) );
 }
 
 function dv_order_pay_critical_styles() {
@@ -353,8 +392,16 @@ add_action( 'wp_head', 'dv_view_order_critical_styles', 99 );
 function dv_get_order_pay_request_order() {
     $order_id = absint( get_query_var( 'order-pay' ) );
 
-    if ( ! $order_id && ! empty( $_GET['key'] ) ) {
-        $order_id = wc_get_order_id_by_order_key( wc_clean( wp_unslash( $_GET['key'] ) ) );
+    if ( ! $order_id && ! empty( $_REQUEST['order_id'] ) ) {
+        $order_id = absint( wp_unslash( $_REQUEST['order_id'] ) );
+    }
+
+    if ( ! $order_id && ! empty( $_REQUEST['order-pay'] ) ) {
+        $order_id = absint( wp_unslash( $_REQUEST['order-pay'] ) );
+    }
+
+    if ( ! $order_id && ! empty( $_REQUEST['key'] ) ) {
+        $order_id = wc_get_order_id_by_order_key( wc_clean( wp_unslash( $_REQUEST['key'] ) ) );
     }
 
     return $order_id ? wc_get_order( $order_id ) : false;
@@ -449,6 +496,19 @@ function dv_hide_pay_action_until_allowed( $actions, $order ) {
         unset( $actions['pay'] );
     }
 
+    if (
+        $order instanceof WC_Order
+        && dv_is_order_payment_allowed( $order )
+        && ! $order->is_paid()
+        && $order->needs_payment()
+        && ! isset( $actions['pay'] )
+    ) {
+        $actions['pay'] = array(
+            'url'  => $order->get_checkout_payment_url(),
+            'name' => html_entity_decode( '&#1054;&#1087;&#1083;&#1072;&#1090;&#1080;&#1090;&#1100;', ENT_QUOTES, 'UTF-8' ),
+        );
+    }
+
     if ( dv_customer_can_cancel_order( $order ) && ! isset( $actions['cancel'] ) ) {
         $actions['cancel'] = array(
             'url'  => $order->get_cancel_order_url( wc_get_page_permalink( 'myaccount' ) ),
@@ -539,6 +599,16 @@ function dv_auto_allow_payment_on_pending_status( $order_id, $old_status, $new_s
     if ( ! dv_is_order_payment_allowed( $order ) ) {
         dv_allow_order_payment( $order, false );
         $order->add_order_note( html_entity_decode( '&#1054;&#1087;&#1083;&#1072;&#1090;&#1072; &#1072;&#1074;&#1090;&#1086;&#1084;&#1072;&#1090;&#1080;&#1095;&#1077;&#1089;&#1082;&#1080; &#1088;&#1072;&#1079;&#1088;&#1077;&#1096;&#1077;&#1085;&#1072; &#1087;&#1088;&#1080; &#1087;&#1077;&#1088;&#1077;&#1074;&#1086;&#1076;&#1077; &#1079;&#1072;&#1082;&#1072;&#1079;&#1072; &#1074; &#1089;&#1090;&#1072;&#1090;&#1091;&#1089; \"&#1054;&#1078;&#1080;&#1076;&#1072;&#1077;&#1090; &#1086;&#1087;&#1083;&#1072;&#1090;&#1099;\".', ENT_QUOTES, 'UTF-8' ) );
+    }
+}
+
+function dv_auto_allow_payment_on_admin_pending_save( $order ) {
+    if ( ! $order instanceof WC_Order || $order->is_paid() || 'pending' !== $order->get_status() ) {
+        return;
+    }
+
+    if ( ! dv_is_order_payment_allowed( $order ) ) {
+        dv_allow_order_payment( $order, false );
     }
 }
 
@@ -664,6 +734,34 @@ function dv_economy_badge() {
     );
 }
 
+function dv_mark_product_query_images_first( $query ) {
+    if ( is_admin() || ! $query instanceof WP_Query ) {
+        return;
+    }
+
+    // This action only runs for WooCommerce product archives, including product categories.
+    $query->set( 'dv_images_first', '1' );
+}
+
+function dv_product_query_images_first_clauses( $clauses, $query ) {
+    if ( ! $query instanceof WP_Query || '1' !== (string) $query->get( 'dv_images_first' ) ) {
+        return $clauses;
+    }
+
+    global $wpdb;
+
+    $alias = 'dv_thumb_sort_pm';
+
+    if ( false === strpos( (string) $clauses['join'], " {$alias} " ) ) {
+        $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS {$alias} ON ({$wpdb->posts}.ID = {$alias}.post_id AND {$alias}.meta_key = '_thumbnail_id')";
+    }
+
+    $image_order        = "CASE WHEN {$alias}.meta_value IS NULL OR {$alias}.meta_value = '' OR {$alias}.meta_value = '0' THEN 1 ELSE 0 END ASC";
+    $clauses['orderby'] = ! empty( $clauses['orderby'] ) ? "{$image_order}, {$clauses['orderby']}" : $image_order;
+
+    return $clauses;
+}
+
 function dv_translate_strings( $translated, $text, $domain ) {
     if ( 'woocommerce' !== $domain && 'default' !== $domain ) {
         return $translated;
@@ -678,6 +776,8 @@ add_filter( 'gettext', 'dv_translate_strings', 20, 3 );
 add_filter( 'woocommerce_enqueue_styles', '__return_empty_array' );
 add_filter( 'loop_shop_per_page', 'dv_loop_shop_per_page', 20 );
 add_filter( 'loop_shop_columns', 'dv_loop_shop_columns' );
+add_action( 'woocommerce_product_query', 'dv_mark_product_query_images_first', 20 );
+add_filter( 'posts_clauses', 'dv_product_query_images_first_clauses', 20, 2 );
 add_filter( 'woocommerce_product_single_add_to_cart_text', 'dv_add_to_cart_label' );
 add_filter( 'woocommerce_product_add_to_cart_text', 'dv_add_to_cart_label' );
 add_filter( 'woocommerce_output_related_products_args', 'dv_related_products_args' );
@@ -696,6 +796,7 @@ add_action( 'woocommerce_review_order_before_payment', 'dv_deferred_payment_chec
 add_action( 'woocommerce_order_status_changed', 'dv_keep_deferred_order_unpaid', 5, 4 );
 add_action( 'admin_init', 'dv_normalize_deferred_order_on_admin_view' );
 add_action( 'woocommerce_order_status_changed', 'dv_auto_allow_payment_on_pending_status', 20, 4 );
+add_action( 'woocommerce_admin_process_shop_order_object', 'dv_auto_allow_payment_on_admin_pending_save', 20 );
 add_filter( 'woocommerce_order_actions', 'dv_add_allow_payment_order_action' );
 add_action( 'woocommerce_order_action_dv_allow_customer_payment', 'dv_handle_allow_payment_order_action' );
 add_action( 'woocommerce_admin_order_data_after_order_details', 'dv_render_order_payment_gate_status' );

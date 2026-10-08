@@ -102,9 +102,9 @@ function dv_render_list_preview_html( $ids, $type = 'wishlist', $view_url = '' )
     <div class="dv-header-preview-list">
       <?php foreach ( $products as $product ) : ?>
         <?php
-        $image_url = wp_get_attachment_image_url( $product->get_image_id(), 'woocommerce_thumbnail' );
+        $image_url = wp_get_attachment_image_url( $product->get_image_id(), 'medium' );
         if ( ! $image_url ) {
-            $image_url = wc_placeholder_img_src( 'woocommerce_thumbnail' );
+            $image_url = wc_placeholder_img_src( 'medium' );
         }
         ?>
         <a href="<?php echo esc_url( $product->get_permalink() ); ?>" class="dv-header-preview-item">
@@ -458,9 +458,9 @@ function dv_ajax_get_compare_table() {
               <th class="dv-compare-label-head"><?php echo esc_html( $labels['param'] ); ?></th>
               <?php foreach ( $products as $product ) : ?>
                 <?php
-                $image_url = wp_get_attachment_image_url( $product->get_image_id(), 'woocommerce_thumbnail' );
+                $image_url = wp_get_attachment_image_url( $product->get_image_id(), 'medium' );
                 if ( ! $image_url ) {
-                    $image_url = wc_placeholder_img_src( 'woocommerce_thumbnail' );
+                    $image_url = wc_placeholder_img_src( 'medium' );
                 }
                 ?>
                 <th class="dv-compare-product-head">

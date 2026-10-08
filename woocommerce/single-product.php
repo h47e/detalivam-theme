@@ -41,12 +41,12 @@ $main_id  = $product->get_image_id();
 $all_imgs = $main_id ? array_merge( array( $main_id ), $images ) : $images;
 
 $main_src = $main_id
-  ? wp_get_attachment_image_url( $main_id, 'dv-product-lg' )
-  : wc_placeholder_img_src( 'dv-product-lg' );
+  ? wp_get_attachment_image_url( $main_id, 'large' )
+  : wc_placeholder_img_src( 'large' );
 $main_img_html = $main_id
   ? wp_get_attachment_image(
       $main_id,
-      'dv-product-lg',
+      'large',
       false,
       array(
           'class'         => 'gallery-main-img',
@@ -67,7 +67,7 @@ $gallery_urls = array_values(
     array_filter(
         array_map(
             function( $id ) {
-                return wp_get_attachment_image_url( $id, 'dv-product-lg' );
+                return wp_get_attachment_image_url( $id, 'large' );
             },
             $all_imgs
         )
@@ -86,7 +86,7 @@ $product_specs        = function_exists( 'dv_get_product_specs_for_tabs' )
     ? dv_get_product_specs_for_tabs( $product, $description_parts['specs'] ?? array() )
     : array();
 $formatted_description = function_exists( 'dv_format_product_description_html' )
-    ? dv_format_product_description_html( $description_parts['description'] ?? '', 'full' )
+    ? dv_format_product_description_html( $description_parts['description'] ?? '', 'full', $product->get_name() )
     : ( $description_parts['description'] ?? '' );
 
 $product_related_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_related_enabled' ) : true;
@@ -97,6 +97,7 @@ $product_recent_enabled  = function_exists( 'dv_theme_option_enabled' ) ? dv_the
 $product_recent_limit    = function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'product_recent_limit', 4, 1, 12 ) : 4;
 $product_gallery_hint_enabled = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_gallery_hint_enabled' ) : true;
 $product_meta_sku_enabled     = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_meta_sku_enabled' ) : true;
+$product_part_number_enabled  = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_part_number_enabled' ) : true;
 $product_actions_enabled      = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_actions_enabled' ) : true;
 $product_wishlist_enabled     = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_wishlist_enabled' ) : true;
 $product_compare_enabled      = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_compare_enabled' ) : true;
@@ -106,9 +107,55 @@ $product_tab_description_enabled     = function_exists( 'dv_theme_option_enabled
 $product_tab_specs_enabled           = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_tab_specs_enabled' ) : true;
 $product_tab_reviews_enabled         = function_exists( 'dv_theme_option_enabled' ) ? dv_theme_option_enabled( 'product_tab_reviews_enabled' ) : true;
 $product_sku                         = $product_meta_sku_enabled ? $product->get_sku() : '';
+$product_part_number                 = '';
 $product_rating                      = $product_tab_reviews_enabled ? (float) $product->get_average_rating() : 0;
 $product_review_count                = $product_tab_reviews_enabled ? (int) $product->get_review_count() : 0;
 $product_tabs                        = array();
+
+if ( $product_part_number_enabled ) {
+    $sku_attribute_names = array_filter(
+        array(
+            function_exists( 'dv_get_sku_attribute_taxonomy' ) ? dv_get_sku_attribute_taxonomy() : '',
+            'pa_sku',
+            'sku',
+            'SKU',
+        )
+    );
+
+    foreach ( array_unique( $sku_attribute_names ) as $sku_attribute_name ) {
+        $attribute_value = trim( wp_strip_all_tags( (string) $product->get_attribute( $sku_attribute_name ) ) );
+        if ( '' !== $attribute_value ) {
+            $product_part_number = $attribute_value;
+            break;
+        }
+    }
+
+    if ( '' === $product_part_number ) {
+        foreach ( $product->get_attributes() as $product_attribute ) {
+            if ( ! $product_attribute instanceof WC_Product_Attribute || ! $product_attribute->get_visible() ) {
+                continue;
+            }
+
+            $attribute_name  = (string) $product_attribute->get_name();
+            $attribute_label = function_exists( 'wc_attribute_label' ) ? wc_attribute_label( $attribute_name ) : $attribute_name;
+            $search_name     = strtolower( $attribute_name . ' ' . $attribute_label );
+
+            if ( false === strpos( $search_name, 'sku' ) ) {
+                continue;
+            }
+
+            $attribute_value = trim( wp_strip_all_tags( (string) $product->get_attribute( $attribute_name ) ) );
+            if ( '' !== $attribute_value ) {
+                $product_part_number = $attribute_value;
+                break;
+            }
+        }
+    }
+
+    if ( '' !== $product_sku && trim( $product_sku ) === trim( $product_part_number ) ) {
+        $product_part_number = '';
+    }
+}
 
 if ( $product_tab_description_enabled ) {
     $product_tabs['description'] = array(
@@ -133,6 +180,9 @@ if ( $product_tab_reviews_enabled ) {
 }
 
 $product_first_tab = key( $product_tabs );
+if ( 'description' === $product_first_tab && '' === trim( wp_strip_all_tags( $formatted_description ) ) && isset( $product_tabs['specs'] ) && ! empty( $product_specs ) ) {
+    $product_first_tab = 'specs';
+}
 
 if ( ! $product_summary_description_enabled ) {
     remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_excerpt', 20 );
@@ -154,6 +204,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
           <?php endif; ?>
 
           <?php echo $main_img_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+          <button type="button" class="gallery-zoom-button" aria-label="Увеличить фото" title="Увеличить фото"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></button>
           <?php if ( $product_gallery_hint_enabled ) : ?>
             <span class="gallery-zoom-hint">&#1053;&#1072;&#1078;&#1084;&#1080;&#1090;&#1077; &#1076;&#1083;&#1103; &#1091;&#1074;&#1077;&#1083;&#1080;&#1095;&#1077;&#1085;&#1080;&#1103;</span>
           <?php endif; ?>
@@ -163,24 +214,25 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
         <div class="gallery-thumbs-shell">
           <div class="gallery-thumbs" id="dv-thumbs">
             <?php foreach ( $all_imgs as $i => $img_id ) :
-                $src = wp_get_attachment_image_url( $img_id, 'dv-product-sm' );
+                $src = wp_get_attachment_image_url( $img_id, 'medium' );
                 ?>
-            <div class="gallery-thumb <?php echo 0 === $i ? 'active' : ''; ?>" data-index="<?php echo esc_attr( $i ); ?>">
-              <img src="<?php echo esc_url( $src ); ?>" alt="&#1060;&#1086;&#1090;&#1086; <?php echo esc_attr( $i + 1 ); ?>" loading="lazy" decoding="async" fetchpriority="low">
-            </div>
+            <button type="button" class="gallery-thumb <?php echo 0 === $i ? 'active' : ''; ?>" data-index="<?php echo esc_attr( $i ); ?>" aria-label="Фото <?php echo esc_attr( $i + 1 ); ?>" aria-pressed="<?php echo 0 === $i ? 'true' : 'false'; ?>">
+              <img src="<?php echo esc_url( $src ); ?>" alt="" loading="lazy" decoding="async" fetchpriority="low">
+            </button>
             <?php endforeach; ?>
           </div>
         </div>
         <?php endif; ?>
       </div>
 
-      <div class="lightbox" id="dv-lightbox" aria-hidden="true">
+      <div class="lightbox" id="dv-lightbox" role="dialog" aria-modal="true" aria-label="Фото товара" aria-hidden="true" tabindex="-1">
         <button type="button" class="lightbox-close" id="lb-close" aria-label="&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;">&times;</button>
         <?php if ( count( $gallery_urls ) > 1 ) : ?>
           <button type="button" class="lightbox-prev" id="lb-prev" aria-label="&#1055;&#1088;&#1077;&#1076;&#1099;&#1076;&#1091;&#1097;&#1077;&#1077; &#1092;&#1086;&#1090;&#1086;">&#8249;</button>
           <button type="button" class="lightbox-next" id="lb-next" aria-label="&#1057;&#1083;&#1077;&#1076;&#1091;&#1102;&#1097;&#1077;&#1077; &#1092;&#1086;&#1090;&#1086;">&#8250;</button>
         <?php endif; ?>
         <img src="" alt="<?php echo esc_attr( $product_page_name ); ?>" class="lightbox-img" id="lb-img" loading="lazy" decoding="async">
+        <span class="gallery-image-counter" id="lb-counter" role="status" aria-live="polite"></span>
       </div>
     </div>
 
@@ -206,10 +258,18 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
             <span class="product-sku">&#1040;&#1088;&#1090;.: <?php echo esc_html( $product_sku ); ?></span>
           <?php endif; ?>
 
+          <?php if ( $product_part_number_enabled && $product_part_number ) : ?>
+            <span class="product-part-number">
+              <span><?php echo esc_html( html_entity_decode( '&#1054;&#1088;&#1080;&#1075;. &#1085;&#1086;&#1084;&#1077;&#1088;:', ENT_QUOTES, 'UTF-8' ) ); ?></span>
+              <strong><?php echo esc_html( $product_part_number ); ?></strong>
+            </span>
+          <?php endif; ?>
+
           <?php
           $brand = function_exists( 'dv_get_product_brand_name' ) ? dv_get_product_brand_name( $product ) : get_post_meta( $product->get_id(), '_brand', true );
+          $brand_in_compatibility = $brand && function_exists( 'dv_compat_block' ) && function_exists( 'dv_get_compat_tags' ) && in_array( $brand, dv_get_compat_tags( $product ), true );
 
-          if ( $brand ) :
+          if ( $brand && ! $brand_in_compatibility ) :
               ?>
             <span class="product-brand"><?php echo esc_html( $brand ); ?></span>
           <?php endif; ?>
@@ -270,6 +330,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
             $product_buy_blocks[] = array(
                 'order' => function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'product_ozon_order', 20, 1, 99 ) : 20,
                 'index' => 20,
+                'secondary' => true,
                 'html'  => ob_get_clean(),
             );
         }
@@ -312,6 +373,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
             $product_buy_blocks[] = array(
                 'order' => function_exists( 'dv_theme_option_int' ) ? dv_theme_option_int( 'product_actions_order', 30, 1, 99 ) : 30,
                 'index' => 30,
+                'secondary' => true,
                 'html'  => ob_get_clean(),
             );
         }
@@ -346,9 +408,19 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
         <div class="product-buy-rail">
           <div class="product-purchase-panel">
             <?php
+            $secondary_open = false;
             foreach ( $product_buy_blocks as $buy_block ) {
+                $is_secondary = ! empty( $buy_block['secondary'] );
+                if ( $is_secondary && ! $secondary_open ) {
+                    echo '<div class="product-secondary-actions">';
+                    $secondary_open = true;
+                } elseif ( ! $is_secondary && $secondary_open ) {
+                    echo '</div>';
+                    $secondary_open = false;
+                }
                 echo $buy_block['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
+            if ( $secondary_open ) echo '</div>';
             ?>
           </div>
         </div>
@@ -359,7 +431,9 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
 
   <?php
   $product_page_blocks = array();
-  $related             = $product_related_enabled ? wc_get_related_products( $product->get_id(), $product_related_limit ) : array();
+  $related             = $product_related_enabled && function_exists( 'dv_get_cross_sell_product_ids' )
+    ? dv_get_cross_sell_product_ids( $product, $product_related_limit )
+    : array();
   $similar             = function_exists( 'dv_get_similar_product_ids' )
     ? ( $product_similar_enabled ? dv_get_similar_product_ids( $product->get_id(), $related ?? array(), $product_similar_limit ) : array() )
     : array();

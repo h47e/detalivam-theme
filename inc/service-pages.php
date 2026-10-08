@@ -6,6 +6,8 @@ defined( 'ABSPATH' ) || exit;
 
 function dv_reserved_service_page_slugs() {
     return array(
+        'wishlist',
+        'compare',
         'o-kompanii',
         'about',
         'dostavka',
@@ -25,6 +27,16 @@ function dv_reserved_service_page_slugs() {
 
 function dv_virtual_service_page_map() {
     $map = array(
+        'wishlist' => array(
+            'template' => DV_DIR . '/page-product-lists.php',
+            'title'    => html_entity_decode( '&#1048;&#1079;&#1073;&#1088;&#1072;&#1085;&#1085;&#1086;&#1077;', ENT_QUOTES, 'UTF-8' ),
+            'type'     => 'wishlist',
+        ),
+        'compare' => array(
+            'template' => DV_DIR . '/page-product-lists.php',
+            'title'    => html_entity_decode( '&#1057;&#1088;&#1072;&#1074;&#1085;&#1077;&#1085;&#1080;&#1077; &#1090;&#1086;&#1074;&#1072;&#1088;&#1086;&#1074;', ENT_QUOTES, 'UTF-8' ),
+            'type'     => 'compare',
+        ),
         'o-kompanii' => array(
             'template' => DV_DIR . '/page-o-kompanii.php',
             'title'    => html_entity_decode( '&#1054; &#1082;&#1086;&#1084;&#1087;&#1072;&#1085;&#1080;&#1080;', ENT_QUOTES, 'UTF-8' ),
@@ -278,6 +290,8 @@ function dv_service_page_enabled( $type ) {
 function dv_service_page_url( $type ) {
     $type = (string) $type;
     $map  = array(
+        'wishlist'  => '/wishlist/',
+        'compare'   => '/compare/',
         'about'     => '/o-kompanii',
         'delivery'  => '/dostavka',
         'contacts'  => '/kontakty',
@@ -314,6 +328,10 @@ function dv_maybe_use_virtual_service_page( $template ) {
     $request_parts = explode( '/', $request_path );
     $slug          = end( $request_parts );
 
+    if ( in_array( $slug, array( 'wishlist', 'compare' ), true ) && $slug !== dv_virtual_list_request_type() ) {
+        return $template;
+    }
+
     $map = dv_virtual_service_page_map();
     if ( empty( $map[ $slug ]['template'] ) || ! file_exists( $map[ $slug ]['template'] ) ) {
         return $template;
@@ -337,3 +355,41 @@ function dv_maybe_use_virtual_service_page( $template ) {
     return $map[ $slug ]['template'];
 }
 add_filter( 'template_include', 'dv_maybe_use_virtual_service_page', 99 );
+
+function dv_virtual_list_request_type() {
+    $method = strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) );
+    if ( ! in_array( $method, array( 'GET', 'HEAD' ), true ) ) {
+        return '';
+    }
+    $uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+    $path = trim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
+    $home_path = trim( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ), '/' );
+    foreach ( array( 'wishlist', 'compare' ) as $type ) {
+        if ( $path === trim( $home_path . '/' . $type, '/' ) ) {
+            return $type;
+        }
+    }
+    return '';
+}
+
+function dv_keep_virtual_list_route( $redirect ) {
+    return is_404() && '' !== dv_virtual_list_request_type() ? false : $redirect;
+}
+add_filter( 'redirect_canonical', 'dv_keep_virtual_list_route' );
+
+function dv_virtual_list_document_title( $parts ) {
+    if ( in_array( (string) get_query_var( 'dv_virtual_page' ), array( 'wishlist', 'compare' ), true ) ) {
+        $parts['title'] = (string) get_query_var( 'dv_virtual_page_title' );
+    }
+    return $parts;
+}
+add_filter( 'document_title_parts', 'dv_virtual_list_document_title', 30 );
+
+function dv_list_page_robots( $robots ) {
+    if ( in_array( (string) get_query_var( 'dv_virtual_page' ), array( 'wishlist', 'compare' ), true ) || is_page( array( 'wishlist', 'compare' ) ) ) {
+        unset( $robots['index'] );
+        $robots['noindex'] = true;
+    }
+    return $robots;
+}
+add_filter( 'wp_robots', 'dv_list_page_robots', 30 );

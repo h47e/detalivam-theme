@@ -4,7 +4,9 @@
  *
  * Theme override for WooCommerce cart contents.
  *
- * @version 10.8.0
+ * @see     https://woocommerce.com/document/template-structure/
+ * @package WooCommerce\Templates
+ * @version 11.0.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -90,7 +92,7 @@ $cart_columns_class = implode( ' ', $cart_columns_classes );
 
           $thumbnail = apply_filters(
               'woocommerce_cart_item_thumbnail',
-              $_product->get_image( 'woocommerce_thumbnail' ),
+              $_product->get_image( 'thumbnail' ),
               $cart_item,
               $cart_item_key
           );
@@ -131,7 +133,7 @@ $cart_columns_class = implode( ' ', $cart_columns_classes );
               </div>
             <?php endif; ?>
 
-            <div data-title="<?php echo esc_attr( html_entity_decode( $labels['qty'], ENT_QUOTES, 'UTF-8' ) ); ?>">
+            <div class="cart-quantity" data-title="<?php echo esc_attr( html_entity_decode( $labels['qty'], ENT_QUOTES, 'UTF-8' ) ); ?>">
               <?php
               if ( $_product->is_sold_individually() ) {
                   $min_quantity = 1;

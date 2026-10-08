@@ -4,7 +4,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-define( 'DV_VERSION', '1.0.2' );
+define( 'DV_VERSION', '1.0.4' );
 define( 'DV_DIR', get_template_directory() );
 define( 'DV_URI', get_template_directory_uri() );
 
@@ -20,6 +20,9 @@ function dv_require_theme_module( $relative_path ) {
 
 $dv_theme_modules = array(
     'inc/theme-core.php',
+    'inc/pickup-locations.php',
+    'inc/uploads-storage.php',
+    'inc/media-optimization.php',
     'inc/theme-options.php',
     'inc/service-pages.php',
     'inc/seo.php',
@@ -29,6 +32,7 @@ $dv_theme_modules = array(
     'inc/search.php',
     'inc/cart.php',
     'inc/wholesale.php',
+    'inc/customer-discounts.php',
     'inc/template-functions.php',
     'inc/woocommerce.php',
 );
