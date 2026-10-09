@@ -161,22 +161,25 @@ $base_url   = function_exists( 'dv_wholesale_page_url' ) ? dv_wholesale_page_url
             </div>
 
             <?php if ( $pages > 1 ) : ?>
-                <nav class="dv-wholesale-pagination" aria-label="Pagination">
-                    <?php for ( $page = 1; $page <= $pages; $page++ ) : ?>
-                        <?php
-                        $page_url = add_query_arg(
-                            array_filter(
-                                array(
-                                    'q'        => $args['q'],
-                                    'cat'      => $args['cat'],
-                                    'opt_page' => $page > 1 ? $page : null,
-                                )
-                            ),
-                            $base_url
-                        );
-                        ?>
-                        <a class="<?php echo $page === $args['paged'] ? 'is-active' : ''; ?>" href="<?php echo esc_url( $page_url ); ?>"><?php echo esc_html( $page ); ?></a>
-                    <?php endfor; ?>
+                <nav class="dv-wholesale-pagination" aria-label="Страницы оптового каталога">
+                    <?php
+                    $pagination_args = array_filter(
+                        array( 'q' => $args['q'], 'cat' => $args['cat'] ),
+                        static function ( $value ) { return '' !== (string) $value; }
+                    );
+                    $pagination_args['opt_page'] = 999999;
+                    echo wp_kses_post( paginate_links( array(
+                        'base' => str_replace( 'opt_page=999999', 'opt_page=%#%', add_query_arg( $pagination_args, $base_url ) ),
+                        'format' => '',
+                        'current' => max( 1, min( $pages, (int) $args['paged'] ) ),
+                        'total' => $pages,
+                        'show_all' => false,
+                        'mid_size' => 1,
+                        'end_size' => 1,
+                        'prev_text' => '<span aria-hidden="true">&#8592;</span><span class="screen-reader-text">Предыдущая страница</span>',
+                        'next_text' => '<span aria-hidden="true">&#8594;</span><span class="screen-reader-text">Следующая страница</span>',
+                    ) ) );
+                    ?>
                 </nav>
             <?php endif; ?>
         </section>

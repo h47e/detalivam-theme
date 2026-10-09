@@ -31,6 +31,7 @@ $dv_theme_modules = array(
     'inc/lists.php',
     'inc/search.php',
     'inc/cart.php',
+    'inc/cart-selection.php',
     'inc/wholesale.php',
     'inc/customer-discounts.php',
     'inc/template-functions.php',

@@ -1132,7 +1132,8 @@
 
   /* Sticky header */
   var header = document.getElementById('site-header');
-  if (header) {
+  var productHeaderPinned = document.body.matches('.single-product, .woocommerce-shop, .post-type-archive-product, .tax-product_cat, .tax-product_tag');
+  if (header && !productHeaderPinned) {
     var lastY = 0;
     window.addEventListener('scroll', function() {
       var y = window.scrollY;

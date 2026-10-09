@@ -52,11 +52,18 @@ $cart_columns_class = implode( ' ', $cart_columns_classes );
 <?php endif; ?>
 
 <div class="cart-page">
+  <form id="dv-cart-selection-form" action="<?php echo esc_url( wc_get_checkout_url() ); ?>" method="post" data-dv-selection-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>">
+    <?php wp_nonce_field( 'dv_cart_selection', 'dv_selection_nonce' ); ?>
+    <input type="hidden" name="dv_selected_checkout" value="1">
+  </form>
   <?php $cross_sell_ids = WC()->cart ? WC()->cart->get_cross_sells() : []; ?>
   <div class="cart-layout">
     <div class="cart-items">
       <form class="woocommerce-cart-form" action="<?php echo esc_url( wc_get_cart_url() ); ?>" method="post">
         <?php do_action( 'woocommerce_before_cart_table' ); ?>
+        <div class="dv-cart-selection-toolbar">
+          <label><input type="checkbox" data-dv-select-all checked> Выбрать всё</label>
+        </div>
 
         <div class="cart-header <?php echo esc_attr( $cart_columns_class ); ?>">
           <div><?php echo wp_kses_post( $labels['product'] ); ?></div>
@@ -99,6 +106,8 @@ $cart_columns_class = implode( ' ', $cart_columns_classes );
           ?>
           <div <?php wc_product_class( apply_filters( 'woocommerce_cart_item_class', 'cart-item woocommerce-cart-form__cart-item cart_item ' . $cart_columns_class, $cart_item, $cart_item_key ), $_product ); ?>>
             <div class="cart-product" data-title="<?php echo esc_attr( html_entity_decode( $labels['product'], ENT_QUOTES, 'UTF-8' ) ); ?>">
+              <?php $unselected = (array) WC()->session->get( 'dv_cart_unselected_keys', array() ); ?>
+              <input type="checkbox" class="dv-cart-select-item" name="dv_cart_selected[]" value="<?php echo esc_attr( $cart_item_key ); ?>" form="dv-cart-selection-form" data-dv-cart-select <?php checked( ! in_array( $cart_item_key, $unselected, true ) ); ?> aria-label="<?php echo esc_attr( 'Заказать: ' . wp_strip_all_tags( $product_name ) ); ?>">
               <?php if ( $cart_product_image_enabled ) : ?>
               <div class="cart-product-img">
                 <?php if ( $product_permalink ) : ?>
