@@ -9,13 +9,32 @@ function dv_pickup_text( $value, $multiline = false ) {
 }
 
 function dv_sanitize_pickup_locations( $input, $report_errors = true ) {
+    // add_option() may sanitize the normalized result again on the first save.
+    if ( is_array( $input ) && ! array_key_exists( 'present', $input ) ) {
+        $normalized = true;
+        foreach ( $input as $item ) {
+            if ( ! is_array( $item ) || ! isset( $item['city'], $item['address'], $item['enabled'] ) || ! in_array( $item['enabled'], array( '0', '1' ), true ) ) {
+                $normalized = false;
+                break;
+            }
+        }
+        if ( $normalized ) {
+            $input = array( 'present' => '1', 'items' => $input );
+        }
+    }
     if ( ! is_array( $input ) || empty( $input['present'] ) ) {
         $saved = get_option( 'dv_pickup_locations', array() );
         return is_array( $saved ) ? $saved : array();
     }
     $result = array();
     $invalid = false;
-    foreach ( array_slice( is_array( $input['items'] ?? null ) ? $input['items'] : array(), 0, 100 ) as $item ) {
+    $items = array_slice( is_array( $input['items'] ?? null ) ? $input['items'] : array(), 0, 100, true );
+    $ordered = array();
+    foreach ( array_slice( is_array( $input['order'] ?? null ) ? $input['order'] : array(), 0, 100 ) as $key ) {
+        if ( is_scalar( $key ) && isset( $items[ (string) $key ] ) ) $ordered[ (string) $key ] = $items[ (string) $key ];
+    }
+    $items = $ordered + array_diff_key( $items, $ordered );
+    foreach ( $items as $item ) {
         if ( ! is_array( $item ) ) continue;
         $row = array();
         foreach ( array( 'name', 'city', 'address', 'hours', 'phone' ) as $field ) {
@@ -73,7 +92,15 @@ function dv_render_pickup_admin_row( $index, $location = array() ) {
     $fields = array( 'city' => 'Город', 'address' => 'Адрес', 'name' => 'Название филиала', 'hours' => 'График работы', 'phone' => 'Телефон', 'map_url' => 'Ссылка на карту', 'note' => 'Примечание' );
     ?>
     <div class="dv-pickup-editor-row" data-pickup-row>
-      <label><input type="checkbox" name="dv_pickup_locations[items][<?php echo esc_attr( $index ); ?>][enabled]" value="1" <?php checked( $location['enabled'] ?? '1', '1' ); ?>> Показывать на сайте</label>
+      <input type="hidden" name="dv_pickup_locations[order][]" value="<?php echo esc_attr( $index ); ?>" data-pickup-order>
+      <label class="dv-pickup-visibility"><input type="checkbox" name="dv_pickup_locations[items][<?php echo esc_attr( $index ); ?>][enabled]" value="1" <?php checked( $location['enabled'] ?? '1', '1' ); ?>> Показывать на сайте</label>
+      <div class="dv-pickup-order-controls">
+        <button class="button" type="button" data-pickup-move="up" title="Поднять пункт" aria-label="Поднять пункт"><span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span></button>
+        <button class="button" type="button" data-pickup-move="down" title="Опустить пункт" aria-label="Опустить пункт"><span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span></button>
+        <button class="button" type="button" data-pickup-remove title="Убрать пункт" aria-label="Убрать пункт"><span class="dashicons dashicons-trash" aria-hidden="true"></span></button>
+      </div>
+      <details class="dv-pickup-row-details" <?php echo empty( $location['city'] ) || empty( $location['address'] ) ? 'open' : ''; ?>>
+        <summary><strong data-pickup-city><?php echo esc_html( ! empty( $location['city'] ) ? $location['city'] : 'Новый пункт' ); ?></strong><span data-pickup-address><?php echo esc_html( $location['address'] ?? '' ); ?></span></summary>
       <div class="dv-pickup-editor-fields">
         <?php foreach ( $fields as $field => $label ) : ?>
           <label><span><?php echo esc_html( $label ); ?></span>
@@ -84,7 +111,7 @@ function dv_render_pickup_admin_row( $index, $location = array() ) {
           <?php endif; ?></label>
         <?php endforeach; ?>
       </div>
-      <button class="button" type="button" data-pickup-remove>Убрать пункт</button>
+      </details>
     </div>
     <?php
 }

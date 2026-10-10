@@ -127,17 +127,81 @@
       var widget = button.closest('.filter-widget');
       var extra = Array.from(widget.querySelectorAll('[data-dv-extra-brand]'));
       if (!extra.length) return;
-      button.hidden = false;
-      extra.forEach(function (item) { item.hidden = true; });
-      button.addEventListener('click', function () {
-        var open = button.getAttribute('aria-expanded') !== 'true';
+      function hasSelection() {
+        return !!widget.querySelector('.js-filter-marka:checked');
+      }
+      function setExpanded(open) {
         button.setAttribute('aria-expanded', String(open));
         button.textContent = open ? '\u0421\u043a\u0440\u044b\u0442\u044c' : '\u0412\u0441\u0435 \u043c\u0430\u0440\u043a\u0438';
         extra.forEach(function (item) { item.hidden = !open; });
+      }
+      setExpanded(hasSelection());
+      button.hidden = hasSelection();
+      widget.addEventListener('change', function (event) {
+        if (!event.target.matches('.js-filter-marka')) return;
+        var selected = hasSelection();
+        if (selected) setExpanded(true);
+        button.hidden = selected;
+      });
+      button.addEventListener('click', function () {
+        setExpanded(hasSelection() || button.getAttribute('aria-expanded') !== 'true');
       });
     });
     var checkout = document.querySelector('form.checkout');
     if (checkout) {
+      var fulfilment = checkout.querySelector('[data-dv-fulfilment]');
+      if (fulfilment) {
+        var pickupSelect = fulfilment.querySelector('[name="dv_pickup_key"]');
+        var pickupFields = fulfilment.querySelector('[data-dv-pickup-fields]');
+        var pickupDetails = fulfilment.querySelector('[data-dv-pickup-details]');
+        var customerDetails = checkout.querySelector('#customer_details');
+        var customerSection = customerDetails && customerDetails.closest('.checkout-section');
+        var customerTitle = customerSection && customerSection.querySelector('.checkout-section-title');
+        var otherTitle = checkout.querySelector('#ship-to-different-address');
+        otherTitle = otherTitle && otherTitle.closest('.checkout-section') ? otherTitle.closest('.checkout-section').querySelector('.checkout-section-title') : null;
+        var pickupTitles = [
+          {element: customerTitle, label: '\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435'},
+          {element: otherTitle, label: '\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439 \u043a \u0437\u0430\u043a\u0430\u0437\u0443'}
+        ].map(function (item) {
+          var node = item.element && Array.from(item.element.childNodes).find(function (child) { return child.nodeType === Node.TEXT_NODE && child.textContent.trim(); });
+          return node ? {node: node, original: node.nodeValue, label: item.label} : null;
+        }).filter(Boolean);
+        var addressFields = ['billing_country', 'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state', 'billing_postcode'];
+        function syncFulfilment(updateTotals) {
+          var mode = fulfilment.querySelector('[name="dv_fulfilment"]:checked');
+          var pickup = mode && mode.value === 'pickup';
+          pickupTitles.forEach(function (item) { item.node.nodeValue = pickup ? ' ' + item.label : item.original; });
+          checkout.classList.toggle('is-dv-pickup', Boolean(pickup));
+          pickupFields.hidden = !pickup;
+          pickupSelect.required = Boolean(pickup);
+          var option = pickupSelect.options[pickupSelect.selectedIndex];
+          pickupDetails.textContent = option ? [option.dataset.hours, option.dataset.phone].filter(Boolean).join(' · ') : '';
+          addressFields.forEach(function (name) {
+            var field = checkout.querySelector('[name="' + name + '"]');
+            var row = field && field.closest('.form-row');
+            if (!row) return;
+            if (!row.hasAttribute('data-dv-was-required')) row.dataset.dvWasRequired = field.dataset.dvDeliveryRequired || (row.classList.contains('validate-required') ? '1' : '0');
+            row.hidden = Boolean(pickup);
+            var required = !pickup && row.dataset.dvWasRequired === '1';
+            row.classList.toggle('validate-required', required);
+            field.required = required;
+            field.setAttribute('aria-required', required ? 'true' : 'false');
+          });
+          var otherAddress = checkout.querySelector('#ship-to-different-address');
+          if (otherAddress) {
+            otherAddress.hidden = Boolean(pickup);
+            var checkbox = otherAddress.querySelector('input');
+            if (pickup && checkbox && checkbox.checked) {
+              checkbox.checked = false;
+              if (window.jQuery) window.jQuery(checkbox).trigger('change');
+            }
+          }
+          if (updateTotals && window.jQuery) window.jQuery(document.body).trigger('update_checkout');
+        }
+        fulfilment.addEventListener('change', function () { syncFulfilment(true); });
+        if (window.jQuery) window.jQuery(document.body).on('updated_checkout', function () { syncFulfilment(false); });
+        syncFulfilment(false);
+      }
       function cleanBillingPrefix(text) {
         return (text || '').replace(/^\s*\u0412\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u0447[\u0435\u0451]\u0442\u0430\s+/i, '');
       }

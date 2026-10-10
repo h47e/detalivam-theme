@@ -1672,7 +1672,24 @@
   };
 
   $(document).on('change', '.js-filter-marka', function() {
-    window.dvApplyFilter('marka', this.value, this.checked);
+    var row = this.closest('.filter-item');
+    if (row) row.classList.toggle('is-selected', this.checked);
+  });
+
+  $(document).on('click', '.js-filter-marka-apply', function() {
+    var url = new URL(window.location.href);
+    var widget = this.closest('.filter-widget--marka');
+    if (!widget) return;
+    var selected = (url.searchParams.get('marka') || '').split(',').filter(Boolean);
+    widget.querySelectorAll('.js-filter-marka').forEach(function(input) {
+      selected = selected.filter(function(value) { return value !== input.value; });
+      if (input.checked) selected.push(input.value);
+    });
+    if (selected.length) url.searchParams.set('marka', selected.join(','));
+    else url.searchParams.delete('marka');
+    url.searchParams.delete('paged');
+    url.pathname = url.pathname.replace(/\/page\/\d+\/?$/, '/');
+    window.location.href = url.toString();
   });
 
   $(document).on('change', '.js-filter-stock', function() {

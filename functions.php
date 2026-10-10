@@ -36,6 +36,7 @@ $dv_theme_modules = array(
     'inc/customer-discounts.php',
     'inc/template-functions.php',
     'inc/woocommerce.php',
+    'inc/pickup-checkout.php',
 );
 
 foreach ( $dv_theme_modules as $dv_theme_module ) {

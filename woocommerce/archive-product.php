@@ -12,7 +12,8 @@ global $wp, $wp_query;
 $current_cat    = is_product_category() ? get_queried_object() : null;
 $cat_trail      = $current_cat && function_exists( 'dv_get_term_trail' ) ? dv_get_term_trail( $current_cat, 'product_cat' ) : [];
 $search_term    = is_search() ? get_search_query() : '';
-$selected_marka = sanitize_title( wp_unslash( $_GET['marka'] ?? '' ) );
+$selected_markas = dv_parse_marka_filter_slugs( wp_unslash( $_GET['marka'] ?? '' ) );
+$selected_marka = implode( ',', $selected_markas );
 $selected_stock = isset( $_GET['stock'] ) && 'instock' === $_GET['stock'];
 $selected_min   = sanitize_text_field( wp_unslash( $_GET['min_price'] ?? '' ) );
 $selected_max   = sanitize_text_field( wp_unslash( $_GET['max_price'] ?? '' ) );
@@ -61,7 +62,12 @@ $has_active_marka = false;
 
 if ( '' !== $selected_marka ) {
     $marka_taxonomy = function_exists( 'dv_get_marka_taxonomy' ) ? dv_get_marka_taxonomy() : '';
-    $marka_term     = $marka_taxonomy ? get_term_by( 'slug', $selected_marka, $marka_taxonomy ) : false;
+    $marka_names = array();
+    foreach ( $selected_markas as $slug ) {
+        $term = $marka_taxonomy ? get_term_by( 'slug', $slug, $marka_taxonomy ) : false;
+        if ( $term && ! is_wp_error( $term ) ) $marka_names[] = $term->name;
+    }
+    $marka_term = count( $marka_names ) === count( $selected_markas ) ? (object) array( 'name' => implode( ', ', $marka_names ) ) : false;
 
     if ( $marka_term && ! is_wp_error( $marka_term ) ) {
         $has_active_marka = true;
@@ -225,6 +231,15 @@ if ( empty( $marka_terms ) && function_exists( 'wc_get_product' ) && $wp_query i
     );
 }
 
+// Selected brands remain available even when the sidebar term limit is small.
+if ( $marka_taxonomy && $selected_markas ) {
+    $listed_slugs = array_map( static function ( $term ) { return $term->slug; }, $marka_terms );
+    foreach ( array_diff( $selected_markas, $listed_slugs ) as $slug ) {
+        $term = get_term_by( 'slug', $slug, $marka_taxonomy );
+        if ( $term && ! is_wp_error( $term ) ) $marka_terms[] = $term;
+    }
+}
+
 if ( '' !== $selected_marka && ! $has_active_marka ) {
     $marka_label = '';
 
@@ -236,7 +251,7 @@ if ( '' !== $selected_marka && ! $has_active_marka ) {
     }
 
     if ( '' === $marka_label ) {
-        $marka_label = str_replace( '-', ' ', $selected_marka );
+        $marka_label = str_replace( array( '-', ',' ), array( ' ', ', ' ), $selected_marka );
     }
 
     $args = $reset_args;
@@ -432,9 +447,9 @@ if ( $current_cat ) {
         <?php if ( $marka_terms && ! is_wp_error( $marka_terms ) ) : ?>
           <div class="filter-list">
             <?php foreach ( $marka_terms as $marka_index => $term ) : ?>
-              <div class="filter-item filter-item--check<?php echo $selected_marka === $term->slug ? ' is-selected' : ''; ?>"<?php echo $marka_index >= 3 && $selected_marka !== $term->slug ? ' data-dv-extra-brand' : ''; ?>>
+              <div class="filter-item filter-item--check<?php echo in_array( $term->slug, $selected_markas, true ) ? ' is-selected' : ''; ?>"<?php echo $marka_index >= 3 && ! in_array( $term->slug, $selected_markas, true ) ? ' data-dv-extra-brand' : ''; ?>>
                 <label class="filter-checkbox-label">
-                  <input type="checkbox" class="filter-checkbox-input js-filter-marka" value="<?php echo esc_attr( $term->slug ); ?>" <?php checked( $selected_marka === $term->slug ); ?>>
+                  <input type="checkbox" class="filter-checkbox-input js-filter-marka" value="<?php echo esc_attr( $term->slug ); ?>" <?php checked( in_array( $term->slug, $selected_markas, true ) ); ?>>
                   <?php echo esc_html( $term->name ); ?>
                 </label>
               </div>
@@ -446,6 +461,9 @@ if ( $current_cat ) {
         <?php else : ?>
           <p class="filter-empty-note"><?php echo esc_html( $labels['marka_empty'] ); ?></p>
         <?php endif; ?>
+          <?php if ( $marka_terms ) : ?>
+            <button type="button" class="filter-apply js-filter-marka-apply"><?php echo esc_html( $labels['apply'] ); ?></button>
+          <?php endif; ?>
         </div>
       </div>
         <?php

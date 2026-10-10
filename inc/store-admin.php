@@ -377,6 +377,7 @@ function dv_render_store_settings_page() {
     ?>
     <div class="wrap dv-suite-page dv-store-settings-page">
       <?php dv_render_admin_suite_header( 'dv-store-settings', $labels['page_title'], $labels['section_desc'] ); ?>
+      <?php if ( function_exists( 'settings_errors' ) ) settings_errors( 'dv_pickup_locations' ); ?>
 
       <form class="dv-suite-card dv-store-settings-form" method="post" action="options.php" data-dv-unsaved-form>
         <?php settings_fields( 'dv_store_profile_group' ); ?>

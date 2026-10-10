@@ -436,12 +436,23 @@ function dv_register_query_vars( $vars ) {
 }
 add_filter( 'query_vars', 'dv_register_query_vars' );
 
+function dv_parse_marka_filter_slugs( $value ) {
+    $values = is_array( $value ) ? $value : explode( ',', is_scalar( $value ) ? (string) $value : '' );
+    $slugs = array();
+    foreach ( array_slice( $values, 0, 80 ) as $item ) {
+        if ( ! is_scalar( $item ) ) continue;
+        $slug = sanitize_title( (string) $item );
+        if ( '' !== $slug ) $slugs[] = $slug;
+    }
+    return array_values( array_unique( $slugs ) );
+}
+
 function dv_get_request_filter_args() {
     $min_price = sanitize_text_field( wp_unslash( $_GET['min_price'] ?? '' ) );
     $max_price = sanitize_text_field( wp_unslash( $_GET['max_price'] ?? '' ) );
 
     return array(
-        'marka'     => sanitize_title( wp_unslash( $_GET['marka'] ?? '' ) ),
+        'marka'     => implode( ',', dv_parse_marka_filter_slugs( wp_unslash( $_GET['marka'] ?? '' ) ) ),
         'stock'     => isset( $_GET['stock'] ) && 'instock' === $_GET['stock'] ? 'instock' : '',
         'min_price' => is_numeric( $min_price ) ? (float) $min_price : '',
         'max_price' => is_numeric( $max_price ) ? (float) $max_price : '',
@@ -1506,8 +1517,10 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
     $marka_tax   = dv_get_marka_taxonomy();
 
     if ( $marka_tax && '' !== $filter_args['marka'] ) {
-        $filter_sql .= $wpdb->prepare(
-            " AND (
+        $brand_filters = array();
+        foreach ( dv_parse_marka_filter_slugs( $filter_args['marka'] ) as $marka_slug ) {
+            $brand_filters[] = $wpdb->prepare(
+            " (
                 EXISTS (
                     SELECT 1 FROM {$wpdb->term_relationships} tr_m
                     INNER JOIN {$wpdb->term_taxonomy} tt_m ON tt_m.term_taxonomy_id = tr_m.term_taxonomy_id
@@ -1524,11 +1537,13 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
                       AND pm_attr.meta_value LIKE %s
                 )
             )",
-            $marka_tax,
-            $filter_args['marka'],
-            '%' . $wpdb->esc_like( $marka_tax ) . '%',
-            '%' . $wpdb->esc_like( $filter_args['marka'] ) . '%'
-        );
+                $marka_tax,
+                $marka_slug,
+                '%' . $wpdb->esc_like( $marka_tax ) . '%',
+                '%' . $wpdb->esc_like( $marka_slug ) . '%'
+            );
+        }
+        if ( $brand_filters ) $filter_sql .= ' AND (' . implode( ' OR ', $brand_filters ) . ')';
     }
 
     if ( 'instock' === $filter_args['stock'] ) {
@@ -1623,9 +1638,9 @@ function dv_get_product_search_ids( $raw_query, $limit = 0, $filter_args = array
 }
 
 function dv_get_product_ids_for_marka_filter( $marka_slug, $query, $tax_query = array(), $meta_query = array() ) {
-    $marka_slug = sanitize_title( $marka_slug );
+    $marka_slugs = dv_parse_marka_filter_slugs( $marka_slug );
 
-    if ( '' === $marka_slug || ! $query instanceof WP_Query || ! function_exists( 'wc_get_product' ) || ! function_exists( 'dv_get_product_marka_values' ) ) {
+    if ( ! $marka_slugs || ! $query instanceof WP_Query || ! function_exists( 'wc_get_product' ) || ! function_exists( 'dv_get_product_marka_values' ) ) {
         return array();
     }
 
@@ -1670,7 +1685,7 @@ function dv_get_product_ids_for_marka_filter( $marka_slug, $query, $tax_query = 
         }
 
         foreach ( dv_get_product_marka_values( $product, $marka_taxonomy ) as $brand_data ) {
-            if ( ! empty( $brand_data['slug'] ) && $marka_slug === $brand_data['slug'] ) {
+            if ( ! empty( $brand_data['slug'] ) && in_array( $brand_data['slug'], $marka_slugs, true ) ) {
                 $matched_ids[] = (int) $product_id;
                 break;
             }
@@ -1697,7 +1712,8 @@ function dv_apply_catalog_filters( $query ) {
             $tax_query[] = array(
                 'taxonomy' => $taxonomy,
                 'field'    => 'slug',
-                'terms'    => array( $filters['marka'] ),
+                'terms'    => dv_parse_marka_filter_slugs( $filters['marka'] ),
+                'operator' => 'IN',
             );
         }
     }

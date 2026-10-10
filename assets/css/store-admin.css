@@ -515,6 +515,9 @@ body.dv-suite-admin .dv-store-settings-page > form.dv-store-settings-form {
 }
 /* Pickup location editor shares the existing store form and save action. */
 .dv-pickup-editor-row { padding: 16px 0; border-bottom: 1px solid #d9e4f0; margin-bottom: 12px; }
+.dv-pickup-order-controls { display: flex; gap: 6px; margin-top: 10px; }
+.dv-pickup-order-controls .button { display: inline-flex; width: 40px; height: 36px; padding: 0; align-items: center; justify-content: center; }
+.dv-pickup-order-controls .dashicons { width: 18px; height: 18px; font-size: 18px; }
 .dv-pickup-editor-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
 .dv-pickup-editor-fields label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .dv-pickup-editor-fields input, .dv-pickup-editor-fields textarea { width: 100%; min-width: 0; }

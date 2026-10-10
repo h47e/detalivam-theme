@@ -17,24 +17,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
   page.querySelectorAll('[data-pickup-editor]').forEach(function (editor) {
     var nextIndex = Number(editor.dataset.nextIndex || 0);
+    function updateOrderButtons() {
+      var pickupRows = Array.from(editor.querySelectorAll('[data-pickup-rows] > [data-pickup-row]'));
+      pickupRows.forEach(function (row, index) {
+        row.querySelector('[data-pickup-move="up"]').disabled = index === 0;
+        row.querySelector('[data-pickup-move="down"]').disabled = index === pickupRows.length - 1;
+      });
+    }
     editor.addEventListener('click', function (event) {
+      var move = event.target.closest('[data-pickup-move]');
+      if (move) {
+        var row = move.closest('[data-pickup-row]');
+        var neighbour = move.dataset.pickupMove === 'up' ? row.previousElementSibling : row.nextElementSibling;
+        if (!neighbour) return;
+        if (move.dataset.pickupMove === 'up') neighbour.before(row);
+        else neighbour.after(row);
+        updateOrderButtons();
+        editor.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!move.disabled) move.focus();
+        else row.querySelector(move.dataset.pickupMove === 'up' ? '[data-pickup-move="down"]' : '[data-pickup-move="up"]').focus();
+        return;
+      }
       if (event.target.closest('[data-pickup-add]')) {
         if (editor.querySelectorAll('[data-pickup-row]').length >= 100) return;
         var template = editor.querySelector('[data-pickup-template]');
         var fragment = template.content.cloneNode(true);
         fragment.querySelectorAll('[name]').forEach(function (field) { field.name = field.name.replace('__INDEX__', String(nextIndex)); });
+        fragment.querySelector('[data-pickup-order]').value = String(nextIndex);
         nextIndex++;
         var first = fragment.querySelector('input[type="text"]');
         editor.querySelector('[data-pickup-rows]').appendChild(fragment);
+        updateOrderButtons();
         editor.dispatchEvent(new Event('change', { bubbles: true }));
         if (first) first.focus();
       }
       if (event.target.closest('[data-pickup-remove]')) {
         event.target.closest('[data-pickup-row]').remove();
+        updateOrderButtons();
         editor.dispatchEvent(new Event('change', { bubbles: true }));
         editor.querySelector('[data-pickup-add]').focus();
       }
     });
+    editor.addEventListener('input', function (event) {
+      var row = event.target.closest('[data-pickup-row]');
+      if (!row) return;
+      var city = row.querySelector('[name$="[city]"]');
+      var address = row.querySelector('[name$="[address]"]');
+      row.querySelector('[data-pickup-city]').textContent = city.value.trim() || '\u041d\u043e\u0432\u044b\u0439 \u043f\u0443\u043d\u043a\u0442';
+      row.querySelector('[data-pickup-address]').textContent = address.value.trim();
+    });
+    updateOrderButtons();
   });
 
   var sections = Array.prototype.slice.call(page.querySelectorAll('[data-dv-store-section]'));

@@ -8,6 +8,29 @@ document.addEventListener('DOMContentLoaded', function () {
   setupDensityToggle();
   setupSaveFeedback();
   setupUnsavedForms();
+  setupAdminIconButtons();
+  document.querySelectorAll('[data-dv-admin-page-select]').forEach(function (select) {
+    select.addEventListener('change', function () { if (select.value) window.location.assign(select.value); });
+  });
+
+  function setupAdminIconButtons() {
+    function classify(root) {
+      var buttons = root.matches && root.matches('button, a.button') ? [root] : [];
+      if (root.querySelectorAll) buttons = buttons.concat(Array.prototype.slice.call(root.querySelectorAll('button, a.button')));
+      buttons.forEach(function (button) {
+        if (!button.closest('.dv-suite-page, .dv-suite-command, .dv-suite-dirty-bar')) return;
+        var icon = button.querySelector(':scope > .dashicons, :scope > svg');
+        var text = button.textContent.trim();
+        if ((icon && !text) || (!button.children.length && /^[×✕+−\-↑↓]$/.test(text))) button.classList.add('dv-admin-icon-button');
+      });
+    }
+    classify(document);
+    new MutationObserver(function (records) {
+      records.forEach(function (record) {
+        record.addedNodes.forEach(function (node) { if (node.nodeType === Node.ELEMENT_NODE) classify(node); });
+      });
+    }).observe(document.body, {childList: true, subtree: true});
+  }
 
   function setupSectionNavigation() {
     var page = document.querySelector('.dv-suite-page');
@@ -558,10 +581,14 @@ document.addEventListener('DOMContentLoaded', function () {
       var type = (control.getAttribute('type') || '').toLowerCase();
       var excludedTypes = ['button', 'submit', 'reset', 'hidden', 'search'];
 
-      return control.name && excludedTypes.indexOf(type) === -1 && !control.disabled;
+      return control.name && (excludedTypes.indexOf(type) === -1 || control.hasAttribute('data-pickup-order')) && !control.disabled;
     }
 
     function getControlValue(control) {
+      if (control.hasAttribute('data-pickup-order')) {
+        var editor = control.closest('[data-pickup-editor]');
+        return Array.prototype.slice.call(editor.querySelectorAll('[data-pickup-rows] [data-pickup-order]')).map(function (field) { return field.value; }).join(',');
+      }
       var type = (control.getAttribute('type') || '').toLowerCase();
 
       if (type === 'checkbox' || type === 'radio') {
@@ -583,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getFieldWrapper(control) {
-      return control.closest('.dv-admin-field, .dv-admin-check, tr, label');
+      return control.closest('.dv-admin-field, .dv-admin-check, .dv-pickup-editor-row, tr, label');
     }
 
     function getDirtyControls() {
