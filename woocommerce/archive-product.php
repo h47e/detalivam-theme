@@ -486,7 +486,7 @@ if ( $current_cat ) {
           <div class="filter-list">
             <?php foreach ( $cats as $c ) : ?>
               <?php $is_current = $current_cat && (int) $current_cat->term_id === (int) $c->term_id; ?>
-              <a href="<?php echo esc_url( get_term_link( $c ) ); ?>" class="filter-item filter-item-link<?php echo $is_current ? ' active is-current' : ''; ?>">
+              <a href="<?php echo esc_url( get_term_link( $c ) ); ?>" class="filter-item filter-item-link<?php echo $is_current ? ' active is-current' : ''; ?>"<?php echo $is_current ? ' aria-current="page"' : ''; ?>>
                 <span class="filter-item-name"><?php echo esc_html( $c->name ); ?></span>
                 <span class="filter-item-count"><?php echo esc_html( $c->count ); ?></span>
               </a>

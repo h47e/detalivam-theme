@@ -65,7 +65,7 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
         <?php endif; ?>
 
         <?php if ( $dv_footer_catalog_enabled ) : ?>
-        <div>
+        <div class="footer-catalog">
           <div class="footer-col-title"><?php echo esc_html( $dv_content['footer_catalog_title'] ?? '' ); ?></div>
           <div class="footer-links">
             <?php
@@ -95,7 +95,7 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
         <?php endif; ?>
 
         <?php if ( $dv_footer_customers_enabled ) : ?>
-        <div>
+        <div class="footer-customers">
           <div class="footer-col-title"><?php echo esc_html( $dv_content['footer_customers_title'] ?? '' ); ?></div>
           <div class="footer-links">
             <?php $dv_footer_rendered_customer_urls = array(); ?>
@@ -159,7 +159,7 @@ $dv_footer_custom_service_pages = function_exists( 'dv_get_footer_custom_service
         <?php endif; ?>
 
         <?php if ( $dv_footer_company_enabled ) : ?>
-        <div>
+        <div class="footer-company">
           <div class="footer-col-title"><?php echo esc_html( $dv_content['footer_company_title'] ?? '' ); ?></div>
           <div class="footer-links">
             <?php if ( $dv_footer_company_1_enabled && $dv_service_about_enabled && '' !== trim( (string) ( $dv_content['footer_company_1_label'] ?? '' ) ) ) : ?>
