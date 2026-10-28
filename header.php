@@ -2,7 +2,7 @@
 <html <?php language_attributes(); ?>>
 <head>
 <meta charset="<?php echo esc_attr( get_bloginfo( 'charset' ) ); ?>">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <?php wp_head(); ?>
 </head>
 <body <?php function_exists( 'dv_body_class' ) ? dv_body_class() : body_class(); ?>>
@@ -231,5 +231,16 @@ if ( function_exists( 'wc_get_page_id' ) ) {
   <?php endif; ?>
 
 </header>
+
+<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+  <?php get_template_part( 'template-parts/mobile-navigation', null, array(
+      'shop_url' => $dv_topbar_shop_fallback,
+      'wishlist' => $dv_header_actions_enabled && $dv_header_wishlist_enabled,
+      'cart'     => $dv_header_actions_enabled && $dv_header_cart_enabled,
+      'account'  => $dv_header_actions_enabled && $dv_header_account_enabled,
+      'wishlist_count' => $dv_wishlist_count,
+      'cart_count'     => $dv_cart_count,
+  ) ); ?>
+<?php endif; ?>
 
 <div id="page-content">

@@ -26,7 +26,7 @@ $product_cat_trail = $primary_cat ? dv_get_term_trail( $primary_cat, 'product_ca
         <span class="sep">/</span>
         <a href="<?php echo esc_url( get_term_link( $trail_term ) ); ?>"><?php echo esc_html( $trail_term->name ); ?></a>
       <?php endforeach; ?>
-      <span class="sep">/</span>
+      <span class="sep product-breadcrumb-current-sep">/</span>
       <span class="current"><?php echo esc_html( $product_page_name ); ?></span>
     </nav>
   </div>
@@ -406,7 +406,7 @@ $dv_ozon_icon_url = function_exists( 'dv_get_ozon_icon_url' ) ? dv_get_ozon_icon
         ?>
 
         <div class="product-buy-rail">
-          <div class="product-purchase-panel">
+          <div class="product-purchase-panel" data-dv-product-type="<?php echo esc_attr( $product->get_type() ); ?>">
             <?php
             $secondary_open = false;
             foreach ( $product_buy_blocks as $buy_block ) {

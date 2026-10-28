@@ -49,6 +49,10 @@ if ( '' === $img_html ) {
     );
 }
 
+if ( $img_id && function_exists( 'dv_mobile_card_picture' ) ) {
+    $img_html = dv_mobile_card_picture( $img_id, $img_html );
+}
+
 $is_sale      = $product->is_on_sale();
 $is_new       = strtotime( (string) $product->get_date_created() ) > strtotime( '-30 days' );
 $stock        = $product->get_stock_quantity();
@@ -129,6 +133,25 @@ $labels       = function_exists( 'dv_get_product_card_labels' ) ? dv_get_product
           <span class="dv-compat-more">+<?php echo esc_html( count( $compat_tags ) - 4 ); ?></span>
         <?php endif; ?>
       </div>
+      <?php if ( count( $compat_tags ) > 2 ) : ?>
+      <details class="dv-card-compat-mobile">
+        <summary>
+          <span class="sr-only">Совместимость</span>
+          <span class="dv-compat-preview" aria-hidden="true">
+            <?php foreach ( array_slice( $compat_tags, 0, 2 ) as $tag ) : ?>
+              <span class="dv-compat-chip"><?php echo esc_html( $tag ); ?></span>
+            <?php endforeach; ?>
+          </span>
+          <span class="dv-compat-expand">+<?php echo esc_html( count( $compat_tags ) - 2 ); ?></span>
+          <span class="dv-compat-collapse">Скрыть</span>
+        </summary>
+        <div class="dv-card-compat">
+          <?php foreach ( $compat_tags as $tag ) : ?>
+            <span class="dv-compat-chip"><?php echo esc_html( $tag ); ?></span>
+          <?php endforeach; ?>
+        </div>
+      </details>
+      <?php endif; ?>
       <?php endif; ?>
 
       <?php if ( $show_rating && $rating > 0 ) : ?>

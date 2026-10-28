@@ -81,7 +81,7 @@ function dv_checkout_pickup_packages( $packages ) {
     $choice = dv_checkout_pickup_choice();
     foreach ( $packages as &$package ) {
         $package['dv_pickup_selection'] = $choice;
-        $package['dv_fulfilment_rates_version'] = 2;
+        $package['dv_fulfilment_rates_version'] = 3;
     }
     unset( $package );
     return $packages;
@@ -95,7 +95,10 @@ function dv_checkout_pickup_rates( $rates, $package ) {
         // Zero is provisional: the manager confirms delivery cost before payment.
         return array( 'dv_manager_delivery' => new WC_Shipping_Rate( 'dv_manager_delivery', 'Уточнит менеджер', 0, array(), 'dv_manager_delivery' ) );
     }
-    if ( ! isset( $locations[ $choice['key'] ] ) ) return $rates;
+    if ( ! isset( $locations[ $choice['key'] ] ) ) {
+        // Keep delivery options out of pickup mode; checkout validation requires a branch.
+        return array( 'dv_branch_pickup' => new WC_Shipping_Rate( 'dv_branch_pickup', 'Выберите пункт самовывоза', 0, array(), 'local_pickup' ) );
+    }
     $row = $locations[ $choice['key'] ];
     return array( 'dv_branch_pickup' => new WC_Shipping_Rate( 'dv_branch_pickup', 'Самовывоз: ' . $row['city'], 0, array(), 'local_pickup' ) );
 }

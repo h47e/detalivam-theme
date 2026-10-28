@@ -735,6 +735,9 @@ add_action( 'wp_enqueue_scripts', 'dv_enqueue' );
 
 function dv_unified_storefront_body_class( $classes ) {
     $classes[] = 'dv-storefront-unified';
+    if ( class_exists( 'WooCommerce' ) ) {
+        $classes[] = 'dv-mobile-app';
+    }
     return array_values( array_unique( $classes ) );
 }
 add_filter( 'body_class', 'dv_unified_storefront_body_class' );

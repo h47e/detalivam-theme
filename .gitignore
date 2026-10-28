@@ -8,3 +8,6 @@ Desktop.ini
 # Dependency/cache folders if they appear later
 node_modules/
 vendor/
+
+# Local browser QA screenshots and reports
+tools/admin-qa-results/

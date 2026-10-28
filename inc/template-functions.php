@@ -4,6 +4,52 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+/** Use existing, uncropped intermediates on phones without changing the fallback image. */
+function dv_mobile_card_picture( $attachment_id, $img_html ) {
+    if ( ! $img_html || ! $attachment_id ) {
+        return $img_html;
+    }
+    $meta = wp_get_attachment_metadata( $attachment_id );
+    $file = get_attached_file( $attachment_id );
+    if ( ! is_array( $meta ) || empty( $meta['width'] ) || empty( $meta['height'] ) || ! $file || ! is_file( $file ) ) {
+        return $img_html;
+    }
+    $base = realpath( dirname( $file ) );
+    $ratio = (float) $meta['width'] / (float) $meta['height'];
+    $sources = array();
+    foreach ( array( 'medium', 'medium_large' ) as $size ) {
+        $image = $meta['sizes'][ $size ] ?? array();
+        $name = $image['file'] ?? '';
+        $width = (int) ( $image['width'] ?? 0 );
+        $height = (int) ( $image['height'] ?? 0 );
+        if ( ! is_string( $name ) || ! $name || strpbrk( $name, '/\\' ) !== false || $width <= 0 || $height <= 0 || $width > 1024 || $width >= (int) $meta['width'] ) {
+            continue;
+        }
+        if ( abs( ( $width / $height ) / $ratio - 1 ) > 0.02 ) {
+            continue;
+        }
+        $path = realpath( $base . DIRECTORY_SEPARATOR . $name );
+        if ( ! $path || ! is_file( $path ) || dirname( $path ) !== $base ) {
+            continue;
+        }
+        $src = wp_get_attachment_image_src( $attachment_id, $size );
+        if ( ! is_array( $src ) || empty( $src[3] ) || (int) $src[1] !== $width || (int) $src[2] !== $height ) {
+            continue;
+        }
+        $url = esc_url( $src[0] );
+        if ( ! $url || preg_match( '/[\\s,]/', $url ) ) {
+            continue;
+        }
+        $sources[ $width ] = $url . ' ' . $width . 'w';
+    }
+    // A lone small thumbnail is not enough for a high-density phone display.
+    if ( ! $sources || max( array_keys( $sources ) ) < 360 ) {
+        return $img_html;
+    }
+    ksort( $sources, SORT_NUMERIC );
+    return '<picture class="dv-card-picture"><source media="(max-width: 767px)" sizes="calc(100vw - 32px)" srcset="' . esc_attr( implode( ', ', $sources ) ) . '">' . $img_html . '</picture>';
+}
+
 function dv_get_nav( $location = 'primary' ) {
     return wp_nav_menu(
         array(
